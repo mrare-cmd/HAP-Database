@@ -15,100 +15,110 @@
       --gray-border:#e2e8f0;
       --text:       #1e293b;
       --text-light: #64748b;
-      --green:      #15803d;
-      --red:        #dc2626;
-      --yellow:     #d97706;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 14px; color: var(--text); background: var(--gray-bg); }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: var(--text); background: var(--gray-bg); }
 
     header {
       background: var(--blue-dark); color: #fff;
-      padding: 16px 24px;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+      padding: 14px 20px; display: flex; align-items: center;
+      justify-content: space-between; gap: 8px;
     }
-    header h1 { font-size: 20px; font-weight: 700; }
-    header p  { font-size: 12px; opacity: 0.75; }
+    header h1 { font-size: 18px; font-weight: 700; }
+    header p  { font-size: 11px; opacity: .7; }
 
     .controls {
       background: #fff; border-bottom: 1px solid var(--gray-border);
-      padding: 14px 24px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+      padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
     }
-    .control-group { display: flex; flex-direction: column; gap: 4px; }
-    .control-group label { font-size: 11px; font-weight: 600; color: var(--text-light); text-transform: uppercase; letter-spacing: .04em; }
+    .control-group { display: flex; flex-direction: column; gap: 3px; }
+    .control-group label { font-size: 10px; font-weight: 700; color: var(--text-light); text-transform: uppercase; letter-spacing: .05em; }
     input[type="text"] {
       border: 1px solid var(--gray-border); border-radius: 4px;
-      padding: 6px 10px; font-size: 13px; color: var(--text); background: #fff; height: 34px; width: 180px;
+      padding: 5px 9px; font-size: 13px; height: 32px; width: 170px;
     }
-    input[type="text"]:focus { outline: none; border-color: var(--blue-mid); box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+    input[type="text"]:focus { outline: none; border-color: var(--blue-mid); box-shadow: 0 0 0 2px rgba(37,99,235,.12); }
 
-    .btn {
-      height: 34px; padding: 0 16px; border-radius: 4px; border: none;
-      cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .15s;
-    }
-    .btn:hover { opacity: .85; }
+    .btn { height: 32px; padding: 0 14px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; font-weight: 700; }
     .btn-primary   { background: var(--blue-mid); color: #fff; }
-    .btn-secondary { background: var(--gray-border); color: var(--text); }
-    .btn-sm {
-      height: 26px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--gray-border);
-      background: #fff; cursor: pointer; font-size: 11px; font-weight: 600;
-      color: var(--text-light); transition: all .15s; white-space: nowrap;
-    }
-    .btn-sm:hover { background: var(--blue-light); border-color: var(--blue-mid); color: var(--blue-dark); }
-    .btn-sm.copied { background: #dcfce7; border-color: var(--green); color: var(--green); }
+    .btn-secondary { background: #e2e8f0; color: var(--text); }
+    .btn:hover { opacity: .85; }
 
     .status-bar {
-      padding: 8px 24px; font-size: 12px; color: var(--text-light);
-      background: var(--blue-light); display: flex; align-items: center;
-      justify-content: space-between; flex-wrap: wrap; gap: 6px;
+      padding: 7px 20px; font-size: 11px; color: var(--text-light);
+      background: var(--blue-light); display: flex; justify-content: space-between; align-items: center;
     }
 
-    .table-wrap { overflow-x: auto; padding: 0 24px 24px; }
+    .table-wrap { overflow-x: auto; padding: 0 20px 32px; }
 
     table {
-      width: 100%; border-collapse: collapse; margin-top: 16px;
-      font-size: 13px; background: #fff;
-      border: 1px solid var(--gray-border); border-radius: 6px; overflow: hidden;
+      border-collapse: collapse; margin-top: 14px;
+      font-size: 12px; background: #fff;
+      border: 1px solid var(--gray-border);
     }
+
     thead tr { background: var(--blue-dark); color: #fff; }
     thead th {
-      padding: 10px 12px; text-align: left; font-weight: 600;
-      font-size: 12px; white-space: nowrap; cursor: pointer; user-select: none;
+      padding: 9px 10px; text-align: left; font-weight: 600;
+      font-size: 11px; white-space: nowrap; cursor: pointer;
+      user-select: none; border-right: 1px solid rgba(255,255,255,.1);
     }
     thead th:hover { background: #244b76; }
-    tbody tr { border-bottom: 1px solid var(--gray-border); }
+    thead th.copy-col { cursor: default; width: 52px; min-width: 52px; }
+
+    tbody tr { border-bottom: 1px solid var(--gray-border); transition: background .1s; }
     tbody tr:nth-child(even) { background: #f8fafc; }
     tbody tr:hover { background: var(--blue-light); }
-    td { padding: 8px 12px; vertical-align: middle; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-    .badge-green  { background: #dcfce7; color: var(--green); }
-    .badge-red    { background: #fee2e2; color: var(--red); }
-    .badge-yellow { background: #fef3c7; color: var(--yellow); }
-    .badge-blue   { background: var(--blue-light); color: var(--blue-dark); }
+    /* Copy flash animation */
+    @keyframes rowFlash {
+      0%   { background: #bbf7d0; }
+      60%  { background: #dcfce7; }
+      100% { background: transparent; }
+    }
+    @keyframes sweepShine {
+      0%   { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    tbody tr.copied {
+      animation: rowFlash 1.2s ease-out forwards;
+    }
 
-    .pagination { display: flex; align-items: center; gap: 8px; padding: 12px 24px; justify-content: center; }
-    .pagination button { border: 1px solid var(--gray-border); background: #fff; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
-    .pagination button:disabled { opacity: .4; cursor: default; }
+    td {
+      padding: 7px 10px; white-space: nowrap;
+      border-right: 1px solid var(--gray-border);
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* Sticky copy button column */
+    td.copy-col, th.copy-col {
+      position: sticky; left: 0; z-index: 2;
+      background: inherit;
+      border-right: 2px solid var(--gray-border);
+      padding: 4px 6px;
+    }
+    thead th.copy-col { background: var(--blue-dark); z-index: 3; }
+    tbody tr:nth-child(even) td.copy-col { background: #f8fafc; }
+    tbody tr:hover td.copy-col { background: var(--blue-light); }
+    tbody tr.copied td.copy-col { animation: rowFlash 1.2s ease-out forwards; }
+
+    .copy-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      width: 40px; height: 26px;
+      border-radius: 5px; border: 1.5px solid var(--gray-border);
+      background: #fff; cursor: pointer; font-size: 11px; font-weight: 700;
+      color: var(--text-light); transition: all .2s; padding: 0;
+    }
+    .copy-btn:hover { border-color: var(--blue-mid); color: var(--blue-mid); background: var(--blue-light); transform: scale(1.05); }
+    .copy-btn.success { border-color: #16a34a; color: #16a34a; background: #dcfce7; transform: scale(1.08); }
+    .copy-btn svg { flex-shrink: 0; }
+
+    .pagination { display: flex; align-items: center; gap: 6px; padding: 10px 20px; justify-content: center; }
+    .pagination button { border: 1px solid var(--gray-border); background: #fff; border-radius: 4px; padding: 4px 11px; cursor: pointer; font-size: 12px; }
+    .pagination button:disabled { opacity: .35; cursor: default; }
     .pagination button.active { background: var(--blue-dark); color: #fff; border-color: var(--blue-dark); }
 
-    #loading { text-align: center; padding: 48px; color: var(--text-light); font-size: 14px; }
-
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.45); z-index: 100;
-      justify-content: center; align-items: flex-start;
-      padding: 40px 20px; overflow-y: auto;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal { background: #fff; border-radius: 8px; width: 100%; max-width: 760px; padding: 28px; position: relative; }
-    .modal h2 { font-size: 18px; color: var(--blue-dark); margin-bottom: 16px; }
-    .modal-close { position: absolute; top: 14px; right: 16px; background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-light); }
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; }
-    .detail-group { display: flex; flex-direction: column; gap: 2px; }
-    .detail-group label { font-size: 11px; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
-    .detail-group span  { font-size: 13px; color: var(--text); word-break: break-word; }
-    .section-title { grid-column: 1/-1; font-weight: 700; color: var(--blue-dark); border-bottom: 1px solid var(--gray-border); padding-bottom: 4px; margin-top: 12px; }
+    #loading { text-align: center; padding: 48px; color: var(--text-light); }
   </style>
 </head>
 <body>
@@ -116,8 +126,8 @@
 <script>
   const SUPABASE_URL      = "https://ubdslkgttbxdcjegpvpm.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_sTUadAyRjSxQxsAyCLjrfw_1AKFZUcb";
-  const TABLE    = "hap_properties";
-  const PAGE_SIZE = 50;
+  const TABLE             = "hap_properties";
+  const PAGE_SIZE         = 50;
 </script>
 
 <header>
@@ -135,19 +145,19 @@
   </div>
   <div class="control-group">
     <label>City</label>
-    <input type="text" id="searchCity" placeholder="City..." />
+    <input type="text" id="searchCity" placeholder="City..." style="width:140px" />
   </div>
   <div class="control-group">
     <label>County</label>
-    <input type="text" id="searchCounty" placeholder="County..." />
+    <input type="text" id="searchCounty" placeholder="County..." style="width:140px" />
   </div>
   <div class="control-group">
     <label>Zip Code</label>
-    <input type="text" id="searchZip" placeholder="Zip..." style="width:110px" />
+    <input type="text" id="searchZip" placeholder="Zip..." style="width:90px" />
   </div>
   <div class="control-group">
     <label>MSA</label>
-    <input type="text" id="searchMsa" placeholder="MSA name..." style="width:220px" />
+    <input type="text" id="searchMsa" placeholder="MSA name..." style="width:200px" />
   </div>
   <button class="btn btn-secondary" id="resetBtn">Reset</button>
 </div>
@@ -160,96 +170,164 @@
 <div class="table-wrap">
   <div id="loading">Connecting to database...</div>
   <table id="mainTable" style="display:none">
-    <thead>
-      <tr>
-        <th data-col="property_name">Property Name</th>
-        <th data-col="city">City</th>
-        <th data-col="state">State</th>
-        <th data-col="county">County</th>
-        <th data-col="zip_code">ZIP</th>
-        <th data-col="msa_name_text">MSA</th>
-        <th data-col="total_units">Units</th>
-        <th data-col="program_type">Program</th>
-        <th data-col="hap_expiration_date">HAP Expiry</th>
-        <th data-col="contract_number">Contract #</th>
-        <th data-col="last_reac_1">REAC</th>
-        <th></th>
-      </tr>
-    </thead>
+    <thead id="tableHead"></thead>
     <tbody id="tableBody"></tbody>
   </table>
 </div>
 
 <div class="pagination" id="paginationBar"></div>
 
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <button class="modal-close" id="modalClose">&#x2715;</button>
-    <h2 id="modalTitle"></h2>
-    <div class="detail-grid" id="modalContent"></div>
-  </div>
-</div>
-
 <script>
 const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-let currentPage = 0;
-let totalCount  = 0;
-let sortCol     = "property_name";
-let sortAsc     = true;
-let currentRows = [];
+let currentPage   = 0;
+let totalCount    = 0;
+let sortCol       = "property_name";
+let sortAsc       = true;
+let currentRows   = [];
 let debounceTimer = null;
 
-// All 102 column names in original display order for copy/export
-const ALL_COLUMNS = [
-  "property_name","total_units","city","state","county","renewal_type","program_type","doc_type",
-  "hap_effective_date","hap_expiration_date","rent_to_fmr_ratio","last_reac_1","last_reac_2","last_reac_3",
-  "last_reac_date_1","last_reac_date_2","last_reac_date_3","f_1br_rent","f_2br_rent","f_3br_rent",
-  "f_4br_rent","f_0br_rent","f_5br_rent","f_1br_ua","f_2br_ua","f_3br_ua","f_4br_ua","f_0br_ua","f_5br_ua",
-  "contract_units","property_id","contract_number","property_id_2","last_react_no_letter_1",
-  "last_react_no_letter_2","last_react_no_letter_3","property_phone_number","address_line1_text",
-  "address_line2_text","city_name_text","state_code","zip_code","zip4_code","county_code","county_name_text",
-  "msa_code","msa_name_text","congressional_district_code","placed_base_city_name_text",
-  "property_total_unit_count","property_category_name","primary_financing_type",
-  "associated_financing_number","is_insured_ind","is_202_811_ind","is_hud_held_ind","is_hud_owned_ind",
-  "is_hospital_ind","is_nursing_home_ind","is_board_and_care_ind","is_assisted_living_ind",
-  "is_refinanced_ind","is_221d3_ind","is_221d4_ind","is_236_ind","is_non_insured_ind","is_bmir_ind",
-  "is_risk_sharing_ind","is_mip_ind","is_co_insured_ind","is_opportunity_zone_ind",
-  "ownership_effective_date","owner_participant_id","owner_company_type","owner_individual_first_name",
-  "owner_individual_middle_name","owner_individual_last_name","owner_individual_full_name",
-  "owner_individual_title_text","owner_organization_name","owner_address_line1","owner_address_line2",
-  "owner_city_name","owner_state_code","owner_zip_code","owner_zip4_code","owner_main_phone_number_text",
-  "owner_main_fax_number_text","owner_contact_email_text","mgmt_agent_participant_id",
-  "mgmt_agent_company_type","mgmt_agent_indv_first_name","mgmt_agent_indv_last_name",
-  "mgmt_agent_indv_middle_name","mgmt_agent_full_name","mgmt_agent_indv_title_text","mgmt_agent_org_name",
-  "mgmt_agent_address_line1","mgmt_agent_address_line2","mgmt_agent_city_name","mgmt_agent_state_code",
-  "mgmt_agent_zip_code","mgmt_agent_zip4_code","mgmt_agent_main_phone_number","mgmt_agent_main_fax_number",
-  "mgmt_contact_email_text"
+// Original column order + display labels matching source Excel
+const COLUMNS = [
+  { key: "property_name",               label: "Property Name" },
+  { key: "total_units",                 label: "Total Units" },
+  { key: "city",                        label: "City" },
+  { key: "state",                       label: "State" },
+  { key: "county",                      label: "County" },
+  { key: "renewal_type",                label: "Renewal Type" },
+  { key: "program_type",                label: "Program Type" },
+  { key: "doc_type",                    label: "Doc Type" },
+  { key: "hap_effective_date",          label: "HAP Effective Date" },
+  { key: "hap_expiration_date",         label: "HAP Expiration Date" },
+  { key: "rent_to_fmr_ratio",           label: "Rent-to-FMR Ratio" },
+  { key: "last_reac_1",                 label: "Last REAC 1" },
+  { key: "last_reac_2",                 label: "Last REAC 2" },
+  { key: "last_reac_3",                 label: "Last REAC 3" },
+  { key: "last_reac_date_1",            label: "Last REAC Date 1" },
+  { key: "last_reac_date_2",            label: "Last REAC Date 2" },
+  { key: "last_reac_date_3",            label: "Last REAC Date 3" },
+  { key: "f_1br_rent",                  label: "1BR Rent" },
+  { key: "f_2br_rent",                  label: "2BR Rent" },
+  { key: "f_3br_rent",                  label: "3BR Rent" },
+  { key: "f_4br_rent",                  label: "4BR Rent" },
+  { key: "f_0br_rent",                  label: "0BR Rent" },
+  { key: "f_5br_rent",                  label: "5BR+ Rent" },
+  { key: "f_1br_ua",                    label: "1BR UA" },
+  { key: "f_2br_ua",                    label: "2BR UA" },
+  { key: "f_3br_ua",                    label: "3BR UA" },
+  { key: "f_4br_ua",                    label: "4BR UA" },
+  { key: "f_0br_ua",                    label: "0BR UA" },
+  { key: "f_5br_ua",                    label: "5BR+ UA" },
+  { key: "contract_units",              label: "Contract Units" },
+  { key: "property_id",                 label: "Property ID" },
+  { key: "contract_number",             label: "Contract Number" },
+  { key: "property_id_2",               label: "Property ID 2" },
+  { key: "last_react_no_letter_1",      label: "Last REACT (no letter) 1" },
+  { key: "last_react_no_letter_2",      label: "Last REACT (no letter) 2" },
+  { key: "last_react_no_letter_3",      label: "Last REACT (no letter) 3" },
+  { key: "property_phone_number",       label: "property_phone_number" },
+  { key: "address_line1_text",          label: "address_line1_text" },
+  { key: "address_line2_text",          label: "address_line2_text" },
+  { key: "city_name_text",              label: "city_name_text" },
+  { key: "state_code",                  label: "state_code" },
+  { key: "zip_code",                    label: "zip_code" },
+  { key: "zip4_code",                   label: "zip4_code" },
+  { key: "county_code",                 label: "county_code" },
+  { key: "county_name_text",            label: "county_name_text" },
+  { key: "msa_code",                    label: "msa_code" },
+  { key: "msa_name_text",               label: "msa_name_text" },
+  { key: "congressional_district_code", label: "congressional_district_code" },
+  { key: "placed_base_city_name_text",  label: "placed_base_city_name_text" },
+  { key: "property_total_unit_count",   label: "property_total_unit_count" },
+  { key: "property_category_name",      label: "property_category_name" },
+  { key: "primary_financing_type",      label: "primary_financing_type" },
+  { key: "associated_financing_number", label: "associated_financing_Number" },
+  { key: "is_insured_ind",              label: "is_insured_ind" },
+  { key: "is_202_811_ind",              label: "is_202_811_ind" },
+  { key: "is_hud_held_ind",             label: "is_hud_held_ind" },
+  { key: "is_hud_owned_ind",            label: "is_hud_owned_ind" },
+  { key: "is_hospital_ind",             label: "is_hospital_ind" },
+  { key: "is_nursing_home_ind",         label: "is_nursing_home_ind" },
+  { key: "is_board_and_care_ind",       label: "is_board_and_care_ind" },
+  { key: "is_assisted_living_ind",      label: "is_assisted_living_ind" },
+  { key: "is_refinanced_ind",           label: "is_refinanced_ind" },
+  { key: "is_221d3_ind",                label: "is_221d3_ind" },
+  { key: "is_221d4_ind",                label: "is_221d4_ind" },
+  { key: "is_236_ind",                  label: "is_236_ind" },
+  { key: "is_non_insured_ind",          label: "is_non_insured_ind" },
+  { key: "is_bmir_ind",                 label: "is_bmir_ind" },
+  { key: "is_risk_sharing_ind",         label: "is_risk_sharing_ind" },
+  { key: "is_mip_ind",                  label: "is_mip_ind" },
+  { key: "is_co_insured_ind",           label: "is_co_insured_ind" },
+  { key: "is_opportunity_zone_ind",     label: "is_opportunity_zone_ind" },
+  { key: "ownership_effective_date",    label: "ownership_effective_date" },
+  { key: "owner_participant_id",        label: "owner_participant_id" },
+  { key: "owner_company_type",          label: "owner_company_type" },
+  { key: "owner_individual_first_name", label: "owner_individual_first_name" },
+  { key: "owner_individual_middle_name",label: "owner_individual_middle_name" },
+  { key: "owner_individual_last_name",  label: "owner_individual_last_name" },
+  { key: "owner_individual_full_name",  label: "owner_individual_full_name" },
+  { key: "owner_individual_title_text", label: "owner_individual_title_text" },
+  { key: "owner_organization_name",     label: "owner_organization_name" },
+  { key: "owner_address_line1",         label: "owner_address_line1" },
+  { key: "owner_address_line2",         label: "owner_address_line2" },
+  { key: "owner_city_name",             label: "owner_city_name" },
+  { key: "owner_state_code",            label: "owner_state_code" },
+  { key: "owner_zip_code",              label: "owner_zip_code" },
+  { key: "owner_zip4_code",             label: "owner_zip4_code" },
+  { key: "owner_main_phone_number_text",label: "owner_main_phone_number_text" },
+  { key: "owner_main_fax_number_text",  label: "owner_main_fax_number_text" },
+  { key: "owner_contact_email_text",    label: "owner_contact_email_text" },
+  { key: "mgmt_agent_participant_id",   label: "mgmt_agent_participant_id" },
+  { key: "mgmt_agent_company_type",     label: "mgmt_agent_company_type" },
+  { key: "mgmt_agent_indv_first_name",  label: "mgmt_agent_indv_first_name" },
+  { key: "mgmt_agent_indv_last_name",   label: "mgmt_agent_indv_last_name" },
+  { key: "mgmt_agent_indv_middle_name", label: "mgmt_agent_indv_middle_name" },
+  { key: "mgmt_agent_full_name",        label: "mgmt_agent_full_name" },
+  { key: "mgmt_agent_indv_title_text",  label: "mgmt_agent_indv_title_text" },
+  { key: "mgmt_agent_org_name",         label: "mgmt_agent_org_name" },
+  { key: "mgmt_agent_address_line1",    label: "mgmt_agent_address_line1" },
+  { key: "mgmt_agent_address_line2",    label: "mgmt_agent_address_line2" },
+  { key: "mgmt_agent_city_name",        label: "mgmt_agent_city_name" },
+  { key: "mgmt_agent_state_code",       label: "mgmt_agent_state_code" },
+  { key: "mgmt_agent_zip_code",         label: "mgmt_agent_zip_code" },
+  { key: "mgmt_agent_zip4_code",        label: "mgmt_agent_zip4_code" },
+  { key: "mgmt_agent_main_phone_number",label: "mgmt_agent_main_phone_number" },
+  { key: "mgmt_agent_main_fax_number",  label: "mgmt_agent_main_fax_number" },
+  { key: "mgmt_contact_email_text",     label: "mgmt_contact_email_text" },
 ];
+
+// Build header row once
+(function buildHeader() {
+  const tr = document.createElement("tr");
+  // Sticky copy column header
+  const copyTh = document.createElement("th");
+  copyTh.className = "copy-col";
+  copyTh.textContent = "";
+  tr.appendChild(copyTh);
+  // Data columns
+  COLUMNS.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col.label;
+    th.dataset.col = col.key;
+    th.addEventListener("click", () => {
+      sortAsc = sortCol === col.key ? !sortAsc : true;
+      sortCol = col.key;
+      currentPage = 0;
+      loadData();
+    });
+    tr.appendChild(th);
+  });
+  document.getElementById("tableHead").appendChild(tr);
+})();
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
 function fmtDate(val) {
   if (!val) return "";
   const d = new Date(val);
-  if (isNaN(d)) return val;
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-}
-
-function expiryBadge(dateStr) {
-  if (!dateStr) return `<span class="badge badge-blue">—</span>`;
-  const exp = new Date(dateStr);
-  const days = Math.round((exp - new Date()) / 86400000);
-  if (days < 0)   return `<span class="badge badge-red">Expired</span>`;
-  if (days < 90)  return `<span class="badge badge-red">${fmtDate(dateStr)}</span>`;
-  if (days < 365) return `<span class="badge badge-yellow">${fmtDate(dateStr)}</span>`;
-  return `<span class="badge badge-green">${fmtDate(dateStr)}</span>`;
-}
-
-function truncate(str, n) {
-  if (!str) return "—";
-  return str.length > n ? str.slice(0, n) + "…" : str;
+  return isNaN(d) ? val : d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function debounce(fn, ms) {
@@ -270,11 +348,11 @@ function buildQuery(forCount = false) {
   const zip    = document.getElementById("searchZip").value.trim();
   const msa    = document.getElementById("searchMsa").value.trim();
 
-  if (name)   q = q.ilike("property_name",   `%${name}%`);
-  if (city)   q = q.ilike("city",            `%${city}%`);
-  if (county) q = q.ilike("county",          `%${county}%`);
-  if (zip)    q = q.ilike("zip_code",        `%${zip}%`);
-  if (msa)    q = q.ilike("msa_name_text",   `%${msa}%`);
+  if (name)   q = q.ilike("property_name",  `%${name}%`);
+  if (city)   q = q.ilike("city",           `%${city}%`);
+  if (county) q = q.ilike("county",         `%${county}%`);
+  if (zip)    q = q.ilike("zip_code",       `%${zip}%`);
+  if (msa)    q = q.ilike("msa_name_text",  `%${msa}%`);
 
   return q;
 }
@@ -308,42 +386,56 @@ async function loadData() {
 
 // ── Render table ──────────────────────────────────────────────────────
 
+const COPY_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CHECK_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
 function renderTable(rows) {
   const tbody = document.getElementById("tableBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="12" style="padding:24px;text-align:center;color:#64748b">No results found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${COLUMNS.length + 1}" style="padding:28px;text-align:center;color:#64748b">No results found.</td></tr>`;
     return;
   }
-  tbody.innerHTML = rows.map((r, i) => `
-    <tr>
-      <td title="${r.property_name || ""}">${r.property_name || "—"}</td>
-      <td>${r.city || "—"}</td>
-      <td>${r.state || "—"}</td>
-      <td>${r.county || "—"}</td>
-      <td>${r.zip_code || "—"}</td>
-      <td title="${r.msa_name_text || ""}">${truncate(r.msa_name_text, 28)}</td>
-      <td>${r.total_units ?? "—"}</td>
-      <td title="${r.program_type || ""}">${truncate(r.program_type, 18)}</td>
-      <td>${expiryBadge(r.hap_expiration_date)}</td>
-      <td>${r.contract_number || "—"}</td>
-      <td>${r.last_reac_1 || "—"}</td>
-      <td style="display:flex;gap:6px;padding:8px 12px">
-        <button class="btn-sm" onclick="openModal(${i})">Details</button>
-        <button class="btn-sm copy-btn" onclick="copyRow(${i}, this)">Copy</button>
-      </td>
-    </tr>
-  `).join("");
+
+  tbody.innerHTML = "";
+
+  rows.forEach((r, i) => {
+    const tr = document.createElement("tr");
+    tr.id = `row-${i}`;
+
+    // Sticky copy button cell
+    const copyTd = document.createElement("td");
+    copyTd.className = "copy-col";
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.innerHTML = COPY_ICON;
+    btn.title = "Copy row to clipboard";
+    btn.onclick = () => copyRow(i, btn, tr);
+    copyTd.appendChild(btn);
+    tr.appendChild(copyTd);
+
+    // Data cells
+    COLUMNS.forEach(col => {
+      const td = document.createElement("td");
+      let val = r[col.key];
+      if (val == null) val = "";
+      // Format dates for display
+      if (col.key.includes("date") && val) val = fmtDate(val);
+      td.textContent = val;
+      td.title = String(val);
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
 }
 
 // ── Copy row ──────────────────────────────────────────────────────────
 
-function copyRow(idx, btn) {
+function copyRow(idx, btn, tr) {
   const r = currentRows[idx];
-  // Tab-separated values in column order — pastes cleanly into Excel
-  const tsv = ALL_COLUMNS.map(col => {
-    const val = r[col];
+  const tsv = COLUMNS.map(col => {
+    const val = r[col.key];
     if (val == null) return "";
-    // Wrap in quotes if value contains tabs, newlines, or quotes
     const str = String(val);
     if (str.includes("\t") || str.includes("\n") || str.includes('"')) {
       return '"' + str.replace(/"/g, '""') + '"';
@@ -352,9 +444,20 @@ function copyRow(idx, btn) {
   }).join("\t");
 
   navigator.clipboard.writeText(tsv).then(() => {
-    btn.textContent = "Copied!";
-    btn.classList.add("copied");
-    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 2000);
+    // Button animation
+    btn.innerHTML = CHECK_ICON;
+    btn.classList.add("success");
+
+    // Row flash animation
+    tr.classList.remove("copied");
+    void tr.offsetWidth; // force reflow to restart animation
+    tr.classList.add("copied");
+
+    setTimeout(() => {
+      btn.innerHTML = COPY_ICON;
+      btn.classList.remove("success");
+      tr.classList.remove("copied");
+    }, 2000);
   });
 }
 
@@ -362,12 +465,10 @@ function copyRow(idx, btn) {
 
 document.getElementById("exportBtn").onclick = () => {
   if (!currentRows.length) return;
-
   const exportData = currentRows.map(r =>
-    Object.fromEntries(ALL_COLUMNS.map(col => [col, r[col] ?? ""]))
+    Object.fromEntries(COLUMNS.map(col => [col.label, r[col.key] ?? ""]))
   );
-
-  const ws = XLSX.utils.json_to_sheet(exportData, { header: ALL_COLUMNS });
+  const ws = XLSX.utils.json_to_sheet(exportData, { header: COLUMNS.map(c => c.label) });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "HAP Properties");
   XLSX.writeFile(wb, "hap_export.xlsx");
@@ -379,91 +480,21 @@ function renderPagination() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
   const bar = document.getElementById("paginationBar");
   if (totalPages <= 1) { bar.innerHTML = ""; return; }
-
-  let html = `<button ${currentPage === 0 ? "disabled" : ""} onclick="goPage(${currentPage - 1})">&#8592; Prev</button>`;
+  let html = `<button ${currentPage===0?"disabled":""} onclick="goPage(${currentPage-1})">&#8592; Prev</button>`;
   const start = Math.max(0, currentPage - 2);
   const end   = Math.min(totalPages - 1, currentPage + 2);
   if (start > 0) html += `<button onclick="goPage(0)">1</button>`;
   if (start > 1) html += `<span style="padding:0 4px">…</span>`;
   for (let p = start; p <= end; p++) {
-    html += `<button class="${p === currentPage ? "active" : ""}" onclick="goPage(${p})">${p + 1}</button>`;
+    html += `<button class="${p===currentPage?"active":""}" onclick="goPage(${p})">${p+1}</button>`;
   }
   if (end < totalPages - 2) html += `<span style="padding:0 4px">…</span>`;
-  if (end < totalPages - 1) html += `<button onclick="goPage(${totalPages - 1})">${totalPages}</button>`;
-  html += `<button ${currentPage >= totalPages - 1 ? "disabled" : ""} onclick="goPage(${currentPage + 1})">Next &#8594;</button>`;
+  if (end < totalPages - 1) html += `<button onclick="goPage(${totalPages-1})">${totalPages}</button>`;
+  html += `<button ${currentPage>=totalPages-1?"disabled":""} onclick="goPage(${currentPage+1})">Next &#8594;</button>`;
   bar.innerHTML = html;
 }
 
 function goPage(p) { currentPage = p; loadData(); window.scrollTo({ top: 0, behavior: "smooth" }); }
-
-// ── Modal ─────────────────────────────────────────────────────────────
-
-function openModal(idx) {
-  const r = currentRows[idx];
-  document.getElementById("modalTitle").textContent = r.property_name || "Property Detail";
-  const fields = [
-    { section: "Contract" },
-    { label: "Contract Number",  val: r.contract_number },
-    { label: "Property ID",      val: r.property_id },
-    { label: "Program Type",     val: r.program_type },
-    { label: "Doc Type",         val: r.doc_type },
-    { label: "HAP Effective",    val: fmtDate(r.hap_effective_date) },
-    { label: "HAP Expiration",   val: fmtDate(r.hap_expiration_date) },
-    { label: "Renewal Type",     val: r.renewal_type },
-    { label: "Contract Units",   val: r.contract_units },
-    { label: "Rent-to-FMR",     val: r.rent_to_fmr_ratio != null ? Number(r.rent_to_fmr_ratio).toFixed(3) : "—" },
-    { section: "Location" },
-    { label: "Address",          val: [r.address_line1_text, r.address_line2_text].filter(Boolean).join(", ") },
-    { label: "City / State / ZIP", val: [r.city_name_text, r.state_code, r.zip_code].filter(Boolean).join(", ") },
-    { label: "County",           val: r.county },
-    { label: "MSA",              val: r.msa_name_text },
-    { label: "Phone",            val: r.property_phone_number },
-    { section: "Rents & UAs" },
-    { label: "0BR Rent / UA",   val: `$${r.f_0br_rent||"—"} / $${r.f_0br_ua||"—"}` },
-    { label: "1BR Rent / UA",   val: `$${r.f_1br_rent||"—"} / $${r.f_1br_ua||"—"}` },
-    { label: "2BR Rent / UA",   val: `$${r.f_2br_rent||"—"} / $${r.f_2br_ua||"—"}` },
-    { label: "3BR Rent / UA",   val: `$${r.f_3br_rent||"—"} / $${r.f_3br_ua||"—"}` },
-    { label: "4BR Rent / UA",   val: `$${r.f_4br_rent||"—"} / $${r.f_4br_ua||"—"}` },
-    { label: "5BR+ Rent / UA",  val: `$${r.f_5br_rent||"—"} / $${r.f_5br_ua||"—"}` },
-    { section: "REAC Scores" },
-    { label: "Score 1 / Date",  val: `${r.last_reac_1||"—"} — ${fmtDate(r.last_reac_date_1)}` },
-    { label: "Score 2 / Date",  val: `${r.last_reac_2||"—"} — ${fmtDate(r.last_reac_date_2)}` },
-    { label: "Score 3 / Date",  val: `${r.last_reac_3||"—"} — ${fmtDate(r.last_reac_date_3)}` },
-    { section: "Owner" },
-    { label: "Organization",    val: r.owner_organization_name },
-    { label: "Contact",         val: r.owner_individual_full_name },
-    { label: "Address",         val: [r.owner_address_line1, r.owner_city_name, r.owner_state_code].filter(Boolean).join(", ") },
-    { label: "Phone",           val: r.owner_main_phone_number_text },
-    { label: "Email",           val: r.owner_contact_email_text },
-    { section: "Management Agent" },
-    { label: "Organization",    val: r.mgmt_agent_org_name },
-    { label: "Contact",         val: r.mgmt_agent_full_name },
-    { label: "Address",         val: [r.mgmt_agent_address_line1, r.mgmt_agent_city_name, r.mgmt_agent_state_code].filter(Boolean).join(", ") },
-    { label: "Phone",           val: r.mgmt_agent_main_phone_number },
-    { label: "Email",           val: r.mgmt_contact_email_text },
-  ];
-  document.getElementById("modalContent").innerHTML = fields.map(f =>
-    f.section
-      ? `<div class="section-title">${f.section}</div>`
-      : `<div class="detail-group"><label>${f.label}</label><span>${f.val || "—"}</span></div>`
-  ).join("");
-  document.getElementById("modalOverlay").classList.add("open");
-}
-
-document.getElementById("modalClose").onclick = () => document.getElementById("modalOverlay").classList.remove("open");
-document.getElementById("modalOverlay").onclick = e => { if (e.target.id === "modalOverlay") document.getElementById("modalOverlay").classList.remove("open"); };
-
-// ── Sort ──────────────────────────────────────────────────────────────
-
-document.querySelectorAll("thead th[data-col]").forEach(th => {
-  th.addEventListener("click", () => {
-    const col = th.dataset.col;
-    sortAsc = sortCol === col ? !sortAsc : true;
-    sortCol = col;
-    currentPage = 0;
-    loadData();
-  });
-});
 
 // ── Dynamic search (debounced 400ms) ─────────────────────────────────
 
@@ -472,8 +503,6 @@ document.querySelectorAll("thead th[data-col]").forEach(th => {
     debounce(() => { currentPage = 0; loadData(); }, 400);
   });
 });
-
-// ── Reset ─────────────────────────────────────────────────────────────
 
 document.getElementById("resetBtn").onclick = () => {
   ["searchName","searchCity","searchCounty","searchZip","searchMsa"].forEach(id => {
