@@ -8,322 +8,300 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --navy:        #0B2545;
-      --navy-mid:    #132f58;
-      --navy-light:  #1e3f6f;
-      --gold:        #C9A66B;
-      --gold-light:  #e8d4a8;
-      --gold-faint:  #f7f0e3;
-      --cream:       #FAF7F2;
-      --off-white:   #F4EDE0;
-      --border:      #d6c9b0;
-      --border-dark: #b8a882;
-      --text:        #1A1A1A;
-      --text-mid:    #3d3d3d;
-      --text-light:  #6b6b6b;
+      --navy:        #081937;
+      --navy-mid:    #0d2347;
+      --navy-light:  #162f5e;
+      --navy-faint:  #1a3570;
       --white:       #ffffff;
-      --row-alt:     #fdf9f4;
+      --off-white:   #f4f6f9;
+      --rule:        #dde3ee;
+      --rule-dark:   #c4cde0;
+      --text:        #0d1e3a;
+      --text-mid:    #3d5070;
+      --text-light:  #6b7fa0;
+      --row-alt:     #f8fafd;
+      --accent:      #ffffff;
+      --hover-row:   #eef2fa;
+      --copy-flash:  #dce8ff;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Barlow', 'Calibri', sans-serif;
+      font-family: 'Libre Franklin', sans-serif;
       font-size: 13px;
       color: var(--text);
-      background: var(--cream);
+      background: var(--off-white);
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Gold top stripe ── */
-    .top-stripe {
-      height: 4px;
-      background: linear-gradient(90deg, var(--gold) 0%, #e8c98a 50%, var(--gold) 100%);
-    }
+    /* ── White top stripe ── */
+    .top-stripe { height: 4px; background: var(--white); }
 
     /* ── Header ── */
     header {
       background: var(--navy);
       padding: 0 28px;
-      height: 60px;
+      height: 58px;
       display: flex; align-items: center; justify-content: space-between;
       position: sticky; top: 0; z-index: 100;
-      border-bottom: 2px solid var(--gold);
+      border-bottom: 1px solid var(--navy-faint);
     }
-    .header-left { display: flex; align-items: center; gap: 18px; }
-
-    /* Greysteel wordmark */
-    .wordmark {
-      display: flex; align-items: center; gap: 9px;
-      border-right: 1px solid rgba(201,166,107,.35);
-      padding-right: 18px;
-    }
-    .wordmark-icon {
-      width: 28px; height: 28px; border-radius: 3px;
-      background: var(--gold);
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .wordmark-text {
-      font-family: 'Georgia', serif;
-      font-size: 14px; font-weight: 700;
-      color: var(--white); letter-spacing: .12em;
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .site-label {
+      font-size: 10px; font-weight: 800;
+      color: rgba(255,255,255,.5); letter-spacing: .2em;
       text-transform: uppercase;
     }
-    .wordmark-sub {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 9px; font-weight: 600;
-      color: var(--gold-light); letter-spacing: .18em;
-      text-transform: uppercase; margin-top: 1px;
+    .header-divider {
+      width: 1px; height: 16px;
+      background: rgba(255,255,255,.15);
     }
-
-    .header-title { display: flex; flex-direction: column; }
     header h1 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 19px; font-weight: 800;
-      color: var(--white); letter-spacing: .04em; text-transform: uppercase;
-      line-height: 1;
+      font-size: 17px; font-weight: 800;
+      color: var(--white); letter-spacing: -.01em;
     }
-    .header-sub {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 10px; font-weight: 500;
-      color: var(--gold-light); letter-spacing: .1em;
-      text-transform: uppercase; margin-top: 2px;
-    }
-
     .export-btn {
       display: flex; align-items: center; gap: 6px;
-      padding: 0 16px; height: 34px; border-radius: 2px;
-      border: 1px solid var(--gold);
-      background: transparent; color: var(--gold);
+      padding: 0 14px; height: 32px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: transparent; color: rgba(255,255,255,.7);
       cursor: pointer; font-size: 11px; font-weight: 700;
-      font-family: 'Barlow Condensed', sans-serif;
-      letter-spacing: .1em; text-transform: uppercase;
-      transition: all .18s;
-    }
-    .export-btn:hover {
-      background: var(--gold); color: var(--navy);
-    }
-
-    /* ── Controls ── */
-    .controls {
-      background: var(--off-white);
-      border-bottom: 2px solid var(--border-dark);
-      padding: 11px 28px;
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
-    }
-    .control-group { display: flex; flex-direction: column; gap: 4px; }
-    .control-group label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 10px; font-weight: 700; color: var(--navy);
-      text-transform: uppercase; letter-spacing: .1em;
-    }
-    .input-wrap { position: relative; }
-    .input-wrap svg {
-      position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
-      color: var(--border-dark); pointer-events: none; transition: color .15s;
-    }
-    input[type="text"] {
-      border: 1px solid var(--border);
-      border-radius: 2px;
-      padding: 5px 8px 5px 28px;
-      font-size: 13px; font-family: 'Barlow', sans-serif;
-      color: var(--text); height: 32px;
-      background: var(--white);
-      transition: border-color .15s, box-shadow .15s;
-    }
-    input[type="text"]::placeholder { color: #c2b49a; }
-    input[type="text"]:focus {
-      outline: none; border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(201,166,107,.2);
-    }
-    .input-wrap:focus-within svg { color: var(--gold); }
-
-    .reset-btn {
-      height: 32px; padding: 0 14px; border-radius: 2px;
-      border: 1px solid var(--border); background: var(--white);
-      color: var(--text-light); cursor: pointer;
-      font-size: 11px; font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      font-family: inherit; letter-spacing: .08em; text-transform: uppercase;
       transition: all .15s;
     }
-    .reset-btn:hover { border-color: var(--navy); color: var(--navy); }
+    .export-btn:hover {
+      border-color: var(--white); color: var(--white);
+      background: rgba(255,255,255,.08);
+    }
 
-    /* ── Status bar ── */
-    .status-bar {
-      padding: 6px 28px;
+    /* ── Search bar ── */
+    .search-bar {
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--navy-faint);
+      padding: 12px 28px;
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 9px; font-weight: 800; color: rgba(255,255,255,.4);
+      text-transform: uppercase; letter-spacing: .15em;
+    }
+    .field-inner { position: relative; }
+    .field-inner svg {
+      position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+      color: rgba(255,255,255,.25); pointer-events: none; transition: color .15s;
+    }
+    input[type="text"] {
+      height: 34px; padding: 0 10px 0 30px;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
+      font-size: 13px; font-family: inherit;
+      color: var(--white);
+      background: rgba(255,255,255,.07);
+      transition: border-color .15s, background .15s;
+    }
+    input[type="text"]::placeholder { color: rgba(255,255,255,.25); }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: rgba(255,255,255,.5);
+      background: rgba(255,255,255,.12);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .field-inner:focus-within svg { color: rgba(255,255,255,.6); }
+
+    .btn-reset {
+      height: 34px; padding: 0 14px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: transparent; color: rgba(255,255,255,.45);
+      cursor: pointer; font-size: 11px;
+      font-family: inherit; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .btn-reset:hover { border-color: rgba(255,255,255,.4); color: rgba(255,255,255,.8); }
+
+    /* ── Result line ── */
+    .result-line {
+      padding: 7px 28px;
       background: var(--navy);
+      border-bottom: 3px solid var(--navy-light);
       display: flex; justify-content: space-between; align-items: center;
-      border-bottom: 1px solid var(--navy-mid);
     }
-    .result-count {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 11px; font-weight: 600; color: rgba(255,255,255,.55);
-      text-transform: uppercase; letter-spacing: .08em;
+    .result-line span {
+      font-size: 11px; font-weight: 500;
+      color: rgba(255,255,255,.4); letter-spacing: .02em;
     }
-    .result-count strong { color: var(--gold); }
-    .page-info {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 11px; color: rgba(255,255,255,.4);
-      text-transform: uppercase; letter-spacing: .06em;
-    }
+    .result-line strong { color: rgba(255,255,255,.85); font-weight: 700; }
 
     /* ── Table wrap ── */
-    .table-wrap { overflow-x: auto; padding: 18px 28px 36px; }
-    .table-wrap::-webkit-scrollbar { height: 6px; }
+    .table-wrap { padding: 20px 28px 40px; overflow-x: auto; }
+    .table-wrap::-webkit-scrollbar { height: 5px; }
     .table-wrap::-webkit-scrollbar-track { background: var(--off-white); }
-    .table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .table-wrap::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+    .table-wrap::-webkit-scrollbar-thumb { background: var(--rule-dark); border-radius: 3px; }
+    .table-wrap::-webkit-scrollbar-thumb:hover { background: var(--navy-light); }
 
-    table {
+    /* ── The table ── */
+    .data-table {
+      width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 12.5px;
       background: var(--white);
-      border: 2px solid var(--navy);
+      border-top: 3px solid var(--navy);
+      border-bottom: 2px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08);
     }
 
-    thead tr { background: var(--navy); }
-    thead th {
-      padding: 8px 10px; text-align: left;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700; font-size: 10.5px;
-      color: var(--gold-light); letter-spacing: .07em; text-transform: uppercase;
+    .data-table thead tr { background: var(--navy); }
+    .data-table thead th {
+      padding: 9px 11px;
+      text-align: left;
+      font-size: 10px; font-weight: 800;
+      color: rgba(255,255,255,.55); letter-spacing: .1em; text-transform: uppercase;
       white-space: nowrap; cursor: pointer; user-select: none;
-      border-right: 1px solid var(--navy-light);
-      border-bottom: 2px solid var(--gold);
+      border-bottom: 1px solid var(--navy-faint);
       transition: color .15s, background .15s;
     }
-    thead th:hover { color: var(--gold); background: var(--navy-mid); }
-    thead th:last-child { border-right: none; }
-    thead th.copy-col { cursor: default; width: 38px; min-width: 38px; }
-    thead th.copy-col:hover { background: var(--navy); }
+    .data-table thead th:hover { color: var(--white); background: var(--navy-mid); }
+    .data-table thead th.copy-col { cursor: default; width: 36px; min-width: 36px; }
+    .data-table thead th.copy-col:hover { background: var(--navy); }
 
-    tbody tr { border-bottom: 1px solid var(--border); }
-    tbody tr:nth-child(even) { background: var(--row-alt); }
-    tbody tr:hover { background: var(--gold-faint) !important; }
+    /* Only horizontal rules */
+    .data-table tbody tr {
+      border-bottom: 1px solid var(--rule);
+      transition: background .1s;
+    }
+    .data-table tbody tr:nth-child(even) { background: var(--row-alt); }
+    .data-table tbody tr:hover { background: var(--hover-row) !important; }
+    .data-table tbody tr:last-child { border-bottom: none; }
 
-    /* Row entrance */
     @keyframes rowIn {
       from { opacity: 0; transform: translateY(3px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    tbody tr.animate-in { animation: rowIn .18s ease-out both; }
+    .data-table tbody tr.animate-in { animation: rowIn .16s ease-out both; }
 
     /* Copy sweep */
-    @keyframes beamSweep {
+    @keyframes sweep {
       0%   { background-position: -100% 0; opacity: 1; }
       100% { background-position: 250% 0; opacity: 0; }
     }
-    @keyframes rowGlow {
-      0%   { background-color: #f0e8d0 !important; }
+    @keyframes rowPop {
+      0%   { background-color: var(--copy-flash) !important; }
       100% { background-color: transparent !important; }
     }
-    tbody tr.copied { animation: rowGlow 1.2s ease-out forwards !important; position: relative; }
-    tbody tr.copied::after {
+    .data-table tbody tr.copied {
+      animation: rowPop 1.3s ease-out forwards !important;
+      position: relative;
+    }
+    .data-table tbody tr.copied::after {
       content: ''; position: absolute; inset: 0; pointer-events: none;
-      background: linear-gradient(90deg, transparent 0%, rgba(201,166,107,.35) 50%, transparent 100%);
+      background: linear-gradient(90deg, transparent, rgba(8,25,55,.12), transparent);
       background-size: 200% 100%;
-      animation: beamSweep .65s ease-out forwards; z-index: 1;
+      animation: sweep .6s ease-out forwards; z-index: 1;
     }
 
-    td {
-      padding: 6px 10px; white-space: nowrap;
-      border-right: 1px solid var(--border);
-      max-width: 190px; overflow: hidden; text-overflow: ellipsis;
-      color: var(--text); font-size: 12px;
+    .data-table td {
+      padding: 7px 11px; white-space: nowrap;
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+      color: var(--text); line-height: 1.3;
     }
-    td:last-child { border-right: none; }
-    td.is-num {
+    .data-table td.is-num {
       font-family: 'IBM Plex Mono', monospace;
       font-size: 11px; text-align: right; color: var(--text-mid);
     }
 
-    td.copy-col, thead th.copy-col {
+    /* Sticky copy col */
+    .data-table td.copy-col,
+    .data-table thead th.copy-col {
       position: sticky; left: 0; z-index: 2;
       background: var(--white);
-      border-right: 2px solid var(--border-dark) !important;
+      border-right: 1px solid var(--rule-dark);
       padding: 0 5px;
     }
-    thead th.copy-col { background: var(--navy); z-index: 4; border-right: 2px solid var(--navy-light) !important; }
-    tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
-    tbody tr:hover td.copy-col { background: var(--gold-faint); }
+    .data-table thead th.copy-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); }
+    .data-table tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
+    .data-table tbody tr:hover td.copy-col { background: var(--hover-row); }
 
     /* ── Copy button ── */
     .copy-btn {
-      width: 28px; height: 28px; border-radius: 2px;
-      border: 1px solid var(--border);
-      background: var(--white);
-      cursor: pointer; color: #c2b49a;
+      width: 28px; height: 28px; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: transparent;
+      cursor: pointer; color: var(--rule-dark);
       display: flex; align-items: center; justify-content: center;
       transition: all .15s;
     }
-    .copy-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-faint); }
-    .copy-btn:active { transform: scale(.9); }
-
-    @keyframes checkPop {
-      0% { transform: scale(.5); } 60% { transform: scale(1.2); } 100% { transform: scale(1); }
+    .copy-btn:hover {
+      border-color: var(--navy); color: var(--navy);
+      background: var(--hover-row);
     }
-    .copy-btn.success { border-color: var(--gold); color: var(--navy); background: var(--gold-light); }
-    .copy-btn.success svg { animation: checkPop .22s ease-out; }
+    .copy-btn:active { transform: scale(.88); }
+    @keyframes checkPop {
+      0% { transform: scale(.4); } 55% { transform: scale(1.25); } 100% { transform: scale(1); }
+    }
+    .copy-btn.success {
+      border-color: var(--navy); background: var(--navy); color: var(--white);
+    }
+    .copy-btn.success svg { animation: checkPop .25s ease-out; }
 
-    /* Particles */
     .particle { position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%; }
     @keyframes particleFly {
       0%   { opacity: 1; transform: translate(0,0) scale(1); }
-      100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0); }
+      100% { opacity: 0; transform: translate(var(--tx),var(--ty)) scale(0); }
     }
 
     /* ── Skeleton ── */
-    #loading { padding: 18px 28px 36px; }
-    .skeleton-wrap {
+    #loading { padding: 20px 28px 40px; }
+    .skel-table {
       background: var(--white);
-      border: 2px solid var(--navy);
+      border-top: 3px solid var(--navy);
+      border-bottom: 2px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08);
     }
-    .skeleton-header {
-      height: 38px; background: var(--navy);
-      border-bottom: 2px solid var(--gold);
+    .skel-head {
+      background: var(--navy); height: 38px;
       display: flex; align-items: center; padding: 0 12px; gap: 10px;
     }
-    .skeleton-row {
+    .skel-row {
       display: flex; align-items: center; gap: 10px;
-      padding: 7px 12px; border-bottom: 1px solid var(--border);
+      padding: 7px 12px; border-bottom: 1px solid var(--rule);
     }
-    .skeleton-row:last-child { border-bottom: none; }
-    .skeleton-row:nth-child(even) { background: var(--row-alt); }
+    .skel-row:nth-child(even) { background: var(--row-alt); }
+    .skel-row:last-child { border-bottom: none; }
     @keyframes shimmer {
-      0%   { background-position: -600px 0; }
-      100% { background-position: 600px 0; }
+      0%   { background-position: -700px 0; }
+      100% { background-position: 700px 0; }
     }
     .skel {
-      height: 10px; border-radius: 1px; flex-shrink: 0;
-      background: linear-gradient(90deg, #ede5d8 25%, #ddd3c0 50%, #ede5d8 75%);
-      background-size: 600px 100%;
-      animation: shimmer 1.4s ease-in-out infinite;
+      height: 10px; border-radius: 2px; flex-shrink: 0;
+      background: linear-gradient(90deg, #eaeff6 25%, #dce3ef 50%, #eaeff6 75%);
+      background-size: 700px 100%;
+      animation: shimmer 1.3s ease-in-out infinite;
     }
-    .skel-hdr {
-      background: linear-gradient(90deg, #1a3560 25%, #254270 50%, #1a3560 75%) !important;
-      background-size: 600px 100% !important;
+    .skel.dark {
+      background: linear-gradient(90deg, #0f2a52 25%, #162f5e 50%, #0f2a52 75%) !important;
+      background-size: 700px 100% !important;
     }
 
     /* ── Pagination ── */
     .pagination {
-      display: flex; align-items: center; gap: 4px;
-      padding: 10px 28px 28px; justify-content: center;
+      display: flex; align-items: center; justify-content: center; gap: 3px;
+      padding: 8px 28px 28px;
     }
     .pagination button {
-      border: 1px solid var(--border); background: var(--white);
-      border-radius: 2px; width: 32px; height: 32px;
-      cursor: pointer; font-size: 12px;
-      font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-      color: var(--text-mid); transition: all .15s;
+      width: 34px; height: 34px; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: var(--white);
+      cursor: pointer; font-size: 12px; font-weight: 700;
+      font-family: inherit; color: var(--text-mid);
+      transition: all .15s;
     }
     .pagination button:hover:not(:disabled) {
-      border-color: var(--gold); color: var(--navy); background: var(--gold-faint);
+      border-color: var(--navy); color: var(--navy); background: var(--hover-row);
     }
-    .pagination button:disabled { opacity: .3; cursor: default; }
-    .pagination button.active { background: var(--navy); border-color: var(--navy); color: var(--gold); }
-    .pagination .ellipsis { color: var(--text-light); padding: 0 4px; font-family: 'Barlow Condensed', sans-serif; }
+    .pagination button:disabled { opacity: .25; cursor: default; }
+    .pagination button.active { background: var(--navy); border-color: var(--navy); color: var(--white); }
+    .pagination .ellipsis { color: var(--text-light); padding: 0 4px; font-size: 13px; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -339,77 +317,70 @@
 
 <header>
   <div class="header-left">
-    <div class="wordmark">
-      <div class="wordmark-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B2545" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
-      </div>
-      <div>
-        <div class="wordmark-text">Greysteel</div>
-        <div class="wordmark-sub">Investment Sales</div>
-      </div>
-    </div>
-    <div class="header-title">
-      <h1>HAP Property Database</h1>
-      <div class="header-sub">HUD Section 8 &nbsp;·&nbsp; Housing Assistance Payments &nbsp;·&nbsp; 24,297 Properties</div>
-    </div>
+    <span class="site-label">Greysteel</span>
+    <div class="header-divider"></div>
+    <h1>HAP Property Database</h1>
   </div>
   <button class="export-btn" id="exportBtn">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Export to Excel
+    Export Page
   </button>
 </header>
 
-<div class="controls">
-  <div class="control-group">
+<div class="search-bar">
+  <div class="field">
     <label>Property Name</label>
-    <div class="input-wrap">
-      <input type="text" id="searchName" placeholder="Search properties..." style="width:190px" />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div class="field-inner">
+      <input type="text" id="searchName" placeholder="Search..." style="width:190px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
-  <div class="control-group">
+  <div class="field">
     <label>City</label>
-    <div class="input-wrap">
+    <div class="field-inner">
       <input type="text" id="searchCity" placeholder="City..." style="width:130px" />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
-  <div class="control-group">
+  <div class="field">
+    <label>State</label>
+    <div class="field-inner">
+      <input type="text" id="searchState" placeholder="e.g. MD" style="width:90px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
     <label>County</label>
-    <div class="input-wrap">
+    <div class="field-inner">
       <input type="text" id="searchCounty" placeholder="County..." style="width:130px" />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
-  <div class="control-group">
-    <label>Zip Code</label>
-    <div class="input-wrap">
+  <div class="field">
+    <label>ZIP</label>
+    <div class="field-inner">
       <input type="text" id="searchZip" placeholder="Zip..." style="width:88px" />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
-  <div class="control-group">
+  <div class="field">
     <label>MSA</label>
-    <div class="input-wrap">
+    <div class="field-inner">
       <input type="text" id="searchMsa" placeholder="MSA name..." style="width:190px" />
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
-  <button class="reset-btn" id="resetBtn">Reset</button>
+  <button class="btn-reset" id="resetBtn">Clear</button>
 </div>
 
-<div class="status-bar">
-  <span class="result-count" id="resultCount"></span>
-  <span class="page-info" id="pageInfo"></span>
+<div class="result-line">
+  <span id="resultCount">&nbsp;</span>
+  <span id="pageInfo">&nbsp;</span>
 </div>
 
 <div class="table-wrap">
-  <div id="loading">
-    <div class="skeleton-wrap" id="skeletonWrap"></div>
-  </div>
-  <table id="mainTable" style="display:none">
+  <div id="loading"><div class="skel-table" id="skelWrap"></div></div>
+  <table class="data-table" id="mainTable" style="display:none">
     <thead id="tableHead"></thead>
     <tbody id="tableBody"></tbody>
   </table>
@@ -418,276 +389,213 @@
 <div class="pagination" id="paginationBar"></div>
 
 <script>
-(function() {
-  const wrap = document.getElementById("skeletonWrap");
-  const hdr = document.createElement("div");
-  hdr.className = "skeleton-header";
-  [32,100,55,42,80,150,90,72,80,82,52,42,42,42,78,78].forEach(w => {
-    const s = document.createElement("div");
-    s.className = "skel skel-hdr"; s.style.width = w + "px";
-    hdr.appendChild(s);
+(function(){
+  const w=document.getElementById("skelWrap");
+  const hd=document.createElement("div");hd.className="skel-head";
+  [30,105,52,38,78,38,148,88,70,82,82,50,40,40,40,76,76].forEach(x=>{
+    const s=document.createElement("div");s.className="skel dark";s.style.width=x+"px";hd.appendChild(s);
   });
-  wrap.appendChild(hdr);
-  for (let i = 0; i < 15; i++) {
-    const row = document.createElement("div");
-    row.className = "skeleton-row";
-    [28,110,52,40,72,145,88,70,80,80,52,42,42,42,80,80].forEach((w, j) => {
-      const s = document.createElement("div");
-      s.className = "skel";
-      s.style.width = (w + (Math.random()*14-7)) + "px";
-      s.style.animationDelay = (i*.035 + j*.008) + "s";
-      row.appendChild(s);
+  w.appendChild(hd);
+  for(let i=0;i<16;i++){
+    const r=document.createElement("div");r.className="skel-row";
+    [26,108,50,38,70,38,148,86,68,80,80,50,40,40,40,76,76].forEach((x,j)=>{
+      const s=document.createElement("div");s.className="skel";
+      s.style.width=(x+Math.random()*16-8)+"px";
+      s.style.animationDelay=(i*.03+j*.007)+"s";
+      r.appendChild(s);
     });
-    wrap.appendChild(row);
+    w.appendChild(r);
   }
 })();
 
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const {createClient}=supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+let page=0,total=0,sortCol="property_name",sortAsc=true,rows=[],timer=null;
 
-let currentPage=0, totalCount=0, sortCol="property_name", sortAsc=true, currentRows=[], debounceTimer=null;
+const NUM=new Set(["total_units","rent_to_fmr_ratio","f_1br_rent","f_2br_rent","f_3br_rent","f_4br_rent","f_0br_rent","f_5br_rent","f_1br_ua","f_2br_ua","f_3br_ua","f_4br_ua","f_0br_ua","f_5br_ua","contract_units","property_total_unit_count","last_react_no_letter_1","last_react_no_letter_2","last_react_no_letter_3"]);
 
-const NUM_KEYS = new Set([
-  "total_units","rent_to_fmr_ratio","f_1br_rent","f_2br_rent","f_3br_rent","f_4br_rent",
-  "f_0br_rent","f_5br_rent","f_1br_ua","f_2br_ua","f_3br_ua","f_4br_ua","f_0br_ua","f_5br_ua",
-  "contract_units","property_total_unit_count","last_react_no_letter_1","last_react_no_letter_2","last_react_no_letter_3"
-]);
-
-const COLUMNS = [
-  { key: "property_name",               label: "Property Name" },
-  { key: "total_units",                 label: "Total Units" },
-  { key: "city",                        label: "City" },
-  { key: "state",                       label: "State" },
-  { key: "county",                      label: "County" },
-  { key: "renewal_type",                label: "Renewal Type" },
-  { key: "program_type",                label: "Program Type" },
-  { key: "doc_type",                    label: "Doc Type" },
-  { key: "hap_effective_date",          label: "HAP Effective Date" },
-  { key: "hap_expiration_date",         label: "HAP Expiration Date" },
-  { key: "rent_to_fmr_ratio",           label: "Rent-to-FMR Ratio" },
-  { key: "last_reac_1",                 label: "Last REAC 1" },
-  { key: "last_reac_2",                 label: "Last REAC 2" },
-  { key: "last_reac_3",                 label: "Last REAC 3" },
-  { key: "last_reac_date_1",            label: "Last REAC Date 1" },
-  { key: "last_reac_date_2",            label: "Last REAC Date 2" },
-  { key: "last_reac_date_3",            label: "Last REAC Date 3" },
-  { key: "f_1br_rent",                  label: "1BR Rent" },
-  { key: "f_2br_rent",                  label: "2BR Rent" },
-  { key: "f_3br_rent",                  label: "3BR Rent" },
-  { key: "f_4br_rent",                  label: "4BR Rent" },
-  { key: "f_0br_rent",                  label: "0BR Rent" },
-  { key: "f_5br_rent",                  label: "5BR+ Rent" },
-  { key: "f_1br_ua",                    label: "1BR UA" },
-  { key: "f_2br_ua",                    label: "2BR UA" },
-  { key: "f_3br_ua",                    label: "3BR UA" },
-  { key: "f_4br_ua",                    label: "4BR UA" },
-  { key: "f_0br_ua",                    label: "0BR UA" },
-  { key: "f_5br_ua",                    label: "5BR+ UA" },
-  { key: "contract_units",              label: "Contract Units" },
-  { key: "property_id",                 label: "Property ID" },
-  { key: "contract_number",             label: "Contract Number" },
-  { key: "property_id_2",               label: "Property ID 2" },
-  { key: "last_react_no_letter_1",      label: "Last REACT (no letter) 1" },
-  { key: "last_react_no_letter_2",      label: "Last REACT (no letter) 2" },
-  { key: "last_react_no_letter_3",      label: "Last REACT (no letter) 3" },
-  { key: "property_phone_number",       label: "property_phone_number" },
-  { key: "address_line1_text",          label: "address_line1_text" },
-  { key: "address_line2_text",          label: "address_line2_text" },
-  { key: "city_name_text",              label: "city_name_text" },
-  { key: "state_code",                  label: "state_code" },
-  { key: "zip_code",                    label: "zip_code" },
-  { key: "zip4_code",                   label: "zip4_code" },
-  { key: "county_code",                 label: "county_code" },
-  { key: "county_name_text",            label: "county_name_text" },
-  { key: "msa_code",                    label: "msa_code" },
-  { key: "msa_name_text",               label: "msa_name_text" },
-  { key: "congressional_district_code", label: "congressional_district_code" },
-  { key: "placed_base_city_name_text",  label: "placed_base_city_name_text" },
-  { key: "property_total_unit_count",   label: "property_total_unit_count" },
-  { key: "property_category_name",      label: "property_category_name" },
-  { key: "primary_financing_type",      label: "primary_financing_type" },
-  { key: "associated_financing_number", label: "associated_financing_Number" },
-  { key: "is_insured_ind",              label: "is_insured_ind" },
-  { key: "is_202_811_ind",              label: "is_202_811_ind" },
-  { key: "is_hud_held_ind",             label: "is_hud_held_ind" },
-  { key: "is_hud_owned_ind",            label: "is_hud_owned_ind" },
-  { key: "is_hospital_ind",             label: "is_hospital_ind" },
-  { key: "is_nursing_home_ind",         label: "is_nursing_home_ind" },
-  { key: "is_board_and_care_ind",       label: "is_board_and_care_ind" },
-  { key: "is_assisted_living_ind",      label: "is_assisted_living_ind" },
-  { key: "is_refinanced_ind",           label: "is_refinanced_ind" },
-  { key: "is_221d3_ind",                label: "is_221d3_ind" },
-  { key: "is_221d4_ind",                label: "is_221d4_ind" },
-  { key: "is_236_ind",                  label: "is_236_ind" },
-  { key: "is_non_insured_ind",          label: "is_non_insured_ind" },
-  { key: "is_bmir_ind",                 label: "is_bmir_ind" },
-  { key: "is_risk_sharing_ind",         label: "is_risk_sharing_ind" },
-  { key: "is_mip_ind",                  label: "is_mip_ind" },
-  { key: "is_co_insured_ind",           label: "is_co_insured_ind" },
-  { key: "is_opportunity_zone_ind",     label: "is_opportunity_zone_ind" },
-  { key: "ownership_effective_date",    label: "ownership_effective_date" },
-  { key: "owner_participant_id",        label: "owner_participant_id" },
-  { key: "owner_company_type",          label: "owner_company_type" },
-  { key: "owner_individual_first_name", label: "owner_individual_first_name" },
-  { key: "owner_individual_middle_name",label: "owner_individual_middle_name" },
-  { key: "owner_individual_last_name",  label: "owner_individual_last_name" },
-  { key: "owner_individual_full_name",  label: "owner_individual_full_name" },
-  { key: "owner_individual_title_text", label: "owner_individual_title_text" },
-  { key: "owner_organization_name",     label: "owner_organization_name" },
-  { key: "owner_address_line1",         label: "owner_address_line1" },
-  { key: "owner_address_line2",         label: "owner_address_line2" },
-  { key: "owner_city_name",             label: "owner_city_name" },
-  { key: "owner_state_code",            label: "owner_state_code" },
-  { key: "owner_zip_code",              label: "owner_zip_code" },
-  { key: "owner_zip4_code",             label: "owner_zip4_code" },
-  { key: "owner_main_phone_number_text",label: "owner_main_phone_number_text" },
-  { key: "owner_main_fax_number_text",  label: "owner_main_fax_number_text" },
-  { key: "owner_contact_email_text",    label: "owner_contact_email_text" },
-  { key: "mgmt_agent_participant_id",   label: "mgmt_agent_participant_id" },
-  { key: "mgmt_agent_company_type",     label: "mgmt_agent_company_type" },
-  { key: "mgmt_agent_indv_first_name",  label: "mgmt_agent_indv_first_name" },
-  { key: "mgmt_agent_indv_last_name",   label: "mgmt_agent_indv_last_name" },
-  { key: "mgmt_agent_indv_middle_name", label: "mgmt_agent_indv_middle_name" },
-  { key: "mgmt_agent_full_name",        label: "mgmt_agent_full_name" },
-  { key: "mgmt_agent_indv_title_text",  label: "mgmt_agent_indv_title_text" },
-  { key: "mgmt_agent_org_name",         label: "mgmt_agent_org_name" },
-  { key: "mgmt_agent_address_line1",    label: "mgmt_agent_address_line1" },
-  { key: "mgmt_agent_address_line2",    label: "mgmt_agent_address_line2" },
-  { key: "mgmt_agent_city_name",        label: "mgmt_agent_city_name" },
-  { key: "mgmt_agent_state_code",       label: "mgmt_agent_state_code" },
-  { key: "mgmt_agent_zip_code",         label: "mgmt_agent_zip_code" },
-  { key: "mgmt_agent_zip4_code",        label: "mgmt_agent_zip4_code" },
-  { key: "mgmt_agent_main_phone_number",label: "mgmt_agent_main_phone_number" },
-  { key: "mgmt_agent_main_fax_number",  label: "mgmt_agent_main_fax_number" },
-  { key: "mgmt_contact_email_text",     label: "mgmt_contact_email_text" },
+const COLS=[
+  {k:"property_name",l:"Property Name"},{k:"total_units",l:"Total Units"},{k:"city",l:"City"},
+  {k:"state",l:"State"},{k:"county",l:"County"},{k:"renewal_type",l:"Renewal Type"},
+  {k:"program_type",l:"Program Type"},{k:"doc_type",l:"Doc Type"},
+  {k:"hap_effective_date",l:"HAP Effective Date"},{k:"hap_expiration_date",l:"HAP Expiration Date"},
+  {k:"rent_to_fmr_ratio",l:"Rent-to-FMR Ratio"},{k:"last_reac_1",l:"Last REAC 1"},
+  {k:"last_reac_2",l:"Last REAC 2"},{k:"last_reac_3",l:"Last REAC 3"},
+  {k:"last_reac_date_1",l:"Last REAC Date 1"},{k:"last_reac_date_2",l:"Last REAC Date 2"},
+  {k:"last_reac_date_3",l:"Last REAC Date 3"},{k:"f_1br_rent",l:"1BR Rent"},
+  {k:"f_2br_rent",l:"2BR Rent"},{k:"f_3br_rent",l:"3BR Rent"},{k:"f_4br_rent",l:"4BR Rent"},
+  {k:"f_0br_rent",l:"0BR Rent"},{k:"f_5br_rent",l:"5BR+ Rent"},{k:"f_1br_ua",l:"1BR UA"},
+  {k:"f_2br_ua",l:"2BR UA"},{k:"f_3br_ua",l:"3BR UA"},{k:"f_4br_ua",l:"4BR UA"},
+  {k:"f_0br_ua",l:"0BR UA"},{k:"f_5br_ua",l:"5BR+ UA"},{k:"contract_units",l:"Contract Units"},
+  {k:"property_id",l:"Property ID"},{k:"contract_number",l:"Contract Number"},
+  {k:"property_id_2",l:"Property ID 2"},{k:"last_react_no_letter_1",l:"Last REACT (no letter) 1"},
+  {k:"last_react_no_letter_2",l:"Last REACT (no letter) 2"},{k:"last_react_no_letter_3",l:"Last REACT (no letter) 3"},
+  {k:"property_phone_number",l:"property_phone_number"},{k:"address_line1_text",l:"address_line1_text"},
+  {k:"address_line2_text",l:"address_line2_text"},{k:"city_name_text",l:"city_name_text"},
+  {k:"state_code",l:"state_code"},{k:"zip_code",l:"zip_code"},{k:"zip4_code",l:"zip4_code"},
+  {k:"county_code",l:"county_code"},{k:"county_name_text",l:"county_name_text"},
+  {k:"msa_code",l:"msa_code"},{k:"msa_name_text",l:"msa_name_text"},
+  {k:"congressional_district_code",l:"congressional_district_code"},
+  {k:"placed_base_city_name_text",l:"placed_base_city_name_text"},
+  {k:"property_total_unit_count",l:"property_total_unit_count"},
+  {k:"property_category_name",l:"property_category_name"},
+  {k:"primary_financing_type",l:"primary_financing_type"},
+  {k:"associated_financing_number",l:"associated_financing_Number"},
+  {k:"is_insured_ind",l:"is_insured_ind"},{k:"is_202_811_ind",l:"is_202_811_ind"},
+  {k:"is_hud_held_ind",l:"is_hud_held_ind"},{k:"is_hud_owned_ind",l:"is_hud_owned_ind"},
+  {k:"is_hospital_ind",l:"is_hospital_ind"},{k:"is_nursing_home_ind",l:"is_nursing_home_ind"},
+  {k:"is_board_and_care_ind",l:"is_board_and_care_ind"},{k:"is_assisted_living_ind",l:"is_assisted_living_ind"},
+  {k:"is_refinanced_ind",l:"is_refinanced_ind"},{k:"is_221d3_ind",l:"is_221d3_ind"},
+  {k:"is_221d4_ind",l:"is_221d4_ind"},{k:"is_236_ind",l:"is_236_ind"},
+  {k:"is_non_insured_ind",l:"is_non_insured_ind"},{k:"is_bmir_ind",l:"is_bmir_ind"},
+  {k:"is_risk_sharing_ind",l:"is_risk_sharing_ind"},{k:"is_mip_ind",l:"is_mip_ind"},
+  {k:"is_co_insured_ind",l:"is_co_insured_ind"},{k:"is_opportunity_zone_ind",l:"is_opportunity_zone_ind"},
+  {k:"ownership_effective_date",l:"ownership_effective_date"},{k:"owner_participant_id",l:"owner_participant_id"},
+  {k:"owner_company_type",l:"owner_company_type"},{k:"owner_individual_first_name",l:"owner_individual_first_name"},
+  {k:"owner_individual_middle_name",l:"owner_individual_middle_name"},{k:"owner_individual_last_name",l:"owner_individual_last_name"},
+  {k:"owner_individual_full_name",l:"owner_individual_full_name"},{k:"owner_individual_title_text",l:"owner_individual_title_text"},
+  {k:"owner_organization_name",l:"owner_organization_name"},{k:"owner_address_line1",l:"owner_address_line1"},
+  {k:"owner_address_line2",l:"owner_address_line2"},{k:"owner_city_name",l:"owner_city_name"},
+  {k:"owner_state_code",l:"owner_state_code"},{k:"owner_zip_code",l:"owner_zip_code"},
+  {k:"owner_zip4_code",l:"owner_zip4_code"},{k:"owner_main_phone_number_text",l:"owner_main_phone_number_text"},
+  {k:"owner_main_fax_number_text",l:"owner_main_fax_number_text"},{k:"owner_contact_email_text",l:"owner_contact_email_text"},
+  {k:"mgmt_agent_participant_id",l:"mgmt_agent_participant_id"},{k:"mgmt_agent_company_type",l:"mgmt_agent_company_type"},
+  {k:"mgmt_agent_indv_first_name",l:"mgmt_agent_indv_first_name"},{k:"mgmt_agent_indv_last_name",l:"mgmt_agent_indv_last_name"},
+  {k:"mgmt_agent_indv_middle_name",l:"mgmt_agent_indv_middle_name"},{k:"mgmt_agent_full_name",l:"mgmt_agent_full_name"},
+  {k:"mgmt_agent_indv_title_text",l:"mgmt_agent_indv_title_text"},{k:"mgmt_agent_org_name",l:"mgmt_agent_org_name"},
+  {k:"mgmt_agent_address_line1",l:"mgmt_agent_address_line1"},{k:"mgmt_agent_address_line2",l:"mgmt_agent_address_line2"},
+  {k:"mgmt_agent_city_name",l:"mgmt_agent_city_name"},{k:"mgmt_agent_state_code",l:"mgmt_agent_state_code"},
+  {k:"mgmt_agent_zip_code",l:"mgmt_agent_zip_code"},{k:"mgmt_agent_zip4_code",l:"mgmt_agent_zip4_code"},
+  {k:"mgmt_agent_main_phone_number",l:"mgmt_agent_main_phone_number"},{k:"mgmt_agent_main_fax_number",l:"mgmt_agent_main_fax_number"},
+  {k:"mgmt_contact_email_text",l:"mgmt_contact_email_text"},
 ];
 
-(function() {
-  const tr = document.createElement("tr");
-  const th0 = document.createElement("th"); th0.className="copy-col"; tr.appendChild(th0);
-  COLUMNS.forEach(col => {
-    const th = document.createElement("th");
-    th.textContent = col.label; th.dataset.col = col.key;
-    th.addEventListener("click", () => { sortAsc = sortCol===col.key ? !sortAsc : true; sortCol=col.key; currentPage=0; loadData(); });
+(function(){
+  const tr=document.createElement("tr");
+  const th0=document.createElement("th");th0.className="copy-col";tr.appendChild(th0);
+  COLS.forEach(c=>{
+    const th=document.createElement("th");th.textContent=c.l;th.dataset.col=c.k;
+    th.addEventListener("click",()=>{sortAsc=sortCol===c.k?!sortAsc:true;sortCol=c.k;page=0;load();});
     tr.appendChild(th);
   });
   document.getElementById("tableHead").appendChild(tr);
 })();
 
-function fmtDate(v) { if(!v) return ""; const d=new Date(v); return isNaN(d)?v:d.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"}); }
-function debounce(fn,ms){ clearTimeout(debounceTimer); debounceTimer=setTimeout(fn,ms); }
+const fmtDate=v=>{if(!v)return"";const d=new Date(v);return isNaN(d)?v:d.toLocaleDateString("en-US",{year:"numeric",month:"short",day:"numeric"});};
+const debounce=(fn,ms)=>{clearTimeout(timer);timer=setTimeout(fn,ms);};
 
-function spawnParticles(btn) {
-  const r=btn.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
-  const colors=["#C9A66B","#e8c98a","#0B2545","#1e3f6f","#E5D4A8","#5B6B7E"];
-  for(let i=0;i<8;i++){
-    const p=document.createElement("div"); p.className="particle";
-    const a=(Math.PI*2*i)/8, d=20+Math.random()*20;
-    p.style.cssText=`left:${cx}px;top:${cy}px;width:${3+Math.random()*3}px;height:${3+Math.random()*3}px;background:${colors[i%colors.length]};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d-8}px;animation:particleFly ${.4+Math.random()*.2}s ease-out forwards;animation-delay:${Math.random()*.05}s;`;
-    document.body.appendChild(p); setTimeout(()=>p.remove(),700);
-  }
+function particles(btn){
+  const r=btn.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  ["#081937","#162f5e","#0d2347","#ffffff","#c4cde0","#081937"].forEach((col,i)=>{
+    const p=document.createElement("div");p.className="particle";
+    const a=(Math.PI*2*i)/6,d=18+Math.random()*22;
+    p.style.cssText=`left:${cx}px;top:${cy}px;width:${3+Math.random()*4}px;height:${3+Math.random()*4}px;background:${col};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d-10}px;animation:particleFly ${.4+Math.random()*.25}s ease-out forwards;`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),800);
+  });
 }
 
-function buildQuery(forCount=false) {
-  let q = forCount ? db.from(TABLE).select("id",{count:"exact",head:true}) : db.from(TABLE).select("*");
-  const name=document.getElementById("searchName").value.trim();
-  const city=document.getElementById("searchCity").value.trim();
-  const county=document.getElementById("searchCounty").value.trim();
-  const zip=document.getElementById("searchZip").value.trim();
-  const msa=document.getElementById("searchMsa").value.trim();
-  if(name)   q=q.ilike("property_name",`%${name}%`);
-  if(city)   q=q.ilike("city",`%${city}%`);
-  if(county) q=q.ilike("county",`%${county}%`);
-  if(zip)    q=q.ilike("zip_code",`%${zip}%`);
-  if(msa)    q=q.ilike("msa_name_text",`%${msa}%`);
+function query(count=false){
+  let q=count?db.from(TABLE).select("id",{count:"exact",head:true}):db.from(TABLE).select("*");
+  const n=document.getElementById("searchName").value.trim();
+  const c=document.getElementById("searchCity").value.trim();
+  const st=document.getElementById("searchState").value.trim();
+  const co=document.getElementById("searchCounty").value.trim();
+  const z=document.getElementById("searchZip").value.trim();
+  const m=document.getElementById("searchMsa").value.trim();
+  if(n) q=q.ilike("property_name",`%${n}%`);
+  if(c) q=q.ilike("city",`%${c}%`);
+  // Search both state and state_code columns
+  if(st) q=q.or(`state.ilike.%${st}%,state_code.ilike.%${st}%`);
+  if(co) q=q.ilike("county",`%${co}%`);
+  if(z)  q=q.ilike("zip_code",`%${z}%`);
+  if(m)  q=q.ilike("msa_name_text",`%${m}%`);
   return q;
 }
 
-async function loadData() {
+async function load(){
   document.getElementById("loading").style.display="block";
   document.getElementById("mainTable").style.display="none";
   document.getElementById("paginationBar").innerHTML="";
-  const {count}=await buildQuery(true); totalCount=count||0;
-  const from=currentPage*PAGE_SIZE;
-  const {data,error}=await buildQuery().order(sortCol,{ascending:sortAsc}).range(from,from+PAGE_SIZE-1);
-  if(error){document.getElementById("loading").innerHTML=`<p style="padding:20px;color:#A23B3B;font-family:'Barlow Condensed',sans-serif;letter-spacing:.05em;text-transform:uppercase">Error: ${error.message}</p>`;return;}
-  currentRows=data||[];
-  renderTable(currentRows); renderPagination();
-  document.getElementById("resultCount").innerHTML=`<strong>${totalCount.toLocaleString()}</strong> properties found`;
-  document.getElementById("pageInfo").textContent=`Page ${currentPage+1} of ${Math.ceil(totalCount/PAGE_SIZE)||1}`;
+  const{count}=await query(true);total=count||0;
+  const from=page*PAGE_SIZE;
+  const{data,error}=await query().order(sortCol,{ascending:sortAsc}).range(from,from+PAGE_SIZE-1);
+  if(error){document.getElementById("loading").innerHTML=`<p style="padding:20px;color:#888">Error: ${error.message}</p>`;return;}
+  rows=data||[];
+  render(rows);paginate();
+  document.getElementById("resultCount").innerHTML=`<strong>${total.toLocaleString()}</strong> properties`;
+  document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(total/PAGE_SIZE)||1}`;
   document.getElementById("loading").style.display="none";
   document.getElementById("mainTable").style.display="table";
 }
 
-const COPY_ICON=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-const CHECK_ICON=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const CI=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CK=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-function renderTable(rows) {
-  const tbody=document.getElementById("tableBody"); tbody.innerHTML="";
-  if(!rows.length){
+function render(data){
+  const tb=document.getElementById("tableBody");tb.innerHTML="";
+  if(!data.length){
     const tr=document.createElement("tr"),td=document.createElement("td");
-    td.colSpan=COLUMNS.length+1;
-    td.style.cssText="padding:36px;text-align:center;color:var(--text-light);font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.08em;";
-    td.textContent="No results found."; tr.appendChild(td); tbody.appendChild(tr); return;
+    td.colSpan=COLS.length+1;
+    td.style.cssText="padding:40px;text-align:center;color:#aaa;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;";
+    td.textContent="No results found.";tr.appendChild(td);tb.appendChild(tr);return;
   }
-  rows.forEach((r,i)=>{
-    const tr=document.createElement("tr"); tr.className="animate-in"; tr.style.animationDelay=(i*.016)+"s";
-    const ctd=document.createElement("td"); ctd.className="copy-col";
-    const btn=document.createElement("button"); btn.className="copy-btn"; btn.innerHTML=COPY_ICON; btn.title="Copy row";
-    btn.onclick=()=>copyRow(i,btn,tr); ctd.appendChild(btn); tr.appendChild(ctd);
-    COLUMNS.forEach(col=>{
+  data.forEach((r,i)=>{
+    const tr=document.createElement("tr");tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";
+    const ct=document.createElement("td");ct.className="copy-col";
+    const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
+    btn.onclick=()=>copy(i,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
+    COLS.forEach(c=>{
       const td=document.createElement("td");
-      let val=r[col.key]; if(val==null) val="";
-      if(col.key.includes("date")&&val) val=fmtDate(val);
-      if(NUM_KEYS.has(col.key)) td.className="is-num";
-      td.textContent=val; td.title=String(val); tr.appendChild(td);
+      let v=r[c.k];if(v==null)v="";
+      if(c.k.includes("date")&&v)v=fmtDate(v);
+      if(NUM.has(c.k))td.className="is-num";
+      td.textContent=v;td.title=String(v);tr.appendChild(td);
     });
-    tbody.appendChild(tr);
+    tb.appendChild(tr);
   });
 }
 
-function copyRow(idx,btn,tr) {
-  const r=currentRows[idx];
-  const tsv=COLUMNS.map(col=>{const v=r[col.key];if(v==null)return"";const s=String(v);return(s.includes("\t")||s.includes("\n")||s.includes('"'))?'"'+s.replace(/"/g,'""')+'"':s;}).join("\t");
-  navigator.clipboard.writeText(tsv).then(()=>{
-    btn.innerHTML=CHECK_ICON; btn.classList.add("success"); spawnParticles(btn);
-    tr.classList.remove("copied"); void tr.offsetWidth; tr.classList.add("copied");
-    setTimeout(()=>{btn.innerHTML=COPY_ICON;btn.classList.remove("success");tr.classList.remove("copied");},2000);
+function copy(i,btn,tr){
+  const r=rows[i];
+  const t=COLS.map(c=>{const v=r[c.k];if(v==null)return"";const s=String(v);return(s.includes("\t")||s.includes("\n")||s.includes('"'))?'"'+s.replace(/"/g,'""')+'"':s;}).join("\t");
+  navigator.clipboard.writeText(t).then(()=>{
+    btn.innerHTML=CK;btn.classList.add("success");particles(btn);
+    tr.classList.remove("copied");void tr.offsetWidth;tr.classList.add("copied");
+    setTimeout(()=>{btn.innerHTML=CI;btn.classList.remove("success");tr.classList.remove("copied");},2000);
   });
 }
 
 document.getElementById("exportBtn").onclick=()=>{
-  if(!currentRows.length) return;
-  const d=currentRows.map(r=>Object.fromEntries(COLUMNS.map(c=>[c.label,r[c.key]??""])));
-  const ws=XLSX.utils.json_to_sheet(d,{header:COLUMNS.map(c=>c.label)});
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"HAP Properties");
+  if(!rows.length)return;
+  const d=rows.map(r=>Object.fromEntries(COLS.map(c=>[c.l,r[c.k]??""])));
+  const ws=XLSX.utils.json_to_sheet(d,{header:COLS.map(c=>c.l)});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"HAP");
   XLSX.writeFile(wb,"hap_export.xlsx");
 };
 
-function renderPagination() {
-  const tp=Math.ceil(totalCount/PAGE_SIZE), bar=document.getElementById("paginationBar");
+function paginate(){
+  const tp=Math.ceil(total/PAGE_SIZE),bar=document.getElementById("paginationBar");
   if(tp<=1){bar.innerHTML="";return;}
-  let h=`<button ${currentPage===0?"disabled":""} onclick="goPage(${currentPage-1})">&#8592;</button>`;
-  const s=Math.max(0,currentPage-2),e=Math.min(tp-1,currentPage+2);
-  if(s>0) h+=`<button onclick="goPage(0)">1</button>`;
-  if(s>1) h+=`<span class="ellipsis">…</span>`;
-  for(let p=s;p<=e;p++) h+=`<button class="${p===currentPage?"active":""}" onclick="goPage(${p})">${p+1}</button>`;
-  if(e<tp-2) h+=`<span class="ellipsis">…</span>`;
-  if(e<tp-1) h+=`<button onclick="goPage(${tp-1})">${tp}</button>`;
-  h+=`<button ${currentPage>=tp-1?"disabled":""} onclick="goPage(${currentPage+1})">&#8594;</button>`;
+  let h=`<button ${page===0?"disabled":""} onclick="go(${page-1})">&#8592;</button>`;
+  const s=Math.max(0,page-2),e=Math.min(tp-1,page+2);
+  if(s>0)h+=`<button onclick="go(0)">1</button>`;
+  if(s>1)h+=`<span class="ellipsis">…</span>`;
+  for(let p=s;p<=e;p++)h+=`<button class="${p===page?"active":""}" onclick="go(${p})">${p+1}</button>`;
+  if(e<tp-2)h+=`<span class="ellipsis">…</span>`;
+  if(e<tp-1)h+=`<button onclick="go(${tp-1})">${tp}</button>`;
+  h+=`<button ${page>=tp-1?"disabled":""} onclick="go(${page+1})">&#8594;</button>`;
   bar.innerHTML=h;
 }
-function goPage(p){currentPage=p;loadData();window.scrollTo({top:0,behavior:"smooth"});}
+function go(p){page=p;load();window.scrollTo({top:0,behavior:"smooth"});}
 
-["searchName","searchCity","searchCounty","searchZip","searchMsa"].forEach(id=>{
-  document.getElementById(id).addEventListener("input",()=>{debounce(()=>{currentPage=0;loadData();},400);});
+["searchName","searchCity","searchState","searchCounty","searchZip","searchMsa"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",()=>debounce(()=>{page=0;load();},400));
 });
 document.getElementById("resetBtn").onclick=()=>{
-  ["searchName","searchCity","searchCounty","searchZip","searchMsa"].forEach(id=>{document.getElementById(id).value="";});
-  currentPage=0;loadData();
+  ["searchName","searchCity","searchState","searchCounty","searchZip","searchMsa"].forEach(id=>document.getElementById(id).value="");
+  page=0;load();
 };
-
-loadData();
+load();
 </script>
 </body>
 </html>
