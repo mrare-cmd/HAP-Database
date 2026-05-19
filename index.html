@@ -302,6 +302,42 @@
     .pagination button:disabled { opacity: .25; cursor: default; }
     .pagination button.active { background: var(--navy); border-color: var(--navy); color: var(--white); }
     .pagination .ellipsis { color: var(--text-light); padding: 0 4px; font-size: 13px; font-weight: 700; }
+
+    /* ── Scroll bar ── */
+    .scroll-bar {
+      display: flex; align-items: center;
+      background: var(--navy-mid);
+      border-top: 1px solid var(--navy-faint);
+      border-bottom: 1px solid var(--navy-faint);
+      padding: 0 28px; height: 38px;
+    }
+    .scroll-arrow {
+      width: 28px; height: 28px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: transparent; color: rgba(255,255,255,.5);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all .15s; font-family: inherit;
+    }
+    .scroll-arrow:hover { border-color: rgba(255,255,255,.5); color: var(--white); background: rgba(255,255,255,.08); }
+    .scroll-arrow:active { transform: scale(.92); }
+    .scroll-track-wrap {
+      flex: 1; position: relative; height: 6px;
+      background: rgba(255,255,255,.08); border-radius: 3px;
+      margin: 0 12px; cursor: pointer;
+    }
+    .scroll-thumb {
+      position: absolute; top: 0; height: 100%;
+      background: rgba(255,255,255,.3); border-radius: 3px;
+      min-width: 32px; transition: background .15s;
+      cursor: grab;
+    }
+    .scroll-thumb:hover { background: rgba(255,255,255,.55); }
+    .scroll-thumb.dragging { background: rgba(255,255,255,.65); cursor: grabbing; }
+    .scroll-label {
+      font-size: 9px; font-weight: 800; color: rgba(255,255,255,.22);
+      text-transform: uppercase; letter-spacing: .15em;
+      white-space: nowrap; margin: 0 10px;
+    }
   </style>
 </head>
 <body>
@@ -384,6 +420,16 @@
     <thead id="tableHead"></thead>
     <tbody id="tableBody"></tbody>
   </table>
+</div>
+
+<div class="scroll-bar" id="scrollBar">
+  <button class="scroll-arrow" id="scrollLeft">&#8592;</button>
+  <span class="scroll-label">Scroll</span>
+  <div class="scroll-track-wrap" id="scrollTrack">
+    <div class="scroll-thumb" id="scrollThumb"></div>
+  </div>
+  <span class="scroll-label">Columns</span>
+  <button class="scroll-arrow" id="scrollRight">&#8594;</button>
 </div>
 
 <div class="pagination" id="paginationBar"></div>
@@ -595,7 +641,66 @@ document.getElementById("resetBtn").onclick=()=>{
   ["searchName","searchCity","searchState","searchCounty","searchZip","searchMsa"].forEach(id=>document.getElementById(id).value="");
   page=0;load();
 };
-load();
-</script>
+// ── Scroll bar ──────────────────────────────────────────────────────
+(function(){
+  const wrap  = document.querySelector('.table-wrap');
+  const thumb = document.getElementById('scrollThumb');
+  const track = document.getElementById('scrollTrack');
+  const btnL  = document.getElementById('scrollLeft');
+  const btnR  = document.getElementById('scrollRight');
+
+  function update() {
+    const sw = wrap.scrollWidth, cw = wrap.clientWidth;
+    if (sw <= cw) { thumb.style.width = '100%'; thumb.style.left = '0'; return; }
+    const ratio = cw / sw;
+    const tw = Math.max(32, track.clientWidth * ratio);
+    const maxScroll = sw - cw;
+    const maxLeft   = track.clientWidth - tw;
+    const leftPct   = (wrap.scrollLeft / maxScroll) * maxLeft;
+    thumb.style.width = tw + 'px';
+    thumb.style.left  = leftPct + 'px';
+  }
+
+  wrap.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  setTimeout(update, 100);
+
+  // Arrow buttons — scroll by 300px
+  btnL.addEventListener('click', () => { wrap.scrollBy({ left: -300, behavior: 'smooth' }); });
+  btnR.addEventListener('click', () => { wrap.scrollBy({ left:  300, behavior: 'smooth' }); });
+
+  // Click on track to jump
+  track.addEventListener('click', (e) => {
+    if (e.target === thumb) return;
+    const rect = track.getBoundingClientRect();
+    const pct  = (e.clientX - rect.left) / rect.width;
+    wrap.scrollLeft = pct * (wrap.scrollWidth - wrap.clientWidth);
+  });
+
+  // Drag thumb
+  let dragging = false, startX = 0, startScroll = 0;
+  thumb.addEventListener('mousedown', (e) => {
+    dragging = true; startX = e.clientX; startScroll = wrap.scrollLeft;
+    thumb.classList.add('dragging'); e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx       = e.clientX - startX;
+    const trackW   = track.clientWidth;
+    const thumbW   = thumb.offsetWidth;
+    const maxLeft  = trackW - thumbW;
+    const maxScroll= wrap.scrollWidth - wrap.clientWidth;
+    wrap.scrollLeft = startScroll + (dx / maxLeft) * maxScroll;
+  });
+  document.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; thumb.classList.remove('dragging'); }
+  });
+
+  // Re-run update after table renders
+  const orig = window.render || null;
+  const observer = new MutationObserver(() => setTimeout(update, 50));
+  observer.observe(document.getElementById('tableBody'), { childList: true });
+})();
+
 </body>
 </html>
