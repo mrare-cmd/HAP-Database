@@ -137,10 +137,9 @@
 
     /* ── Table wrap ── */
     .table-wrap { padding: 20px 28px 40px; overflow-x: auto; }
-    .table-wrap::-webkit-scrollbar { height: 5px; }
-    .table-wrap::-webkit-scrollbar-track { background: var(--off-white); }
-    .table-wrap::-webkit-scrollbar-thumb { background: var(--rule-dark); border-radius: 3px; }
-    .table-wrap::-webkit-scrollbar-thumb:hover { background: var(--navy-light); }
+    /* Hide native scrollbar — replaced by custom bar */
+    .table-wrap::-webkit-scrollbar { display: none; }
+    .table-wrap { -ms-overflow-style: none; scrollbar-width: none; }
 
     /* ── The table ── */
     .data-table {
@@ -307,9 +306,10 @@
     .scroll-bar {
       display: flex; align-items: center;
       background: var(--navy-mid);
-      border-top: 1px solid var(--navy-faint);
+      border-top: 2px solid var(--navy-faint);
       border-bottom: 1px solid var(--navy-faint);
       padding: 0 28px; height: 38px;
+      position: sticky; bottom: 0; z-index: 99;
     }
     .scroll-arrow {
       width: 28px; height: 28px; border-radius: 3px;
