@@ -697,10 +697,11 @@ document.getElementById("resetBtn").onclick=()=>{
   });
 
   // Re-run update after table renders
-  const orig = window.render || null;
   const observer = new MutationObserver(() => setTimeout(update, 50));
   observer.observe(document.getElementById('tableBody'), { childList: true });
 })();
 
+load();
+</script>
 </body>
 </html>
