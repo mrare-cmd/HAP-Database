@@ -1,0 +1,42 @@
+name: Update HAP Database
+
+on:
+  # Button-only updates. Triggered either from GitHub's "Run workflow"
+  # button, or by the Cloudflare Worker relay behind the page's green
+  # "Update to Current Month" button (see WORKER_SETUP.txt).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hap-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install components
+        run: pip install --quiet pandas openpyxl xlrd requests
+
+      - name: Run the HAP update (unchanged pipeline)
+        run: python cloud_update.py
+
+      - name: Publish refreshed data
+        run: |
+          git config user.name  "hap-update-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/
+          git diff --cached --quiet && echo "No changes to publish." && exit 0
+          git commit -m "HAP data update $(date -u +%F)"
+          git push
