@@ -137,6 +137,51 @@
       color: #dff0ff; letter-spacing: .02em;
     }
 
+    /* ── Stat strip ── */
+    .stat-strip {
+      display: flex; align-items: stretch; gap: 0;
+      background: var(--white);
+      border-bottom: 1px solid var(--rule);
+      padding: 0 28px;
+    }
+    .stat-card {
+      display: flex; flex-direction: column; justify-content: center; gap: 2px;
+      padding: 12px 26px 12px 0; margin-right: 26px;
+      border-right: 1px solid var(--rule);
+    }
+    .stat-card:last-child { border-right: none; }
+    .stat-card .stat-label {
+      font-size: 9px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .16em; text-transform: uppercase;
+    }
+    .stat-card .stat-value {
+      font-size: 21px; font-weight: 800; color: var(--navy);
+      letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+
+    /* ── Empty state ── */
+    .empty-state {
+      padding: 64px 20px; text-align: center;
+    }
+    .empty-state svg { color: var(--rule-dark); margin-bottom: 14px; }
+    .empty-state .es-title {
+      font-size: 14px; font-weight: 800; color: var(--text-mid);
+      letter-spacing: .02em; margin-bottom: 4px;
+    }
+    .empty-state .es-sub {
+      font-size: 12px; color: var(--text-light); margin-bottom: 18px;
+    }
+    .empty-state button {
+      padding: 9px 20px; border-radius: 3px;
+      border: 1px solid var(--navy); background: var(--white);
+      color: var(--navy); cursor: pointer;
+      font-family: inherit; font-size: 11px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .empty-state button:hover { background: var(--navy); color: var(--white); }
+
     .table-wrap { padding: 20px 28px 40px; overflow-x: auto; }
     .table-wrap::-webkit-scrollbar { display: none; }
     .table-wrap { -ms-overflow-style: none; scrollbar-width: none; }
@@ -214,12 +259,27 @@
     .data-table thead th.copy-col {
       position: sticky; left: 0; z-index: 2;
       background: var(--white);
-      border-right: 1px solid var(--rule-dark);
+      border-right: 1px solid var(--rule);
       padding: 0 5px;
+      width: 38px; min-width: 38px; max-width: 38px;
     }
     .data-table thead th.copy-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); }
     .data-table tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.copy-col { background: var(--hover-row); }
+
+    /* Sticky Property Name column (sits right after the copy column) */
+    .data-table td.name-col,
+    .data-table thead th.name-col {
+      position: sticky; left: 38px; z-index: 2;
+      background: var(--white);
+      border-right: 1px solid var(--rule-dark);
+      box-shadow: 4px 0 6px -4px rgba(8,25,55,.14);
+      font-weight: 600;
+    }
+    .data-table thead th.name-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); font-weight: 800; }
+    .data-table thead th.name-col:hover { background: var(--navy-mid); }
+    .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
+    .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
 
     .copy-btn {
       width: 28px; height: 28px; border-radius: 3px;
@@ -342,7 +402,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev/";
+  const UPDATE_ENDPOINT = "";
   const OWNER_REPO      = "";
   const PAGE_SIZE       = 50;
 </script>
@@ -431,6 +491,17 @@
   <span id="pageInfo">&nbsp;</span>
 </div>
 
+<div class="stat-strip">
+  <div class="stat-card">
+    <span class="stat-label">Properties</span>
+    <span class="stat-value" id="statProps">&mdash;</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">Total Units</span>
+    <span class="stat-value" id="statUnits">&mdash;</span>
+  </div>
+</div>
+
 <div id="statusStrip"></div>
 
 <div class="table-wrap">
@@ -510,6 +581,7 @@ function buildHead(){
   const th0=document.createElement("th");th0.className="copy-col";tr.appendChild(th0);
   C.forEach((c,i)=>{
     const th=document.createElement("th");
+    if(i===0)th.classList.add("name-col");
     th.innerHTML=escHtml(c)+(i===sortCol?('<span class="ar">'+(sortAsc?"\u25B2":"\u25BC")+'</span>'):"");
     if(i===sortCol)th.classList.add("sorted");
     th.addEventListener("click",()=>{
@@ -571,6 +643,13 @@ function recompute(){
   paginate();
   document.getElementById("resultCount").innerHTML=`<strong>${view.length.toLocaleString()}</strong> properties`;
   document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(view.length/PAGE_SIZE)||1}`;
+
+  /* stat strip: live totals for the current filtered view */
+  const uix=IDX["Total Units"];
+  let units=0;
+  if(uix!==undefined)for(const r of view){const v=R[r][uix];if(v!==null&&!isNaN(+v))units+=+v;}
+  document.getElementById("statProps").textContent=view.length.toLocaleString();
+  document.getElementById("statUnits").textContent=units.toLocaleString();
 }
 
 function disp(colIx,v){
@@ -595,8 +674,18 @@ function render(){
   if(!slice.length){
     const tr=document.createElement("tr"),td=document.createElement("td");
     td.colSpan=C.length+1;
-    td.style.cssText="padding:40px;text-align:center;color:#aaa;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;";
-    td.textContent="No results found.";tr.appendChild(td);tb.appendChild(tr);return;
+    td.innerHTML=`<div class="empty-state">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
+        <path d="M9 9h1.5M13.5 9H15M9 12.5h1.5M13.5 12.5H15M9 16h1.5M13.5 16H15"/>
+      </svg>
+      <div class="es-title">No properties match</div>
+      <div class="es-sub">Try widening your search or removing a filter.</div>
+      <button id="esClear">Clear all filters</button>
+    </div>`;
+    tr.appendChild(td);tb.appendChild(tr);
+    document.getElementById("esClear").onclick=()=>document.getElementById("resetBtn").click();
+    return;
   }
   slice.forEach((ri,i)=>{
     const row=R[ri];
@@ -606,8 +695,9 @@ function render(){
     btn.onclick=()=>copyRow(ri,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
     for(let cix=0;cix<C.length;cix++){
       const td=document.createElement("td");
+      if(cix===0)td.classList.add("name-col");
       const v=disp(cix,row[cix]);
-      if(T[cix]==="num")td.className="is-num";
+      if(T[cix]==="num")td.classList.add("is-num");
       td.textContent=v;td.title=v;tr.appendChild(td);
     }
     tb.appendChild(tr);
