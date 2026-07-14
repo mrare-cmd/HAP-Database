@@ -128,6 +128,20 @@
       color: rgba(255,255,255,.4); letter-spacing: .02em;
     }
     .result-line strong { color: rgba(255,255,255,.85); font-weight: 700; }
+    .rl-right { display: flex; align-items: center; gap: 16px; }
+    .rows-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 800; color: rgba(255,255,255,.4);
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .rows-label select {
+      height: 22px; padding: 0 4px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: var(--navy-mid); color: rgba(255,255,255,.85);
+      font-family: inherit; font-size: 11px; font-weight: 700;
+      cursor: pointer; outline: none;
+    }
+    .rows-label select:hover { border-color: rgba(255,255,255,.55); }
 
     #statusStrip {
       display: none;
@@ -417,9 +431,9 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev/";
+  const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
-  const PAGE_SIZE       = 50;
+  let   PAGE_SIZE       = 50;
 </script>
 
 <div class="top-stripe"></div>
@@ -503,7 +517,18 @@
 
 <div class="result-line">
   <span id="resultCount">&nbsp;</span>
-  <span id="pageInfo">&nbsp;</span>
+  <span class="rl-right">
+    <label class="rows-label">View
+      <select id="pageSizeSel">
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="200">200</option>
+        <option value="all">All</option>
+      </select>
+      rows
+    </label>
+    <span id="pageInfo">&nbsp;</span>
+  </span>
 </div>
 
 <div class="stat-strip">
@@ -682,7 +707,7 @@ function disp(colIx,v){
   if(T[colIx]==="num"){
     const f=+v;
     if(isNaN(f))return""+v;
-    if(c===RATIO)return f.toFixed(2);
+    if(c===RATIO)return (f*100).toFixed(2)+"%";
     if(INTC.has(c))return f.toLocaleString("en-US",{maximumFractionDigits:0});
     return f.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
   }
@@ -753,9 +778,11 @@ function render(){
     document.getElementById("esClear").onclick=()=>document.getElementById("resetBtn").click();
     return;
   }
+  const animate=slice.length<=200;
   slice.forEach((ri,i)=>{
     const row=R[ri];
-    const tr=document.createElement("tr");tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";
+    const tr=document.createElement("tr");
+    if(animate){tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";}
     const ct=document.createElement("td");ct.className="copy-col";
     const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
     btn.onclick=()=>copyRow(ri,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
@@ -833,6 +860,17 @@ document.getElementById("resetBtn").onclick=()=>{
   document.getElementById("gsearch").value="";
   page=0;recompute();
 };
+document.getElementById("pageSizeSel").addEventListener("change",function(){
+  if(this.value==="all"){
+    if(view.length>2000&&!confirm("Show all "+view.length.toLocaleString()+" rows on one page? With this many rows the page can take a while to draw and may scroll slowly. Filtering first is usually faster.")){
+      this.value=String(PAGE_SIZE===Infinity?50:PAGE_SIZE);return;
+    }
+    PAGE_SIZE=Infinity;
+  }else{
+    PAGE_SIZE=+this.value;
+  }
+  page=0;recompute();
+});
 
 /* ── Update button ─────────────────────────────────────────────────
    With UPDATE_ENDPOINT set: POST to the relay, which starts the
