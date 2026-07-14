@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HAP Property Database — Greysteel</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy:        #081937;
+      --navy-mid:    #0d2347;
+      --navy-light:  #162f5e;
+      --navy-faint:  #1a3570;
+      --white:       #ffffff;
+      --off-white:   #f4f6f9;
+      --rule:        #dde3ee;
+      --rule-dark:   #c4cde0;
+      --text:        #0d1e3a;
+      --text-mid:    #3d5070;
+      --text-light:  #6b7fa0;
+      --row-alt:     #f8fafd;
+      --hover-row:   #eef2fa;
+      --copy-flash:  #dce8ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--off-white);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .top-stripe { height: 4px; background: var(--white); }
+
+    header {
+      background: var(--navy);
+      padding: 0 28px;
+      height: 58px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      border-bottom: 1px solid var(--navy-faint);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .site-label {
+      font-size: 10px; font-weight: 800;
+      color: rgba(255,255,255,.5); letter-spacing: .2em;
+      text-transform: uppercase;
+    }
+    .header-divider { width: 1px; height: 16px; background: rgba(255,255,255,.15); }
+    header h1 { font-size: 17px; font-weight: 800; color: var(--white); letter-spacing: -.01em; }
+    .asof-label {
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,.35);
+      letter-spacing: .12em; text-transform: uppercase;
+    }
+    .asof-label strong { color: rgba(255,255,255,.75); }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .hdr-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 0 14px; height: 32px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: transparent; color: rgba(255,255,255,.7);
+      cursor: pointer; font-size: 11px; font-weight: 700;
+      font-family: inherit; letter-spacing: .08em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .hdr-btn:hover { border-color: var(--white); color: var(--white); background: rgba(255,255,255,.08); }
+    .hdr-btn:disabled { opacity: .45; cursor: progress; }
+    .hdr-btn.update { border-color: rgba(126,224,165,.5); color: #7ee0a5; }
+    .hdr-btn.update:hover { border-color: #7ee0a5; color: #b6f0cd; background: rgba(28,122,63,.25); }
+
+    .search-bar {
+      background: var(--navy-mid);
+      border-bottom: 1px solid var(--navy-faint);
+      padding: 12px 28px;
+      display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field label {
+      font-size: 9px; font-weight: 800; color: rgba(255,255,255,.4);
+      text-transform: uppercase; letter-spacing: .15em;
+    }
+    .field-inner { position: relative; }
+    .field-inner svg {
+      position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+      color: rgba(255,255,255,.25); pointer-events: none; transition: color .15s;
+    }
+    input[type="text"] {
+      height: 34px; padding: 0 10px 0 30px;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
+      font-size: 13px; font-family: inherit;
+      color: var(--white);
+      background: rgba(255,255,255,.07);
+      transition: border-color .15s, background .15s;
+    }
+    input[type="text"]::placeholder { color: rgba(255,255,255,.25); }
+    input[type="text"]:focus {
+      outline: none;
+      border-color: rgba(255,255,255,.5);
+      background: rgba(255,255,255,.12);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .field-inner:focus-within svg { color: rgba(255,255,255,.6); }
+
+    .btn-reset {
+      height: 34px; padding: 0 14px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.15);
+      background: transparent; color: rgba(255,255,255,.45);
+      cursor: pointer; font-size: 11px;
+      font-family: inherit; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .btn-reset:hover { border-color: rgba(255,255,255,.4); color: rgba(255,255,255,.8); }
+
+    .result-line {
+      padding: 7px 28px;
+      background: var(--navy);
+      border-bottom: 3px solid var(--navy-light);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .result-line span {
+      font-size: 11px; font-weight: 500;
+      color: rgba(255,255,255,.4); letter-spacing: .02em;
+    }
+    .result-line strong { color: rgba(255,255,255,.85); font-weight: 700; }
+
+    #statusStrip {
+      display: none;
+      padding: 8px 28px;
+      background: var(--navy-light);
+      border-bottom: 1px solid var(--navy-faint);
+      font-size: 12px; font-weight: 600;
+      color: #dff0ff; letter-spacing: .02em;
+    }
+
+    .table-wrap { padding: 20px 28px 40px; overflow-x: auto; }
+    .table-wrap::-webkit-scrollbar { display: none; }
+    .table-wrap { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      background: var(--white);
+      border-top: 3px solid var(--navy);
+      border-bottom: 2px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08);
+    }
+
+    .data-table thead tr { background: var(--navy); }
+    .data-table thead th {
+      padding: 9px 11px;
+      text-align: left;
+      font-size: 10px; font-weight: 800;
+      color: rgba(255,255,255,.55); letter-spacing: .1em; text-transform: uppercase;
+      white-space: nowrap; cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--navy-faint);
+      transition: color .15s, background .15s;
+    }
+    .data-table thead th:hover { color: var(--white); background: var(--navy-mid); }
+    .data-table thead th.sorted { color: var(--white); }
+    .data-table thead th .ar { font-size: 8px; opacity: .8; margin-left: 4px; }
+    .data-table thead th.copy-col { cursor: default; width: 36px; min-width: 36px; }
+    .data-table thead th.copy-col:hover { background: var(--navy); }
+
+    .data-table tbody tr {
+      border-bottom: 1px solid var(--rule);
+      transition: background .1s;
+    }
+    .data-table tbody tr:nth-child(even) { background: var(--row-alt); }
+    .data-table tbody tr:hover { background: var(--hover-row) !important; }
+    .data-table tbody tr:last-child { border-bottom: none; }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .data-table tbody tr.animate-in { animation: rowIn .16s ease-out both; }
+
+    @keyframes sweep {
+      0%   { background-position: -100% 0; opacity: 1; }
+      100% { background-position: 250% 0; opacity: 0; }
+    }
+    @keyframes rowPop {
+      0%   { background-color: var(--copy-flash) !important; }
+      100% { background-color: transparent !important; }
+    }
+    .data-table tbody tr.copied {
+      animation: rowPop 1.3s ease-out forwards !important;
+      position: relative;
+    }
+    .data-table tbody tr.copied::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(90deg, transparent, rgba(8,25,55,.12), transparent);
+      background-size: 200% 100%;
+      animation: sweep .6s ease-out forwards; z-index: 1;
+    }
+
+    .data-table td {
+      padding: 7px 11px; white-space: nowrap;
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+      color: var(--text); line-height: 1.3;
+    }
+    .data-table td.is-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; text-align: right; color: var(--text-mid);
+    }
+
+    .data-table td.copy-col,
+    .data-table thead th.copy-col {
+      position: sticky; left: 0; z-index: 2;
+      background: var(--white);
+      border-right: 1px solid var(--rule-dark);
+      padding: 0 5px;
+    }
+    .data-table thead th.copy-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); }
+    .data-table tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
+    .data-table tbody tr:hover td.copy-col { background: var(--hover-row); }
+
+    .copy-btn {
+      width: 28px; height: 28px; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: transparent;
+      cursor: pointer; color: var(--rule-dark);
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .copy-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+    .copy-btn:active { transform: scale(.88); }
+    @keyframes checkPop {
+      0% { transform: scale(.4); } 55% { transform: scale(1.25); } 100% { transform: scale(1); }
+    }
+    .copy-btn.success { border-color: var(--navy); background: var(--navy); color: var(--white); }
+    .copy-btn.success svg { animation: checkPop .25s ease-out; }
+
+    .particle { position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%; }
+    @keyframes particleFly {
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--tx),var(--ty)) scale(0); }
+    }
+
+    #loading { padding: 20px 28px 40px; }
+    .skel-table {
+      background: var(--white);
+      border-top: 3px solid var(--navy);
+      border-bottom: 2px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08);
+    }
+    .skel-head {
+      background: var(--navy); height: 38px;
+      display: flex; align-items: center; padding: 0 12px; gap: 10px;
+      overflow: hidden;
+    }
+    .skel-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 12px; border-bottom: 1px solid var(--rule);
+      overflow: hidden;
+    }
+    .skel-row:nth-child(even) { background: var(--row-alt); }
+    .skel-row:last-child { border-bottom: none; }
+    @keyframes shimmer {
+      0%   { background-position: -700px 0; }
+      100% { background-position: 700px 0; }
+    }
+    .skel {
+      height: 10px; border-radius: 2px; flex-shrink: 0;
+      background: linear-gradient(90deg, #eaeff6 25%, #dce3ef 50%, #eaeff6 75%);
+      background-size: 700px 100%;
+      animation: shimmer 1.3s ease-in-out infinite;
+    }
+    .skel.dark {
+      background: linear-gradient(90deg, #0f2a52 25%, #162f5e 50%, #0f2a52 75%) !important;
+      background-size: 700px 100% !important;
+    }
+
+    .pagination {
+      display: flex; align-items: center; justify-content: center; gap: 3px;
+      padding: 8px 28px 28px;
+    }
+    .pagination button {
+      width: 34px; height: 34px; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: var(--white);
+      cursor: pointer; font-size: 12px; font-weight: 700;
+      font-family: inherit; color: var(--text-mid);
+      transition: all .15s;
+    }
+    .pagination button:hover:not(:disabled) {
+      border-color: var(--navy); color: var(--navy); background: var(--hover-row);
+    }
+    .pagination button:disabled { opacity: .25; cursor: default; }
+    .pagination button.active { background: var(--navy); border-color: var(--navy); color: var(--white); }
+    .pagination .ellipsis { color: var(--text-light); padding: 0 4px; font-size: 13px; font-weight: 700; }
+
+    .scroll-bar {
+      display: flex; align-items: center;
+      background: var(--navy-mid);
+      border-top: 2px solid var(--navy-faint);
+      border-bottom: 1px solid var(--navy-faint);
+      padding: 0 28px; height: 38px;
+      position: sticky; bottom: 0; z-index: 99;
+    }
+    .scroll-arrow {
+      width: 28px; height: 28px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.18);
+      background: transparent; color: rgba(255,255,255,.5);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all .15s; font-family: inherit;
+    }
+    .scroll-arrow:hover { border-color: rgba(255,255,255,.5); color: var(--white); background: rgba(255,255,255,.08); }
+    .scroll-arrow:active { transform: scale(.92); }
+    .scroll-track-wrap {
+      flex: 1; position: relative; height: 6px;
+      background: rgba(255,255,255,.08); border-radius: 3px;
+      margin: 0 12px; cursor: pointer;
+    }
+    .scroll-thumb {
+      position: absolute; top: 0; height: 100%;
+      background: rgba(255,255,255,.3); border-radius: 3px;
+      min-width: 32px; transition: background .15s;
+      cursor: grab;
+    }
+    .scroll-thumb:hover { background: rgba(255,255,255,.55); }
+    .scroll-thumb.dragging { background: rgba(255,255,255,.65); cursor: grabbing; }
+    .scroll-label {
+      font-size: 9px; font-weight: 800; color: rgba(255,255,255,.22);
+      text-transform: uppercase; letter-spacing: .15em;
+      white-space: nowrap; margin: 0 10px;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+  /* ────────────────────────────────────────────────────────────────
+     CONFIG
+     UPDATE_ENDPOINT: URL of the Cloudflare Worker relay that triggers
+     the GitHub Action (see WORKER_SETUP.txt). With it set, ANYONE can
+     press Update - no GitHub account needed. Leave "" and the button
+     instead opens the GitHub "Run workflow" page (login required).
+     OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
+  ──────────────────────────────────────────────────────────────── */
+  const UPDATE_ENDPOINT = "";
+  const OWNER_REPO      = "";
+  const PAGE_SIZE       = 50;
+</script>
+
+<div class="top-stripe"></div>
+
+<header>
+  <div class="header-left">
+    <span class="site-label">Greysteel</span>
+    <div class="header-divider"></div>
+    <h1>HAP Property Database</h1>
+    <div class="header-divider"></div>
+    <span class="asof-label">Data as of <strong id="asofVal">&mdash;</strong></span>
+  </div>
+  <div class="header-right">
+    <button class="hdr-btn update" id="updateBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Update to Current Month
+    </button>
+    <button class="hdr-btn" id="exportBtn">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export Page
+    </button>
+  </div>
+</header>
+
+<div class="search-bar">
+  <div class="field">
+    <label>Property Name</label>
+    <div class="field-inner">
+      <input type="text" id="searchName" placeholder="Search..." style="width:190px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>City</label>
+    <div class="field-inner">
+      <input type="text" id="searchCity" placeholder="City..." style="width:130px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>State</label>
+    <div class="field-inner">
+      <input type="text" id="searchState" placeholder="e.g. MD" style="width:90px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>County</label>
+    <div class="field-inner">
+      <input type="text" id="searchCounty" placeholder="County..." style="width:130px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>ZIP</label>
+    <div class="field-inner">
+      <input type="text" id="searchZip" placeholder="Zip..." style="width:88px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>MSA</label>
+    <div class="field-inner">
+      <input type="text" id="searchMsa" placeholder="MSA name..." style="width:190px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <button class="btn-reset" id="resetBtn">Clear</button>
+</div>
+
+<div class="result-line">
+  <span id="resultCount">&nbsp;</span>
+  <span id="pageInfo">&nbsp;</span>
+</div>
+
+<div id="statusStrip"></div>
+
+<div class="table-wrap">
+  <div id="loading"><div class="skel-table" id="skelWrap"></div></div>
+  <table class="data-table" id="mainTable" style="display:none">
+    <thead id="tableHead"></thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="scroll-bar" id="scrollBar">
+  <button class="scroll-arrow" id="scrollLeft">&#8592;</button>
+  <span class="scroll-label">Scroll</span>
+  <div class="scroll-track-wrap" id="scrollTrack">
+    <div class="scroll-thumb" id="scrollThumb"></div>
+  </div>
+  <span class="scroll-label">Columns</span>
+  <button class="scroll-arrow" id="scrollRight">&#8594;</button>
+</div>
+
+<div class="pagination" id="paginationBar"></div>
+
+<script>
+/* ── Skeleton ── */
+(function(){
+  const w=document.getElementById("skelWrap");
+  const hd=document.createElement("div");hd.className="skel-head";
+  [30,105,52,38,78,38,148,88,70,82,82,50,40,40,40,76,76].forEach(x=>{
+    const s=document.createElement("div");s.className="skel dark";s.style.width=x+"px";hd.appendChild(s);
+  });
+  w.appendChild(hd);
+  for(let i=0;i<16;i++){
+    const r=document.createElement("div");r.className="skel-row";
+    [26,108,50,38,70,38,148,86,68,80,80,50,40,40,40,76,76].forEach((x,j)=>{
+      const s=document.createElement("div");s.className="skel";
+      s.style.width=(x+Math.random()*16-8)+"px";
+      s.style.animationDelay=(i*.03+j*.007)+"s";
+      r.appendChild(s);
+    });
+    w.appendChild(r);
+  }
+})();
+
+/* ── Data state ────────────────────────────────────────────────────
+   Everything comes from hap_state.json, produced by the UNCHANGED
+   HAP pipeline (hap_pipeline.py) running inside the GitHub Action. */
+let C=[], T=[], R=[], ASOF="";
+let view=[];
+let page=0, sortCol=0, sortAsc=true, timer=null;
+
+let IDX={};
+const FILTER_MAP=[
+  {input:"searchName",  cols:["Property Name"]},
+  {input:"searchCity",  cols:["City"]},
+  {input:"searchState", cols:["State","state_code"]},
+  {input:"searchCounty",cols:["County"]},
+  {input:"searchZip",   cols:["zip_code"]},
+  {input:"searchMsa",   cols:["msa_name_text"]},
+];
+const RATIO="Rent-to-FMR Ratio";
+const INTC=new Set(["Total Units","Contract Units","property_total_unit_count"]);
+
+function ghRepo(){
+  if(OWNER_REPO) return OWNER_REPO;
+  if(location.hostname.endsWith("github.io")){
+    const owner=location.hostname.split(".")[0];
+    const repo=location.pathname.split("/").filter(Boolean)[0];
+    if(owner&&repo) return owner+"/"+repo;
+  }
+  return null;
+}
+
+function escHtml(s){return (''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function buildHead(){
+  const tr=document.createElement("tr");
+  const th0=document.createElement("th");th0.className="copy-col";tr.appendChild(th0);
+  C.forEach((c,i)=>{
+    const th=document.createElement("th");
+    th.innerHTML=escHtml(c)+(i===sortCol?('<span class="ar">'+(sortAsc?"\u25B2":"\u25BC")+'</span>'):"");
+    if(i===sortCol)th.classList.add("sorted");
+    th.addEventListener("click",()=>{
+      sortAsc=(sortCol===i)?!sortAsc:true;
+      sortCol=i;page=0;recompute();
+    });
+    tr.appendChild(th);
+  });
+  const head=document.getElementById("tableHead");
+  head.innerHTML="";head.appendChild(tr);
+}
+
+function recompute(){
+  const active=FILTER_MAP.map(f=>({
+    q:document.getElementById(f.input).value.trim().toLowerCase(),
+    ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)
+  })).filter(f=>f.q);
+
+  view=[];
+  for(let r=0;r<R.length;r++){
+    let ok=true;
+    for(const f of active){
+      let hit=false;
+      for(const i of f.ix){
+        const v=R[r][i];
+        if(v!==null&&(''+v).toLowerCase().includes(f.q)){hit=true;break;}
+      }
+      if(!hit){ok=false;break;}
+    }
+    if(ok)view.push(r);
+  }
+
+  const t=T[sortCol], ci=sortCol, dir=sortAsc?1:-1;
+  const key = t==="num"
+    ? (r)=>{const v=R[r][ci];return v===null?null:+v;}
+    : t==="date"
+      ? (r)=>{const v=R[r][ci];if(!v)return null;const d=new Date(v);return isNaN(d)?null:d.getTime();}
+      : (r)=>{const v=R[r][ci];return v===null?null:(''+v).toLowerCase();};
+  view.sort((a,b)=>{
+    const ka=key(a),kb=key(b);
+    if(ka===null&&kb===null)return 0;
+    if(ka===null)return 1;
+    if(kb===null)return -1;
+    return ka<kb?-dir:(ka>kb?dir:0);
+  });
+
+  buildHead();
+  render();
+  paginate();
+  document.getElementById("resultCount").innerHTML=`<strong>${view.length.toLocaleString()}</strong> properties`;
+  document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(view.length/PAGE_SIZE)||1}`;
+}
+
+function disp(colIx,v){
+  if(v===null||v===undefined||v==="")return"";
+  const c=C[colIx];
+  if(T[colIx]==="num"){
+    const f=+v;
+    if(isNaN(f))return""+v;
+    if(c===RATIO)return f.toFixed(2);
+    if(INTC.has(c))return f.toLocaleString("en-US",{maximumFractionDigits:0});
+    return f.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
+  }
+  return""+v;
+}
+
+const CI=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+const CK=`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+function render(){
+  const tb=document.getElementById("tableBody");tb.innerHTML="";
+  const start=page*PAGE_SIZE, slice=view.slice(start,start+PAGE_SIZE);
+  if(!slice.length){
+    const tr=document.createElement("tr"),td=document.createElement("td");
+    td.colSpan=C.length+1;
+    td.style.cssText="padding:40px;text-align:center;color:#aaa;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;";
+    td.textContent="No results found.";tr.appendChild(td);tb.appendChild(tr);return;
+  }
+  slice.forEach((ri,i)=>{
+    const row=R[ri];
+    const tr=document.createElement("tr");tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";
+    const ct=document.createElement("td");ct.className="copy-col";
+    const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
+    btn.onclick=()=>copyRow(ri,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
+    for(let cix=0;cix<C.length;cix++){
+      const td=document.createElement("td");
+      const v=disp(cix,row[cix]);
+      if(T[cix]==="num")td.className="is-num";
+      td.textContent=v;td.title=v;tr.appendChild(td);
+    }
+    tb.appendChild(tr);
+  });
+}
+
+function particles(btn){
+  const r=btn.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+  ["#081937","#162f5e","#0d2347","#ffffff","#c4cde0","#081937"].forEach((col,i)=>{
+    const p=document.createElement("div");p.className="particle";
+    const a=(Math.PI*2*i)/6,d=18+Math.random()*22;
+    p.style.cssText=`left:${cx}px;top:${cy}px;width:${3+Math.random()*4}px;height:${3+Math.random()*4}px;background:${col};--tx:${Math.cos(a)*d}px;--ty:${Math.sin(a)*d-10}px;animation:particleFly ${.4+Math.random()*.25}s ease-out forwards;`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),800);
+  });
+}
+function copyRow(ri,btn,tr){
+  const row=R[ri];
+  const t=C.map((c,i)=>{
+    const v=disp(i,row[i]);
+    return(v.includes("\t")||v.includes("\n")||v.includes('"'))?'"'+v.replace(/"/g,'""')+'"':v;
+  }).join("\t");
+  navigator.clipboard.writeText(t).then(()=>{
+    btn.innerHTML=CK;btn.classList.add("success");particles(btn);
+    tr.classList.remove("copied");void tr.offsetWidth;tr.classList.add("copied");
+    setTimeout(()=>{btn.innerHTML=CI;btn.classList.remove("success");tr.classList.remove("copied");},2000);
+  });
+}
+
+document.getElementById("exportBtn").onclick=()=>{
+  const start=page*PAGE_SIZE, slice=view.slice(start,start+PAGE_SIZE);
+  if(!slice.length)return;
+  const d=slice.map(ri=>Object.fromEntries(C.map((c,i)=>[c,R[ri][i]??""])));
+  const ws=XLSX.utils.json_to_sheet(d,{header:C});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"HAP");
+  XLSX.writeFile(wb,"hap_export.xlsx");
+};
+
+function paginate(){
+  const tp=Math.ceil(view.length/PAGE_SIZE),bar=document.getElementById("paginationBar");
+  if(tp<=1){bar.innerHTML="";return;}
+  let h=`<button ${page===0?"disabled":""} onclick="go(${page-1})">&#8592;</button>`;
+  const s=Math.max(0,page-2),e=Math.min(tp-1,page+2);
+  if(s>0)h+=`<button onclick="go(0)">1</button>`;
+  if(s>1)h+=`<span class="ellipsis">\u2026</span>`;
+  for(let p=s;p<=e;p++)h+=`<button class="${p===page?"active":""}" onclick="go(${p})">${p+1}</button>`;
+  if(e<tp-2)h+=`<span class="ellipsis">\u2026</span>`;
+  if(e<tp-1)h+=`<button onclick="go(${tp-1})">${tp}</button>`;
+  h+=`<button ${page>=tp-1?"disabled":""} onclick="go(${page+1})">&#8594;</button>`;
+  bar.innerHTML=h;
+}
+function go(p){page=p;render();paginate();
+  document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(view.length/PAGE_SIZE)||1}`;
+  window.scrollTo({top:0,behavior:"smooth"});}
+
+const debounce=(fn,ms)=>{clearTimeout(timer);timer=setTimeout(fn,ms);};
+FILTER_MAP.forEach(f=>{
+  document.getElementById(f.input).addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
+});
+document.getElementById("resetBtn").onclick=()=>{
+  FILTER_MAP.forEach(f=>document.getElementById(f.input).value="");
+  page=0;recompute();
+};
+
+/* ── Update button ─────────────────────────────────────────────────
+   With UPDATE_ENDPOINT set: POST to the relay, which starts the
+   GitHub Action running the unchanged HAP updater; then watch the
+   run through GitHub's public API and swap in the new data when it
+   lands. Without it: open the Run-workflow page (login required). */
+const statusEl=document.getElementById("statusStrip");
+function setStatus(msg,show=true){statusEl.textContent=msg;statusEl.style.display=show?"block":"none";}
+
+document.getElementById("updateBtn").onclick=async function(){
+  const repo=ghRepo();
+  if(!UPDATE_ENDPOINT){
+    if(repo)window.open(`https://github.com/${repo}/actions/workflows/update.yml`,"_blank");
+    setStatus("A GitHub tab just opened - click the grey 'Run workflow' button there (requires a GitHub login with repo access). The rebuild takes ~5-10 minutes; refresh this page afterwards.");
+    return;
+  }
+  const btn=this;btn.disabled=true;
+  const triggered=Date.now();
+  setStatus("Requesting update\u2026 pulling this month's HUD files and rebuilding takes about 5-10 minutes. You can leave this tab open.");
+  try{
+    const r=await fetch(UPDATE_ENDPOINT,{method:"POST"});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||j.ok===false)throw new Error(j.error||("relay returned "+r.status));
+    if(repo)await watchRun(repo,triggered);
+    else setStatus("Update started. Refresh this page in ~10 minutes.");
+  }catch(e){
+    setStatus("Update failed to start: "+e.message);
+  }
+  btn.disabled=false;
+};
+
+async function watchRun(repo,triggered){
+  const api=`https://api.github.com/repos/${repo}/actions/workflows/update.yml/runs?per_page=1`;
+  const t0=Date.now();
+  while(Date.now()-t0<25*60*1000){
+    await new Promise(r=>setTimeout(r,20000));
+    try{
+      const res=await fetch(api,{cache:"no-store"});
+      if(!res.ok)continue;
+      const j=await res.json();
+      const run=(j.workflow_runs||[])[0];
+      if(!run||new Date(run.created_at).getTime()<triggered-90000)
+        {setStatus("Update requested - waiting for the engine to start\u2026");continue;}
+      if(run.status!=="completed")
+        {setStatus("Engine running: downloading HUD files and rebuilding the master table\u2026 (started "+new Date(run.created_at).toLocaleTimeString()+")");continue;}
+      if(run.conclusion!=="success"){setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab on GitHub for details.");return;}
+      break;
+    }catch(e){}
+  }
+  setStatus("Rebuild finished \u2713 - publishing the new data (a minute or two)\u2026");
+  const oldAsof=ASOF;
+  for(let i=0;i<12;i++){
+    await new Promise(r=>setTimeout(r,20000));
+    try{
+      const res=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
+      if(!res.ok)continue;
+      const d=await res.json();
+      if(d.asof&&d.asof!==oldAsof){applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
+    }catch(e){}
+  }
+  setStatus("Rebuild finished \u2713 - refresh this page in a minute to see the new data.");
+}
+
+/* ── Load ── */
+function applyData(d){
+  C=d.cols||[];T=d.types||[];R=d.rows||[];ASOF=d.asof||"";
+  IDX={};C.forEach((c,i)=>IDX[c]=i);
+  document.getElementById("asofVal").textContent=ASOF||"\u2014";
+  page=0;
+  recompute();
+  document.getElementById("loading").style.display="none";
+  document.getElementById("mainTable").style.display="table";
+}
+
+(async function boot(){
+  try{
+    const r=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    applyData(await r.json());
+  }catch(e){
+    document.getElementById("loading").innerHTML=
+      `<p style="padding:20px;color:#888">Could not load the database (${e.message}). If this is a brand-new deployment, run the update workflow once from the Actions tab.</p>`;
+  }
+})();
+
+/* ── Scroll bar ── */
+(function(){
+  const wrap  = document.querySelector('.table-wrap');
+  const thumb = document.getElementById('scrollThumb');
+  const track = document.getElementById('scrollTrack');
+  const btnL  = document.getElementById('scrollLeft');
+  const btnR  = document.getElementById('scrollRight');
+
+  function update() {
+    const sw = wrap.scrollWidth, cw = wrap.clientWidth;
+    if (sw <= cw) { thumb.style.width = '100%'; thumb.style.left = '0'; return; }
+    const ratio = cw / sw;
+    const tw = Math.max(32, track.clientWidth * ratio);
+    const maxScroll = sw - cw;
+    const maxLeft   = track.clientWidth - tw;
+    const leftPct   = (wrap.scrollLeft / maxScroll) * maxLeft;
+    thumb.style.width = tw + 'px';
+    thumb.style.left  = leftPct + 'px';
+  }
+
+  wrap.addEventListener('scroll', update);
+  window.addEventListener('resize', update);
+  setTimeout(update, 100);
+
+  btnL.addEventListener('click', () => { wrap.scrollBy({ left: -300, behavior: 'smooth' }); });
+  btnR.addEventListener('click', () => { wrap.scrollBy({ left:  300, behavior: 'smooth' }); });
+
+  track.addEventListener('click', (e) => {
+    if (e.target === thumb) return;
+    const rect = track.getBoundingClientRect();
+    const pct  = (e.clientX - rect.left) / rect.width;
+    wrap.scrollLeft = pct * (wrap.scrollWidth - wrap.clientWidth);
+  });
+
+  let dragging = false, startX = 0, startScroll = 0;
+  thumb.addEventListener('mousedown', (e) => {
+    dragging = true; startX = e.clientX; startScroll = wrap.scrollLeft;
+    thumb.classList.add('dragging'); e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx       = e.clientX - startX;
+    const trackW   = track.clientWidth;
+    const thumbW   = thumb.offsetWidth;
+    const maxLeft  = trackW - thumbW;
+    const maxScroll= wrap.scrollWidth - wrap.clientWidth;
+    wrap.scrollLeft = startScroll + (dx / maxLeft) * maxScroll;
+  });
+  document.addEventListener('mouseup', () => {
+    if (dragging) { dragging = false; thumb.classList.remove('dragging'); }
+  });
+
+  const observer = new MutationObserver(() => setTimeout(update, 50));
+  observer.observe(document.getElementById('tableBody'), { childList: true });
+})();
+</script>
+</body>
+</html>

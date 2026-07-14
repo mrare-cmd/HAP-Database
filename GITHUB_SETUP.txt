@@ -1,0 +1,79 @@
+HAP DATABASE ON GITHUB - SETUP (one time, ~10 minutes)
+=======================================================
+
+WHAT THIS GIVES YOU
+-------------------
+  - A link you can send to anyone: the full database in the browser -
+    search, sort, copy rows, export - nothing installed, nothing
+    running on anyone's computer.
+  - Updates happen ONLY when the button is pressed (no auto-schedule).
+    The green "Update to Current Month" button starts a rebuild on
+    GitHub's servers using the exact same, unchanged updater.
+  - Optional: with the free relay in WORKER_SETUP.txt, ANYONE can press
+    the button - no GitHub account needed. Without it, updating is done
+    from the repo's Actions tab (login required); viewing needs nothing.
+
+STEP 1 - CREATE THE REPOSITORY
+------------------------------
+  1. Go to https://github.com and sign in (create a free account if needed).
+  2. Top-right "+" -> "New repository".
+  3. Name it, e.g.:  hap-database
+  4. Set it to PUBLIC. (That's what makes the page link open for everyone.
+     The data is HUD's public data, so nothing confidential is exposed.)
+  5. Do NOT tick "Add a README". Click "Create repository".
+
+STEP 2 - UPLOAD THESE FILES
+---------------------------
+  1. On the new empty repo page, click "uploading an existing file".
+  2. Drag in EVERYTHING from this folder - including the "docs" folder and
+     the ".github" folder (drag the folders themselves so the structure is
+     kept). If your browser won't show the .github folder, use
+     "Add file -> Create new file", type
+         .github/workflows/update.yml
+     as the name, and paste the contents of that file.
+  3. Commit. The docs folder is ~35 MB, so the upload takes a minute.
+
+STEP 3 - TURN ON THE WEBSITE (GitHub Pages)
+-------------------------------------------
+  1. In the repo: Settings -> Pages (left sidebar).
+  2. Under "Build and deployment":
+        Source: Deploy from a branch
+        Branch: main    Folder: /docs        -> Save
+  3. Wait ~1 minute, refresh. Your link appears at the top:
+        https://<your-username>.github.io/hap-database/
+  4. Open it - the database is already there (seeded with the 7/14 data).
+
+STEP 4 - ALLOW THE ENGINE TO PUBLISH
+------------------------------------
+  1. Settings -> Actions -> General.
+  2. Scroll to "Workflow permissions".
+  3. Select "Read and write permissions" -> Save.
+     (This lets the update job save the refreshed data into the repo.)
+
+STEP 5 - TEST AN UPDATE
+-----------------------
+  1. Repo -> "Actions" tab -> "Update HAP Database" (left side).
+  2. Click "Run workflow" -> green "Run workflow".
+  3. Watch it run (~5-10 min). When it turns green, refresh the site -
+     "Data as of" shows today.
+
+STEP 6 (OPTIONAL) - MAKE THE BUTTON PUBLIC
+------------------------------------------
+  Follow WORKER_SETUP.txt to let anyone press the site's Update button
+  with no GitHub account. Until then, the button opens the GitHub
+  "Run workflow" page for people with repo access.
+
+THAT'S IT
+---------
+  Send anyone:   https://<your-username>.github.io/hap-database/
+
+NOTES
+-----
+  - docs/HAP_Database_latest.xlsx is always the newest full spreadsheet:
+    https://<your-username>.github.io/hap-database/HAP_Database_latest.xlsx
+  - "Export Page" on the site downloads the rows currently on screen.
+  - If HUD ever changes a download link, update SOURCE_URLS in
+    hap_pipeline.py - same as before. Nothing else moves.
+  - After an update finishes, the site can lag by a minute or two while
+    GitHub Pages publishes; the page watches for this and swaps the new
+    data in automatically.

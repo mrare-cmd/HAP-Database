@@ -1,0 +1,60 @@
+PUBLIC UPDATE BUTTON - SETUP (optional, ~10 minutes, free)
+==========================================================
+
+WHAT THIS ADDS
+--------------
+  Out of the box, the green "Update to Current Month" button opens
+  GitHub's "Run workflow" page - which requires a GitHub login with
+  access to the repo.
+
+  This optional relay makes the button work for ANYONE, no account:
+  the button POSTs to a tiny free Cloudflare Worker, which holds a
+  GitHub token secretly and starts the update workflow. (The token
+  can't simply be put in the page: GitHub automatically detects and
+  revokes any token published in a public repo, and it would let
+  strangers do more than press the button.)
+
+STEP 1 - CREATE A GITHUB TOKEN (the key the relay holds)
+--------------------------------------------------------
+  1. GitHub -> click your avatar -> Settings -> Developer settings
+     -> Personal access tokens -> Fine-grained tokens -> Generate new token.
+  2. Name: "hap-update-relay". Expiration: 1 year (set a reminder).
+  3. Repository access: "Only select repositories" -> pick hap-database.
+  4. Permissions -> Repository permissions -> Actions: Read and write.
+     (Nothing else.)
+  5. Generate, and COPY the token (starts with github_pat_...). You
+     won't see it again.
+
+STEP 2 - CREATE THE WORKER (the relay)
+--------------------------------------
+  1. Go to https://dash.cloudflare.com and sign up (free plan is fine).
+  2. Left sidebar: Workers & Pages -> Create -> Create Worker.
+  3. Name it, e.g.  hap-update  -> Deploy (the hello-world default).
+  4. Click "Edit code", delete everything, paste the contents of
+     worker.js from this folder, then Deploy.
+  5. Back on the Worker's page: Settings -> Variables and Secrets:
+       - Add variable:  Name REPO          Value  yourname/hap-database
+         (your GitHub username / repo name, exactly)
+       - Add SECRET:    Name GITHUB_TOKEN  Value  (paste the token)
+     Save & deploy.
+  6. Copy the Worker URL, e.g.  https://hap-update.yourname.workers.dev
+
+STEP 3 - POINT THE PAGE AT IT
+------------------------------
+  1. In the repo, open docs/index.html (pencil icon to edit on GitHub).
+  2. Near the top, find:   const UPDATE_ENDPOINT = "";
+  3. Change it to:         const UPDATE_ENDPOINT = "https://hap-update.yourname.workers.dev";
+  4. Commit. A minute later the site's button works for everyone:
+     it kicks off the rebuild, shows live progress ("Engine running..."),
+     and swaps in the new data automatically when it lands.
+
+NOTES
+-----
+  - Abuse exposure is small by design: the token can only run Actions on
+    this one repo, the Worker has a 3-minute cooldown, the workflow has a
+    concurrency lock (never two rebuilds at once), and Actions minutes
+    are unlimited on public repos.
+  - If the token ever expires, the button will report "GitHub returned
+    401" - just generate a new token and update the Worker secret.
+  - Skipping all of this is fine: the button then opens the GitHub
+    "Run workflow" page, and collaborators can trigger updates there.
