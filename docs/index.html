@@ -342,7 +342,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev/";
+  const UPDATE_ENDPOINT = "";
   const OWNER_REPO      = "";
   const PAGE_SIZE       = 50;
 </script>
@@ -364,8 +364,12 @@
     </button>
     <button class="hdr-btn" id="exportBtn">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export Page
+      Export Results
     </button>
+    <a class="hdr-btn" id="fullXlsxBtn" href="HAP_Database_latest.xlsx" download style="text-decoration:none">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Full XLSX
+    </a>
   </div>
 </header>
 
@@ -409,6 +413,13 @@
     <label>MSA</label>
     <div class="field-inner">
       <input type="text" id="searchMsa" placeholder="MSA name..." style="width:190px" />
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+  </div>
+  <div class="field">
+    <label>All Columns</label>
+    <div class="field-inner">
+      <input type="text" id="gsearch" placeholder="Search everything..." style="width:200px" />
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
@@ -516,6 +527,7 @@ function recompute(){
     q:document.getElementById(f.input).value.trim().toLowerCase(),
     ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)
   })).filter(f=>f.q);
+  const gq=document.getElementById("gsearch").value.trim().toLowerCase();
 
   view=[];
   for(let r=0;r<R.length;r++){
@@ -527,6 +539,15 @@ function recompute(){
         if(v!==null&&(''+v).toLowerCase().includes(f.q)){hit=true;break;}
       }
       if(!hit){ok=false;break;}
+    }
+    if(ok&&gq){
+      let hit=false;
+      const row=R[r];
+      for(let i=0;i<row.length;i++){
+        const v=row[i];
+        if(v!==null&&(''+v).toLowerCase().includes(gq)){hit=true;break;}
+      }
+      if(!hit)ok=false;
     }
     if(ok)view.push(r);
   }
@@ -616,12 +637,17 @@ function copyRow(ri,btn,tr){
 }
 
 document.getElementById("exportBtn").onclick=()=>{
-  const start=page*PAGE_SIZE, slice=view.slice(start,start+PAGE_SIZE);
-  if(!slice.length)return;
-  const d=slice.map(ri=>Object.fromEntries(C.map((c,i)=>[c,R[ri][i]??""])));
-  const ws=XLSX.utils.json_to_sheet(d,{header:C});
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"HAP");
-  XLSX.writeFile(wb,"hap_export.xlsx");
+  if(!view.length)return;
+  if(view.length>5000&&!confirm("Export all "+view.length.toLocaleString()+" filtered rows? Large exports can take ~10-20 seconds to build in the browser."))return;
+  setStatus("Building export ("+view.length.toLocaleString()+" rows)\u2026");
+  setTimeout(()=>{
+    const d=view.map(ri=>Object.fromEntries(C.map((c,i)=>[c,R[ri][i]??""])));
+    const ws=XLSX.utils.json_to_sheet(d,{header:C});
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"HAP");
+    const stamp=new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb,"HAP_Export_"+stamp+".xlsx");
+    setStatus("",false);
+  },50);
 };
 
 function paginate(){
@@ -645,8 +671,10 @@ const debounce=(fn,ms)=>{clearTimeout(timer);timer=setTimeout(fn,ms);};
 FILTER_MAP.forEach(f=>{
   document.getElementById(f.input).addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
 });
+document.getElementById("gsearch").addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
 document.getElementById("resetBtn").onclick=()=>{
   FILTER_MAP.forEach(f=>document.getElementById(f.input).value="");
+  document.getElementById("gsearch").value="";
   page=0;recompute();
 };
 
@@ -656,7 +684,24 @@ document.getElementById("resetBtn").onclick=()=>{
    run through GitHub's public API and swap in the new data when it
    lands. Without it: open the Run-workflow page (login required). */
 const statusEl=document.getElementById("statusStrip");
-function setStatus(msg,show=true){statusEl.textContent=msg;statusEl.style.display=show?"block":"none";}
+let tickInt=null;
+function setStatus(msg,show=true){
+  if(tickInt){clearInterval(tickInt);tickInt=null;}
+  statusEl.textContent=msg;statusEl.style.display=show?"block":"none";
+}
+/* Status line with a live elapsed clock against a goal, e.g.
+   "Engine running…  —  1:23 elapsed · goal 4:00"                    */
+function fmtClock(s){const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0");}
+function setStatusClock(msg,startMs,goalSec){
+  if(tickInt){clearInterval(tickInt);tickInt=null;}
+  const draw=()=>{
+    const el=Math.max(0,(Date.now()-startMs)/1000);
+    const over=el>goalSec?" (running a little long - that's OK)":"";
+    statusEl.textContent=msg+"  \u2014  "+fmtClock(el)+" elapsed \u00B7 goal "+fmtClock(goalSec)+over;
+    statusEl.style.display="block";
+  };
+  draw();tickInt=setInterval(draw,1000);
+}
 
 document.getElementById("updateBtn").onclick=async function(){
   const repo=ghRepo();
@@ -667,7 +712,7 @@ document.getElementById("updateBtn").onclick=async function(){
   }
   const btn=this;btn.disabled=true;
   const triggered=Date.now();
-  setStatus("Requesting update\u2026 pulling this month's HUD files and rebuilding takes about 5-10 minutes. You can leave this tab open.");
+  setStatusClock("Requesting update\u2026 pulling this month's HUD files and rebuilding. You can leave this tab open.",triggered,240);
   try{
     const r=await fetch(UPDATE_ENDPOINT,{method:"POST"});
     const j=await r.json().catch(()=>({}));
@@ -683,6 +728,7 @@ document.getElementById("updateBtn").onclick=async function(){
 async function watchRun(repo,triggered){
   const api=`https://api.github.com/repos/${repo}/actions/workflows/update.yml/runs?per_page=1`;
   const t0=Date.now();
+  /* STAGE 1 - the rebuild itself. Goal: 4 minutes. */
   while(Date.now()-t0<25*60*1000){
     await new Promise(r=>setTimeout(r,20000));
     try{
@@ -691,17 +737,27 @@ async function watchRun(repo,triggered){
       const j=await res.json();
       const run=(j.workflow_runs||[])[0];
       if(!run||new Date(run.created_at).getTime()<triggered-90000)
-        {setStatus("Update requested - waiting for the engine to start\u2026");continue;}
+        {setStatusClock("Update requested - waiting for the engine to start\u2026",triggered,240);continue;}
       if(run.status!=="completed")
-        {setStatus("Engine running: downloading HUD files and rebuilding the master table\u2026 (started "+new Date(run.created_at).toLocaleTimeString()+")");continue;}
+        {setStatusClock("Engine running: downloading HUD files and rebuilding the master table\u2026",triggered,240);continue;}
       if(run.conclusion!=="success"){setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab on GitHub for details.");return;}
       break;
     }catch(e){}
   }
-  setStatus("Rebuild finished \u2713 - publishing the new data (a minute or two)\u2026");
+  /* Rebuild done. If the data was already current today, nothing will
+     change on the site - say so instead of waiting for a change.      */
   const oldAsof=ASOF;
+  const today=new Date().toISOString().slice(0,10);
+  if(oldAsof===today){
+    setStatus("\u2713 Done - the database was already current as of "+today+", so nothing changed this run.");
+    return;
+  }
+  /* STAGE 2 - GitHub Pages publishing the new data. Goal: 2 minutes. */
+  const pubStart=Date.now();
+  setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
   for(let i=0;i<12;i++){
     await new Promise(r=>setTimeout(r,20000));
+    setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
     try{
       const res=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
       if(!res.ok)continue;
