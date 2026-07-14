@@ -39,4 +39,11 @@ jobs:
           git add docs/
           git diff --cached --quiet && echo "No changes to publish." && exit 0
           git commit -m "HAP data update $(date -u +%F)"
-          git push
+          # The repo may have received new commits (e.g. page edits) while
+          # this run was building - rebase our data commit on top and retry.
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            echo "Push attempt $i failed; retrying in 10s..."
+            sleep 10
+          done
+          echo "Could not push after 3 attempts." && exit 1
