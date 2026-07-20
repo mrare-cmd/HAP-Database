@@ -17,7 +17,8 @@ DATE_COLS = {"HAP Effective Date","HAP Expiration Date","Last REAC Date 1","Last
              "Last REAC Date 3","ownership_effective_date"}
 NUM_COLS  = {"Total Units","Contract Units","Rent-to-FMR Ratio","property_total_unit_count",
              "1BR Rent","2BR Rent","3BR Rent","4BR Rent","0BR Rent","5BR+ Rent",
-             "1BR UA","2BR UA","3BR UA","4BR UA","0BR UA","5BR+ UA"}
+             "1BR UA","2BR UA","3BR UA","4BR UA","0BR UA","5BR+ UA",
+             "0BR Units","1BR Units","2BR Units","3BR Units","4BR Units","5BR+ Units"}
 EXCEL_EPOCH = dt.datetime(1899,12,30)
 
 def _isblank(x):
@@ -51,8 +52,7 @@ def to_text(x):
     if _isblank(x): return None
     return str(x).strip()
 
-def write_master(df, path, sheet_name="MasterTable"):
-    wb=Workbook(write_only=True)
+def _write_sheet(wb, sheet_name, df, num_cols, date_cols, text_cols):
     ws=wb.create_sheet(sheet_name)
     cols=list(df.columns)
     hdr_font=Font(bold=True,color="FFFFFF")
@@ -68,19 +68,33 @@ def write_master(df, path, sheet_name="MasterTable"):
         row=[]
         for c in cols:
             v=rec[c]
-            if c in DATE_COLS:
+            if c in date_cols:
                 d=to_date(v); cell=WriteOnlyCell(ws,value=d)
                 if d is not None: cell.number_format="m/d/yyyy"
-            elif c in NUM_COLS:
+            elif c in num_cols:
                 nnum=to_num(v); cell=WriteOnlyCell(ws,value=nnum)
                 if nnum is not None:
                     cell.number_format=("0.00" if c=="Rent-to-FMR Ratio" else "#,##0")
-            elif c in TEXT_COLS:
+            elif c in text_cols:
                 cell=WriteOnlyCell(ws,value=to_text(v)); cell.number_format="@"
             else:
                 cell=WriteOnlyCell(ws,value=to_text(v))
             row.append(cell)
         ws.append(row)
     ws.freeze_panes="A2"
-    wb.save(path)
     return len(recs)
+
+def write_master(df, path, sheet_name="MasterTable", extra_sheets=None,
+                 num_cols=None, date_cols=None, text_cols=None):
+    """extra_sheets: optional list of (name, df, num_cols, date_cols, text_cols)
+    appended after the master. Column sets default to the master's sets, so
+    default behaviour is unchanged."""
+    wb=Workbook(write_only=True)
+    n=_write_sheet(wb, sheet_name, df,
+                   NUM_COLS if num_cols is None else num_cols,
+                   DATE_COLS if date_cols is None else date_cols,
+                   TEXT_COLS if text_cols is None else text_cols)
+    for (nm, xdf, xnum, xdate, xtext) in (extra_sheets or []):
+        _write_sheet(wb, nm, xdf, xnum, xdate, xtext)
+    wb.save(path)
+    return n

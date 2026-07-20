@@ -105,7 +105,15 @@ def shape_rents_uas(df):
               .pivot(index="contract_number", columns="BR_Tag", values="utility_allowance_amount"))
     rent = rent.rename(columns={"0":"0BR_Rent","1":"1BR_Rent","2":"2BR_Rent","3":"3BR_Rent","4":"4BR_Rent","5plus":"5plusBR_Rent"})
     ua   = ua.rename(columns={"0":"0BR_UA","1":"1BR_UA","2":"2BR_UA","3":"3BR_UA","4":"4BR_UA","5plus":"5plusBR_UA"})
-    out = rent.join(ua, how="outer").reset_index()
+    # unit mix: SUM of assistance_unit_count per (contract, BR) — a contract
+    # can have several rows for the same bedroom size (assistance tiers), so
+    # unlike rents (first value) the counts must be summed.
+    df["assistance_unit_count"] = df["assistance_unit_count"].map(_num)
+    units = (df.dropna(subset=["assistance_unit_count"])
+               .groupby(["contract_number","BR_Tag"])["assistance_unit_count"].sum()
+               .unstack())
+    units = units.rename(columns={"0":"0BR_Units","1":"1BR_Units","2":"2BR_Units","3":"3BR_Units","4":"4BR_Units","5plus":"5plusBR_Units"})
+    out = rent.join(ua, how="outer").join(units, how="outer").reset_index()
     return out
 
 # ---------- final master assembly (mirrors MasterTable_NEW) ----------
@@ -132,6 +140,7 @@ FINAL_ORDER = [
     "mgmt_agent_full_name","mgmt_agent_indv_title_text","mgmt_agent_org_name","mgmt_agent_address_line1",
     "mgmt_agent_address_line2","mgmt_agent_city_name","mgmt_agent_state_code","mgmt_agent_zip_code","mgmt_agent_zip4_code",
     "mgmt_agent_main_phone_number","mgmt_agent_main_fax_number","mgmt_contact_email_text",
+    "0BR Units","1BR Units","2BR Units","3BR Units","4BR Units","5BR+ Units",
 ]
 
 def build_master(hap_rents, renewal1, hapinfo, reac, rents_uas):
@@ -183,7 +192,8 @@ def build_master(hap_rents, renewal1, hapinfo, reac, rents_uas):
 
     # J4 + RentsAndUAs (contract_number)
     ru2 = ru.rename(columns={"1BR_Rent":"1BR Rent","2BR_Rent":"2BR Rent","3BR_Rent":"3BR Rent","4BR_Rent":"4BR Rent","0BR_Rent":"0BR Rent","5plusBR_Rent":"5BR+ Rent",
-                             "1BR_UA":"1BR UA","2BR_UA":"2BR UA","3BR_UA":"3BR UA","4BR_UA":"4BR UA","0BR_UA":"0BR UA","5plusBR_UA":"5BR+ UA"})
+                             "1BR_UA":"1BR UA","2BR_UA":"2BR UA","3BR_UA":"3BR UA","4BR_UA":"4BR UA","0BR_UA":"0BR UA","5plusBR_UA":"5BR+ UA",
+                             "0BR_Units":"0BR Units","1BR_Units":"1BR Units","2BR_Units":"2BR Units","3BR_Units":"3BR Units","4BR_Units":"4BR Units","5plusBR_Units":"5BR+ Units"})
     m = m.merge(ru2, on="contract_number", how="left")
 
     # computed columns
@@ -205,6 +215,24 @@ def build_master(hap_rents, renewal1, hapinfo, reac, rents_uas):
         if col not in m.columns: m[col] = np.nan
     return m[FINAL_ORDER]
 
+# ---------- row-level rents & UA detail (both HUD sheets combined) ----------
+DETAIL_COLS = ["property_id","contract_number","assistance_bedroom_count",
+               "assistance_unit_count","contract_rent_amount",
+               "fair_market_rent_amount","utility_allowance_amount"]
+
+def rents_ua_detail(df):
+    """The full row-level Rents & UAs table (all sheets, source order),
+    typed for a clean spreadsheet."""
+    d = df.copy()
+    d["property_id"] = d["property_id"].map(_t)
+    d["contract_number"] = d["contract_number"].map(_t)
+    d = d[d["contract_number"].notna() & (d["contract_number"] != "")]
+    for c in ["assistance_bedroom_count","assistance_unit_count",
+              "contract_rent_amount","fair_market_rent_amount",
+              "utility_allowance_amount"]:
+        d[c] = d[c].map(_num)
+    return d[DETAIL_COLS].reset_index(drop=True)
+
 # ---------- live HUD fetch (runs on the user's machine) ----------
 HTTP_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
@@ -219,9 +247,19 @@ def _download(name, url, folder):
     return dest
 
 def _read_excel_any(path):
-    if path.lower().endswith(".xls"):
-        return pd.read_excel(path, sheet_name=0, engine="xlrd", dtype=str)
-    return pd.read_excel(path, sheet_name=0, engine="openpyxl", dtype=str)
+    """Read a HUD workbook. HUD's export tool sometimes splits ONE table
+    across several sheets (e.g. contractsrentutilityamt.xlsx); any extra
+    sheets whose header row matches the first sheet are continuations and
+    are concatenated in order. Sheets with different headers are ignored,
+    so single-sheet files behave exactly as before."""
+    engine = "xlrd" if path.lower().endswith(".xls") else "openpyxl"
+    sheets = pd.read_excel(path, sheet_name=None, engine=engine, dtype=str)
+    frames = list(sheets.values())
+    first_cols = list(frames[0].columns)
+    same = [f for f in frames if list(f.columns) == first_cols]
+    if len(same) > 1:
+        return pd.concat(same, ignore_index=True)
+    return frames[0]
 
 def fetch_and_build(progress=None):
     """Download the 6 HUD files and return the finished master DataFrame.

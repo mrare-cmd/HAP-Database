@@ -33,9 +33,8 @@ def download(name, url, folder):
     return dest
 
 def read_excel_any(path):
-    if path.lower().endswith(".xls"):
-        return pd.read_excel(path, sheet_name=0, engine="xlrd", dtype=str)
-    return pd.read_excel(path, sheet_name=0, engine="openpyxl", dtype=str)
+    # multi-sheet aware (HUD splits some tables across sheets) — see hap_pipeline
+    return hp._read_excel_any(path)
 
 def main():
     log("=" * 60)
@@ -64,7 +63,9 @@ def main():
         log("\n[3/3] Writing the finished spreadsheet...")
         today = datetime.date.today().isoformat()
         out = os.path.join(HERE, f"HAP_Database_{today}.xlsx")
-        hw.write_master(master, out)
+        detail = hp.rents_ua_detail(dfs["RentsAndUAs"])
+        hw.write_master(master, out,
+                        extra_sheets=[("Rents & UAs Detail", detail, set(hp.DETAIL_COLS[2:]), set(), {"property_id","contract_number"})])
         log(f"\nDONE  ->  {out}")
         log(f"      {len(master):,} rows written.")
 
