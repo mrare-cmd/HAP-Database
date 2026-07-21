@@ -430,8 +430,9 @@
       background: var(--white);
       border-right: 1px solid var(--rule);
       padding: 0 5px;
-      width: 38px; min-width: 38px; max-width: 38px;
+      width: 72px; min-width: 72px; max-width: 72px;
     }
+    .act-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
     .data-table thead th.copy-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); }
     .data-table tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.copy-col { background: var(--hover-row); }
@@ -441,7 +442,7 @@
        drag the header's right edge to adjust, double-click it to re-fit. */
     .data-table td.name-col,
     .data-table thead th.name-col {
-      position: sticky; left: 38px; z-index: 2;
+      position: sticky; left: 72px; z-index: 2;
       background: var(--white);
       border-right: 1px solid var(--rule-dark);
       box-shadow: 4px 0 6px -4px rgba(8,25,55,.14);
@@ -491,6 +492,16 @@
       0% { transform: scale(.4); } 55% { transform: scale(1.25); } 100% { transform: scale(1); }
     }
     .copy-btn.success { border-color: var(--navy); background: var(--navy); color: var(--white); }
+    .rr-btn {
+      width: 28px; height: 28px; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: transparent;
+      cursor: pointer; color: var(--text-light);
+      font-family: inherit; font-size: 9px; font-weight: 800; letter-spacing: .03em;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .rr-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+    .rr-btn:active { transform: scale(.88); }
     .copy-btn.success svg { animation: checkPop .25s ease-out; }
 
     .particle { position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%; }
@@ -599,7 +610,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21f · map declutter";
+  const BUILD = "2026-07-21g · rent roll";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -988,8 +999,13 @@ function render(){
     const tr=document.createElement("tr");
     if(animate){tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";}
     const ct=document.createElement("td");ct.className="copy-col";
+    const aw=document.createElement("div");aw.className="act-wrap";
     const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
-    btn.onclick=()=>copyRow(ri,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
+    btn.onclick=()=>copyRow(ri,btn,tr);aw.appendChild(btn);
+    const rrb=document.createElement("button");rrb.className="rr-btn";rrb.textContent="RR";
+    rrb.title="Create rent roll (RedIQ/Radix-ready) for this property";
+    rrb.onclick=()=>createRentRoll(ri);aw.appendChild(rrb);
+    ct.appendChild(aw);tr.appendChild(ct);
     const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
     const pid=IDX["Property ID"]!==undefined?row[IDX["Property ID"]]:null;
     const nContracts=pid!==null&&pid!==undefined?(PROP_N[pid]||0):0;
@@ -1402,6 +1418,126 @@ function setViewMode(m){
 }
 document.getElementById("modeTable").onclick=()=>setViewMode("table");
 document.getElementById("modeMap").onclick=()=>setViewMode("map");
+
+/* ── Create Rent Roll ────────────────────────────────────────────────
+   Un-pivots the HAP rent schedule into one row per unit for the WHOLE
+   property (all contracts, Contract Number column), in the Radix/RedIQ
+   capture layout: Unit | Floor Plan | Net SF | Beds | Baths | Unit Type |
+   Lease Type | Occupancy | Market Rent | Contractual Rent + UA / Gross /
+   FMR / Contract. Lease Type = Subsidized (HAP). Second tab = tie-out. */
+async function createRentRoll(ri){
+  const pix=IDX["Property ID"],cix=IDX["Contract Number"];
+  const pid=pix!==undefined?R[ri][pix]:null;
+  if(pid===null||pid===undefined){setStatus("This row has no Property ID - cannot build a rent roll.");return;}
+  const mrows=[];for(let i=0;i<R.length;i++)if(R[i][pix]===pid)mrows.push(i);
+  const propName=''+(R[mrows[0]][0]||"Property");
+  setStatus("Building rent roll for "+propName+"\u2026");
+  await new Promise(r=>setTimeout(r,50));
+  try{
+    /* 1) schedule lines: {bed, bedLabel, count, rent, ua, fmr, cno, tier} */
+    const sched=[];
+    for(const mi of mrows){
+      const cno=cix!==undefined?R[mi][cix]:null;
+      const t=cno?TIERS[cno]:null;
+      if(t){
+        const tcount={};
+        for(const row of t){
+          if(row[0]===null||row[0]===undefined)continue;
+          const cnt=row[1]===null?0:Math.round(+row[1]);
+          if(cnt<=0)continue;
+          const bed=+row[0];
+          tcount[bed]=(tcount[bed]||0)+1;
+          sched.push({bed:bed,bedLabel:bed+"BR",count:cnt,rent:row[2],ua:row[4],fmr:row[3],cno:cno,tier:tcount[bed]});
+        }
+      }else{
+        const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
+        for(const [bk,bn] of bks){
+          const u=R[mi][IDX[bk+" Units"]];
+          if(u===null||u===undefined||+u<=0)continue;
+          sched.push({bed:bn,bedLabel:bk,count:Math.round(+u),rent:R[mi][IDX[bk+" Rent"]],ua:R[mi][IDX[bk+" UA"]],fmr:null,cno:cno,tier:1});
+        }
+      }
+    }
+    if(!sched.length){setStatus("No unit-mix data available for "+propName+" - HUD's rents file has no rows for its contract(s).");return;}
+    sched.sort((a,b)=>a.bed-b.bed||(''+a.cno).localeCompare(''+b.cno)||a.tier-b.tier);
+    const tiersPerBed={};sched.forEach(x=>{tiersPerBed[x.bedLabel]=Math.max(tiersPerBed[x.bedLabel]||0,x.tier);});
+
+    /* 2) un-pivot to units */
+    const seq={};const units=[];
+    for(const x of sched){
+      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
+      const gross=(x.rent!==null&&x.ua!==null)?(+x.rent)+(+x.ua):(x.rent!==null?+x.rent:null);
+      for(let k=0;k<x.count;k++){
+        const n=seq[x.bedLabel]=(seq[x.bedLabel]||0)+1;
+        units.push([x.bedLabel.replace("+","p")+"-"+String(n).padStart(3,"0"),
+          fp,null,x.bed,null,"Residential","Subsidized","Occupied",null,
+          x.rent,x.ua,gross,x.fmr,''+(x.cno||"")]);
+      }
+    }
+
+    /* 3) workbook */
+    const HDR=["Unit","Floor Plan","Net SF","Beds","Baths","Unit Type","Lease Type",
+               "Occupancy","Market Rent","Contractual Rent","Utility Allowance",
+               "Gross Rent","FMR","Contract Number"];
+    const NUMC=new Set([3,9,10,11,12]);
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet("Rent Roll",{views:[{state:"frozen",ySplit:5}]});
+    const stamp=new Date().toISOString().slice(0,10);
+    ws.getCell("A1").value=propName;
+    ws.getCell("A1").font={bold:true,size:14,color:{argb:"FF081937"}};
+    const city=[R[mrows[0]][IDX["City"]],R[mrows[0]][IDX["State"]]].filter(Boolean).join(", ");
+    ws.getCell("A2").value=city+"  \u00B7  Property ID "+pid+"  \u00B7  Contract(s): "+mrows.map(i=>R[i][cix]).filter(Boolean).join(", ");
+    ws.getCell("A3").value="Synthetic rent roll un-pivoted from HUD Section 8 contract rent schedule (contractsrentutilityamt) \u00B7 data as of "+ASOF+" \u00B7 generated "+stamp+" \u00B7 all assisted units shown as Occupied/Subsidized";
+    ws.getCell("A3").font={size:9,italic:true,color:{argb:"FF6B7FA0"}};
+    ws.getRow(5).values=HDR;
+    ws.getRow(5).font={bold:true,color:{argb:"FFFFFFFF"},size:11};
+    ws.getRow(5).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};c.alignment={vertical:"middle"};});
+    ws.getRow(5).height=20;
+    for(const u of units)ws.addRow(u);
+    HDR.forEach((h,i)=>{
+      const col=ws.getColumn(i+1);
+      if(NUMC.has(i))col.numFmt=(i===3?"0":"#,##0");
+      let w=h.length+3;
+      for(const u of units.slice(0,500)){const v=u[i];if(v!==null&&(''+v).length>w)w=(''+v).length;}
+      col.width=Math.min(Math.max(w+2,9),34);
+    });
+    ws.autoFilter={from:{row:5,column:1},to:{row:5,column:HDR.length}};
+
+    /* 4) tie-out tab */
+    const ws2=wb.addWorksheet("Tie-Out");
+    ws2.getCell("A1").value="Tie-Out Check \u2014 "+propName;
+    ws2.getCell("A1").font={bold:true,size:12,color:{argb:"FF081937"}};
+    ws2.getRow(3).values=["Floor Plan","Contract","Units","Contractual Rent","Monthly Total"];
+    ws2.getRow(3).font={bold:true,color:{argb:"FFFFFFFF"}};
+    ws2.getRow(3).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};});
+    let totU=0,totM=0,r0=4;
+    for(const x of sched){
+      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
+      const m=(x.rent!==null?x.count*+x.rent:null);
+      ws2.getRow(r0++).values=[fp,''+(x.cno||""),x.count,x.rent,m];
+      totU+=x.count;if(m!==null)totM+=m;
+    }
+    const tr2=ws2.getRow(r0);
+    tr2.values=["TOTAL","",totU,null,totM];tr2.font={bold:true};
+    const masterTot=mrows.reduce((a,i)=>a+(R[i][IDX["Total Units"]]!==null?+R[i][IDX["Total Units"]]:0),0);
+    ws2.getCell(r0+2,1).value="Rent roll unit rows: "+units.length.toLocaleString()+"   \u00B7   Schedule units: "+totU.toLocaleString()
+      +"   \u00B7   Master 'Total Units' (all contracts): "+masterTot.toLocaleString()
+      +"   \u00B7   "+(units.length===totU?(totU===masterTot?"TIES":"note: master Total Units differs (separate HUD field)"):"MISMATCH");
+    [22,16,9,16,14].forEach((w,i)=>ws2.getColumn(i+1).width=w);
+    ws2.getColumn(4).numFmt="#,##0";ws2.getColumn(5).numFmt="#,##0";
+
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=propName.replace(/[^A-Za-z0-9 ]+/g,"").trim().replace(/ +/g,"_")+"_RentRoll_"+stamp+".xlsx";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    setStatus("\u2713 Rent roll created: "+units.length.toLocaleString()+" units across "+mrows.length+" contract"+(mrows.length>1?"s":"")+".");
+  }catch(e){
+    setStatus("Rent roll failed: "+e.message);
+  }
+}
 
 /* ── Multi-tier popup ── */
 function bedLabel(b){
