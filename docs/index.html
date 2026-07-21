@@ -610,7 +610,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21h · rent roll v2";
+  const BUILD = "2026-07-21j · rent roll v4";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1466,17 +1466,19 @@ async function createRentRoll(ri){
     const seq={};const units=[];
     for(const x of sched){
       const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
+      const tenant=x.rent===null?null:Math.min(1,+x.rent);
+      const subsidy=x.rent===null?null:(+x.rent-tenant);
       for(let k=0;k<x.count;k++){
         const n=seq[x.bedLabel]=(seq[x.bedLabel]||0)+1;
         units.push([x.bedLabel.replace("+","p")+"-"+String(n).padStart(3,"0"),
-          fp,null,x.bed,null,"Residential","Subsidized","Occupied",null,x.rent]);
+          fp,null,x.bed,1,"Residential",null,"Occupied",null,tenant,subsidy]);
       }
     }
 
     /* 3) workbook */
     const HDR=["Unit","Floor Plan","Net SF","Beds","Baths","Unit Type","Lease Type",
-               "Occupancy","Market Rent","Contractual Rent"];
-    const NUMC=new Set([3,8,9]);
+               "Occupancy","Market Rent","Tenant Rent","Subsidy Rent"];
+    const NUMFMT={3:"0",4:"0",8:"#,##0",9:"#,##0",10:"#,##0"};
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet("Rent Roll",{views:[{state:"frozen",ySplit:5}]});
     const stamp=new Date().toISOString().slice(0,10);
@@ -1484,7 +1486,7 @@ async function createRentRoll(ri){
     ws.getCell("A1").font={bold:true,size:14,color:{argb:"FF081937"}};
     const city=[R[mrows[0]][IDX["City"]],R[mrows[0]][IDX["State"]]].filter(Boolean).join(", ");
     ws.getCell("A2").value=city+"  \u00B7  Property ID "+pid+"  \u00B7  Contract(s): "+mrows.map(i=>R[i][cix]).filter(Boolean).join(", ");
-    ws.getCell("A3").value="Synthetic rent roll un-pivoted from HUD Section 8 contract rent schedule (contractsrentutilityamt) \u00B7 data as of "+ASOF+" \u00B7 generated "+stamp+" \u00B7 all assisted units shown as Occupied/Subsidized";
+    ws.getCell("A3").value="Synthetic rent roll un-pivoted from HUD Section 8 contract rent schedule (contractsrentutilityamt) \u00B7 data as of "+ASOF+" \u00B7 generated "+stamp+" \u00B7 all assisted units shown as Occupied \u00B7 contract rent split as Tenant Rent $1 + Subsidy Rent (contract rent \u2212 $1)";
     ws.getCell("A3").font={size:9,italic:true,color:{argb:"FF6B7FA0"}};
     ws.getRow(5).values=HDR;
     ws.getRow(5).font={bold:true,color:{argb:"FFFFFFFF"},size:11};
@@ -1493,7 +1495,7 @@ async function createRentRoll(ri){
     for(const u of units)ws.addRow(u);
     HDR.forEach((h,i)=>{
       const col=ws.getColumn(i+1);
-      if(NUMC.has(i))col.numFmt=(i===3?"0":"#,##0");
+      if(NUMFMT[i])col.numFmt=NUMFMT[i];
       let w=h.length+3;
       for(const u of units.slice(0,500)){const v=u[i];if(v!==null&&(''+v).length>w)w=(''+v).length;}
       col.width=Math.min(Math.max(w+2,9),34);
@@ -1504,7 +1506,7 @@ async function createRentRoll(ri){
     const ws2=wb.addWorksheet("Tie-Out");
     ws2.getCell("A1").value="Tie-Out Check \u2014 "+propName;
     ws2.getCell("A1").font={bold:true,size:12,color:{argb:"FF081937"}};
-    ws2.getRow(3).values=["Floor Plan","Contract","Units","Contractual Rent","Monthly Total"];
+    ws2.getRow(3).values=["Floor Plan","Contract","Units","Contract Rent","Monthly Total"];
     ws2.getRow(3).font={bold:true,color:{argb:"FFFFFFFF"}};
     ws2.getRow(3).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};});
     let totU=0,totM=0,r0=4;
