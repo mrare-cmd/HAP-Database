@@ -14,7 +14,7 @@ Outputs (in docs/):
 
 docs/index.html is a static page and is NOT touched by this script.
 """
-import os, sys, datetime, tempfile
+import os, sys, json, datetime, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -43,6 +43,28 @@ def fetch_rents_ua_detail():
         except Exception:
             pass
 
+def build_rent_tiers(detail):
+    """Contracts where ANY bedroom size has more than one row (multiple
+    rent/UA tiers). Returns {contract: [[bed, units, rent, fmr, ua], ...]}
+    with every row for that contract, sorted by bedroom then rent, so the
+    site can show the full breakdown in a popup."""
+    import pandas as pd
+    def clean(x):
+        if x is None or (isinstance(x, float) and pd.isna(x)): return None
+        f = float(x)
+        return int(f) if f.is_integer() else f
+    tiers = {}
+    cols = ["assistance_bedroom_count","assistance_unit_count",
+            "contract_rent_amount","fair_market_rent_amount",
+            "utility_allowance_amount"]
+    for c, g in detail.groupby("contract_number"):
+        sizes = g.dropna(subset=["assistance_bedroom_count"])                  .groupby("assistance_bedroom_count").size()
+        if len(sizes) and sizes.max() > 1:
+            g = g.sort_values(["assistance_bedroom_count","contract_rent_amount"],
+                              na_position="last")
+            tiers[str(c)] = [[clean(x) for x in row] for row in g[cols].values.tolist()]
+    return tiers
+
 def main():
     print("Running the standard HAP update...", flush=True)
     master = hp.fetch_and_build(progress=lambda m: print("  " + m, flush=True))
@@ -57,6 +79,12 @@ def main():
 
     extra = [("Rents & UAs Detail", detail, DETAIL_NUM, set(), DETAIL_TEXT)]
     hw.write_master(master, os.path.join(DOCS, "HAP_Database_latest.xlsx"), extra_sheets=extra)
+
+    # flag data for the site's multi-tier popup
+    tiers = build_rent_tiers(detail)
+    with open(os.path.join(DOCS, "rent_tiers.json"), "w", encoding="utf-8") as f:
+        json.dump({"contracts": tiers}, f, separators=(",", ":"))
+    print(f"  {len(tiers):,} contracts flagged with multiple rent/UA tiers.", flush=True)
 
     # standalone workbook at a stable link
     hw.write_master(detail, os.path.join(DOCS, "HAP_Rents_UAs_latest.xlsx"),
