@@ -60,8 +60,11 @@ def build_rent_tiers(detail):
     for c, g in detail.groupby("contract_number"):
         sizes = g.dropna(subset=["assistance_bedroom_count"])                  .groupby("assistance_bedroom_count").size()
         if len(sizes) and sizes.max() > 1:
-            g = g.sort_values(["assistance_bedroom_count","contract_rent_amount"],
-                              na_position="last")
+            # pure HUD source order — no sorting. The master's "first row per
+            # size" logic follows source order (including 5BR and 6BR rows
+            # collapsing into one 5BR+ bucket), so preserving it here keeps
+            # tier 1 identical to the master everywhere. Display sorting is
+            # done client-side in the popup.
             tiers[str(c)] = [[clean(x) for x in row] for row in g[cols].values.tolist()]
     return tiers
 
