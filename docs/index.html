@@ -175,6 +175,75 @@
       line-height: 1.1;
     }
 
+    .multi-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-left: 6px; padding: 1px 5px; vertical-align: 1px;
+      border: 1px solid var(--rule-dark); border-radius: 8px;
+      background: transparent; color: var(--text-light);
+      font-size: 9px; font-weight: 800; letter-spacing: .04em;
+      cursor: pointer; font-family: inherit; line-height: 1.4;
+      transition: all .15s;
+    }
+    .multi-badge:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+
+    /* ── Multi-tier rent flag + popup ── */
+    .tier-flag {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 18px; height: 18px; margin-left: 6px; vertical-align: -4px;
+      border: none; border-radius: 3px; background: transparent;
+      color: #e08a3c; cursor: pointer; padding: 0;
+      transition: all .15s;
+    }
+    .tier-flag:hover { background: #fdeedd; color: #c9721f; transform: scale(1.12); }
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(8,25,55,.45);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.98); }
+                         to   { opacity: 1; transform: translateY(0) scale(1); } }
+    .modal-card {
+      background: var(--white); border-radius: 4px; border-top: 3px solid var(--navy);
+      box-shadow: 0 18px 50px rgba(8,25,55,.35);
+      width: 100%; max-width: 620px; max-height: 80vh;
+      display: flex; flex-direction: column;
+      animation: modalIn .18s ease-out;
+    }
+    .modal-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px; padding: 16px 20px 12px;
+      border-bottom: 2px solid var(--navy);
+    }
+    .modal-head .mh-title { font-size: 15px; font-weight: 800; color: var(--navy); letter-spacing: -.01em; }
+    .modal-head .mh-sub {
+      font-size: 10px; font-weight: 700; color: var(--text-light);
+      letter-spacing: .12em; text-transform: uppercase; margin-top: 3px;
+    }
+    .modal-close {
+      width: 28px; height: 28px; flex-shrink: 0; border-radius: 3px;
+      border: 1px solid var(--rule-dark); background: transparent;
+      color: var(--text-mid); cursor: pointer; font-size: 14px; line-height: 1;
+      font-family: inherit; transition: all .15s;
+    }
+    .modal-close:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+    .modal-body { overflow-y: auto; padding: 0 20px 20px; }
+    .tier-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 14px; }
+    .tier-table th {
+      text-align: left; padding: 7px 10px;
+      font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,.65); background: var(--navy);
+    }
+    .tier-table td {
+      padding: 7px 10px; border-bottom: 1px solid var(--rule); color: var(--text);
+    }
+    .tier-table td.tn { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; text-align: right; color: var(--text-mid); }
+    .tier-table tr:nth-child(even) td { background: var(--row-alt); }
+    .tier-table td.br-lead { font-weight: 700; color: var(--navy); }
+    .tier-note {
+      margin-top: 12px; font-size: 11px; color: var(--text-light); line-height: 1.5;
+    }
+
     /* ── Empty state ── */
     .empty-state {
       padding: 64px 20px; text-align: center;
@@ -310,6 +379,20 @@
     .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
 
+    /* ── Highlight for flagged rows (multi-tier rents OR multi-contract
+         property). Pale amber wash; placed AFTER the striping and sticky
+         column rules so it takes precedence, with matching tints on the
+         frozen columns so the color runs edge to edge. ── */
+    .data-table tbody tr.hl-row,
+    .data-table tbody tr.hl-row td.copy-col,
+    .data-table tbody tr.hl-row td.name-col { background: #fcf5e9; }
+    .data-table tbody tr.hl-row:nth-child(even),
+    .data-table tbody tr.hl-row:nth-child(even) td.copy-col,
+    .data-table tbody tr.hl-row:nth-child(even) td.name-col { background: #f8efdf; }
+    .data-table tbody tr.hl-row:hover,
+    .data-table tbody tr.hl-row:hover td.copy-col,
+    .data-table tbody tr.hl-row:hover td.name-col { background: #f2e7d0 !important; }
+
     .copy-btn {
       width: 28px; height: 28px; border-radius: 3px;
       border: 1px solid var(--rule-dark); background: transparent;
@@ -431,6 +514,8 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
+  const BUILD = "2026-07-21 · highlights+flags";
+  console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
   let   PAGE_SIZE       = 50;
@@ -458,6 +543,10 @@
     <a class="hdr-btn" id="fullXlsxBtn" href="HAP_Database_latest.xlsx" download style="text-decoration:none">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       Full XLSX
+    </a>
+    <a class="hdr-btn" id="rentsUaBtn" href="HAP_Rents_UAs_latest.xlsx" download style="text-decoration:none">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Rents &amp; UAs XLSX
     </a>
   </div>
 </header>
@@ -589,6 +678,8 @@
    Everything comes from hap_state.json, produced by the UNCHANGED
    HAP pipeline (hap_pipeline.py) running inside the GitHub Action. */
 let C=[], T=[], R=[], ASOF="";
+let TIERS={};      // contract -> [[bed, units, rent, fmr, ua], ...] for multi-tier contracts
+let PROP_N={};     // property id -> number of contract rows in the master
 let view=[];
 let page=0, sortCol=0, sortAsc=true, timer=null;
 
@@ -602,7 +693,8 @@ const FILTER_MAP=[
   {input:"searchMsa",   cols:["msa_name_text"]},
 ];
 const RATIO="Rent-to-FMR Ratio";
-const INTC=new Set(["Total Units","Contract Units","property_total_unit_count"]);
+const INTC=new Set(["Total Units","Contract Units","property_total_unit_count",
+  "0BR Units","1BR Units","2BR Units","3BR Units","4BR Units","5BR+ Units"]);
 
 function ghRepo(){
   if(OWNER_REPO) return OWNER_REPO;
@@ -786,12 +878,37 @@ function render(){
     const ct=document.createElement("td");ct.className="copy-col";
     const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
     btn.onclick=()=>copyRow(ri,btn,tr);ct.appendChild(btn);tr.appendChild(ct);
+    const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
+    const pid=IDX["Property ID"]!==undefined?row[IDX["Property ID"]]:null;
+    const nContracts=pid!==null&&pid!==undefined?(PROP_N[pid]||0):0;
+    if((cno&&TIERS[cno])||nContracts>1)tr.classList.add("hl-row");
     for(let cix=0;cix<C.length;cix++){
       const td=document.createElement("td");
       if(cix===0)td.classList.add("name-col");
       const v=disp(cix,row[cix]);
       if(T[cix]==="num")td.classList.add("is-num");
-      td.textContent=v;td.title=v;tr.appendChild(td);
+      td.textContent=v;td.title=v;
+      if(cix===0&&cno&&TIERS[cno]){
+        const fb=document.createElement("button");
+        fb.className="tier-flag";
+        fb.title="Multiple rent/UA tiers \u2014 click for breakdown";
+        fb.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>';
+        fb.onclick=(e)=>{e.stopPropagation();openTiers(cno,''+(row[0]??""));};
+        td.appendChild(fb);
+      }
+      if(cix===0&&nContracts>1){
+        const mb=document.createElement("button");
+        mb.className="multi-badge";
+        mb.textContent="\u00D7"+nContracts;
+        mb.title="This Property ID has "+nContracts+" contracts in the database \u2014 click to see them all";
+        mb.onclick=(e)=>{
+          e.stopPropagation();
+          document.getElementById("gsearch").value=''+pid;
+          page=0;recompute();
+        };
+        td.appendChild(mb);
+      }
+      tr.appendChild(td);
     }
     tb.appendChild(tr);
   });
@@ -1024,16 +1141,66 @@ async function watchRun(repo,triggered){
       const res=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
       if(!res.ok)continue;
       const d=await res.json();
-      if(d.asof&&d.asof!==oldAsof){applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
+      if(d.asof&&d.asof!==oldAsof){await loadTiers();applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
     }catch(e){}
   }
   setStatus("Rebuild finished \u2713 - refresh this page in a minute to see the new data.");
+}
+
+/* ── Multi-tier popup ── */
+function bedLabel(b){
+  if(b===null||b===undefined)return"\u2014";
+  const n=+b;
+  if(n===0)return"Studio";
+  if(n>=5)return"5+ BR";
+  return n+" BR";
+}
+const money=v=>v===null||v===undefined?"\u2014":"$"+(+v).toLocaleString("en-US");
+function openTiers(contract,propName){
+  const rows=TIERS[contract]||[];
+  const ov=document.createElement("div");ov.className="modal-overlay";
+  const distinct={}; /* bedroom sizes whose rents actually differ */
+  rows.forEach(r=>{const k=''+r[0];(distinct[k]=distinct[k]||new Set()).add(r[2]);});
+  const body=rows.map(r=>{
+    const differs=distinct[''+r[0]]&&distinct[''+r[0]].size>1;
+    return `<tr>
+      <td class="br-lead">${bedLabel(r[0])}${differs?'':''}</td>
+      <td class="tn">${r[1]===null?"\u2014":(+r[1]).toLocaleString()}</td>
+      <td class="tn">${money(r[2])}</td>
+      <td class="tn">${money(r[3])}</td>
+      <td class="tn">${money(r[4])}</td>
+    </tr>`;}).join("");
+  ov.innerHTML=`<div class="modal-card">
+    <div class="modal-head">
+      <div>
+        <div class="mh-title">${escHtml(propName||"Property")}</div>
+        <div class="mh-sub">Contract ${escHtml(contract)} \u00B7 Rent &amp; UA tier breakdown</div>
+      </div>
+      <button class="modal-close" title="Close">\u2715</button>
+    </div>
+    <div class="modal-body">
+      <table class="tier-table">
+        <thead><tr><th>Bedroom</th><th style="text-align:right">Units</th><th style="text-align:right">Contract Rent</th><th style="text-align:right">FMR</th><th style="text-align:right">Utility Allow.</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+      <div class="tier-note">This contract reports more than one row for at least one bedroom size in HUD's rents file \u2014 typically separate assistance tiers or stages. The main table shows the first-listed rent per size; unit counts there are the sum of all tiers.</div>
+    </div>
+  </div>`;
+  function close(){ov.remove();document.removeEventListener("keydown",esc);}
+  function esc(e){if(e.key==="Escape")close();}
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  ov.querySelector(".modal-close").onclick=close;
+  document.addEventListener("keydown",esc);
+  document.body.appendChild(ov);
 }
 
 /* ── Load ── */
 function applyData(d){
   C=d.cols||[];T=d.types||[];R=d.rows||[];ASOF=d.asof||"";
   IDX={};C.forEach((c,i)=>IDX[c]=i);
+  PROP_N={};
+  const pix=IDX["Property ID"];
+  if(pix!==undefined)for(const r of R){const pid=r[pix];if(pid!==null&&pid!==undefined)PROP_N[pid]=(PROP_N[pid]||0)+1;}
   document.getElementById("asofVal").textContent=ASOF||"\u2014";
   page=0;
   recompute();
@@ -1041,11 +1208,20 @@ function applyData(d){
   document.getElementById("mainTable").style.display="table";
 }
 
+async function loadTiers(){
+  try{
+    const r=await fetch("rent_tiers.json?v="+Date.now(),{cache:"no-store"});
+    if(r.ok){const d=await r.json();TIERS=d.contracts||{};}
+  }catch(e){TIERS={};}
+}
 (async function boot(){
   try{
+    const tp=loadTiers();
     const r=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error("HTTP "+r.status);
-    applyData(await r.json());
+    const d=await r.json();
+    await tp;              /* have flags ready before first paint */
+    applyData(d);
   }catch(e){
     document.getElementById("loading").innerHTML=
       `<p style="padding:20px;color:#888">Could not load the database (${e.message}). If this is a brand-new deployment, run the update workflow once from the Actions tab.</p>`;
