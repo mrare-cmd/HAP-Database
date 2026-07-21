@@ -610,7 +610,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21g · rent roll";
+  const BUILD = "2026-07-21h · rent roll v2";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1466,20 +1466,17 @@ async function createRentRoll(ri){
     const seq={};const units=[];
     for(const x of sched){
       const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
-      const gross=(x.rent!==null&&x.ua!==null)?(+x.rent)+(+x.ua):(x.rent!==null?+x.rent:null);
       for(let k=0;k<x.count;k++){
         const n=seq[x.bedLabel]=(seq[x.bedLabel]||0)+1;
         units.push([x.bedLabel.replace("+","p")+"-"+String(n).padStart(3,"0"),
-          fp,null,x.bed,null,"Residential","Subsidized","Occupied",null,
-          x.rent,x.ua,gross,x.fmr,''+(x.cno||"")]);
+          fp,null,x.bed,null,"Residential","Subsidized","Occupied",null,x.rent]);
       }
     }
 
     /* 3) workbook */
     const HDR=["Unit","Floor Plan","Net SF","Beds","Baths","Unit Type","Lease Type",
-               "Occupancy","Market Rent","Contractual Rent","Utility Allowance",
-               "Gross Rent","FMR","Contract Number"];
-    const NUMC=new Set([3,9,10,11,12]);
+               "Occupancy","Market Rent","Contractual Rent"];
+    const NUMC=new Set([3,8,9]);
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet("Rent Roll",{views:[{state:"frozen",ySplit:5}]});
     const stamp=new Date().toISOString().slice(0,10);
@@ -1525,6 +1522,27 @@ async function createRentRoll(ri){
       +"   \u00B7   "+(units.length===totU?(totU===masterTot?"TIES":"note: master Total Units differs (separate HUD field)"):"MISMATCH");
     [22,16,9,16,14].forEach((w,i)=>ws2.getColumn(i+1).width=w);
     ws2.getColumn(4).numFmt="#,##0";ws2.getColumn(5).numFmt="#,##0";
+
+    /* 5) utility allowance summary (3rd sheet) */
+    const ws3=wb.addWorksheet("Utility Allowances");
+    ws3.getCell("A1").value="Utility Allowance Summary \u2014 "+propName;
+    ws3.getCell("A1").font={bold:true,size:12,color:{argb:"FF081937"}};
+    ws3.getCell("A2").value="Per-unit monthly utility allowances by floor plan, from HUD's contract rent schedule (data as of "+ASOF+")";
+    ws3.getCell("A2").font={size:9,italic:true,color:{argb:"FF6B7FA0"}};
+    ws3.getRow(4).values=["Floor Plan","Contract","Units","Utility Allowance","Monthly UA Total"];
+    ws3.getRow(4).font={bold:true,color:{argb:"FFFFFFFF"}};
+    ws3.getRow(4).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};});
+    let r3=5,uaTotU=0,uaTotM=0;
+    for(const x of sched){
+      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
+      const m=(x.ua!==null?x.count*+x.ua:null);
+      ws3.getRow(r3++).values=[fp,''+(x.cno||""),x.count,x.ua,m];
+      uaTotU+=x.count;if(m!==null)uaTotM+=m;
+    }
+    const trU=ws3.getRow(r3);
+    trU.values=["TOTAL","",uaTotU,null,uaTotM];trU.font={bold:true};
+    [22,16,9,17,16].forEach((w,i)=>ws3.getColumn(i+1).width=w);
+    ws3.getColumn(4).numFmt="#,##0";ws3.getColumn(5).numFmt="#,##0";
 
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
