@@ -175,19 +175,6 @@
       line-height: 1.1;
     }
 
-    /* ── Highlight for flagged rows (multi-tier rents OR multi-contract
-         property). Pale amber wash, striped + hover variants, and matching
-         backgrounds on the sticky columns so the tint runs edge to edge. ── */
-    .data-table tbody tr.hl-row,
-    .data-table tbody tr.hl-row td.copy-col,
-    .data-table tbody tr.hl-row td.name-col { background: #fcf5e9; }
-    .data-table tbody tr.hl-row:nth-child(even),
-    .data-table tbody tr.hl-row:nth-child(even) td.copy-col,
-    .data-table tbody tr.hl-row:nth-child(even) td.name-col { background: #f8efdf; }
-    .data-table tbody tr.hl-row:hover,
-    .data-table tbody tr.hl-row:hover td.copy-col,
-    .data-table tbody tr.hl-row:hover td.name-col { background: #f2e7d0 !important; }
-
     .multi-badge {
       display: inline-flex; align-items: center; justify-content: center;
       margin-left: 6px; padding: 1px 5px; vertical-align: 1px;
@@ -392,6 +379,20 @@
     .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
 
+    /* ── Highlight for flagged rows (multi-tier rents OR multi-contract
+         property). Pale amber wash; placed AFTER the striping and sticky
+         column rules so it takes precedence, with matching tints on the
+         frozen columns so the color runs edge to edge. ── */
+    .data-table tbody tr.hl-row,
+    .data-table tbody tr.hl-row td.copy-col,
+    .data-table tbody tr.hl-row td.name-col { background: #fcf5e9; }
+    .data-table tbody tr.hl-row:nth-child(even),
+    .data-table tbody tr.hl-row:nth-child(even) td.copy-col,
+    .data-table tbody tr.hl-row:nth-child(even) td.name-col { background: #f8efdf; }
+    .data-table tbody tr.hl-row:hover,
+    .data-table tbody tr.hl-row:hover td.copy-col,
+    .data-table tbody tr.hl-row:hover td.name-col { background: #f2e7d0 !important; }
+
     .copy-btn {
       width: 28px; height: 28px; border-radius: 3px;
       border: 1px solid var(--rule-dark); background: transparent;
@@ -513,6 +514,8 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
+  const BUILD = "2026-07-21 · highlights+flags";
+  console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
   let   PAGE_SIZE       = 50;
