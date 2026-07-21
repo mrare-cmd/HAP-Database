@@ -6,6 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HAP Property Database — Greysteel</title>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -142,6 +146,72 @@
       cursor: pointer; outline: none;
     }
     .rows-label select:hover { border-color: rgba(255,255,255,.55); }
+
+    /* ── Table / Map toggle ── */
+    .view-toggle { display: inline-flex; border: 1px solid rgba(255,255,255,.25); border-radius: 3px; overflow: hidden; margin-right: 16px; }
+    .view-toggle button {
+      padding: 4px 14px; border: none; background: transparent;
+      color: rgba(255,255,255,.5); cursor: pointer;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .12em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .view-toggle button + button { border-left: 1px solid rgba(255,255,255,.25); }
+    .view-toggle button:hover { color: var(--white); }
+    .view-toggle button.active { background: rgba(255,255,255,.92); color: var(--navy); }
+
+    /* ── Map section ── */
+    #mapWrap { display: none; padding: 20px 28px 40px; }
+    #mapFrame {
+      position: relative;
+      border-top: 3px solid var(--navy); border-bottom: 2px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08); background: var(--white);
+    }
+    #mapCanvas { height: calc(100vh - 340px); min-height: 440px; }
+    .map-info {
+      position: absolute; top: 10px; right: 10px; z-index: 800;
+      background: var(--navy); color: rgba(255,255,255,.85);
+      font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      padding: 5px 10px; border-radius: 3px; box-shadow: 0 2px 8px rgba(8,25,55,.3);
+    }
+    .map-legend {
+      position: absolute; bottom: 22px; right: 10px; z-index: 800;
+      background: rgba(255,255,255,.95); border: 1px solid var(--rule-dark);
+      border-radius: 3px; padding: 7px 10px;
+      font-size: 10px; font-weight: 700; color: var(--text-mid);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .map-legend .lg { display: flex; align-items: center; gap: 6px; }
+    .map-legend .dot { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--navy); }
+
+    .gc-cluster {
+      background: rgba(8,25,55,.88); color: #fff;
+      border: 2px solid rgba(255,255,255,.85); border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Libre Franklin', sans-serif; font-weight: 800;
+      box-shadow: 0 2px 8px rgba(8,25,55,.35);
+    }
+    .gc-s { font-size: 11px; } .gc-m { font-size: 12px; } .gc-l { font-size: 13px; }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 4px; border-top: 3px solid var(--navy);
+      font-family: 'Libre Franklin', sans-serif;
+      box-shadow: 0 10px 30px rgba(8,25,55,.3);
+    }
+    .leaflet-popup-content { margin: 12px 14px; font-size: 12px; }
+    .pp-name { font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 2px; }
+    .pp-sub { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
+    .pp-grid { display: grid; grid-template-columns: auto auto; gap: 2px 14px; }
+    .pp-grid .k { font-size: 10px; font-weight: 800; color: var(--text-light); letter-spacing: .08em; text-transform: uppercase; }
+    .pp-grid .v { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
+    .pp-tier {
+      margin-top: 9px; width: 100%; padding: 6px 0; border-radius: 3px;
+      border: 1px solid #e08a3c; background: transparent; color: #c9721f;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      transition: all .15s;
+    }
+    .pp-tier:hover { background: #fdeedd; }
 
     #statusStrip {
       display: none;
@@ -521,7 +591,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21d · export order fix";
+  const BUILD = "2026-07-21e · map";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -612,7 +682,13 @@
 </div>
 
 <div class="result-line">
-  <span id="resultCount">&nbsp;</span>
+  <span style="display:flex;align-items:center">
+    <span class="view-toggle">
+      <button id="modeTable" class="active">Table</button>
+      <button id="modeMap">Map</button>
+    </span>
+    <span id="resultCount">&nbsp;</span>
+  </span>
   <span class="rl-right">
     <label class="rows-label">View
       <select id="pageSizeSel">
@@ -639,6 +715,17 @@
 </div>
 
 <div id="statusStrip"></div>
+
+<div id="mapWrap">
+  <div id="mapFrame">
+    <div id="mapCanvas"></div>
+    <div class="map-info" id="mapInfo">&nbsp;</div>
+    <div class="map-legend">
+      <div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>
+      <div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>
+    </div>
+  </div>
+</div>
 
 <div class="table-wrap">
   <div id="loading"><div class="skel-table" id="skelWrap"></div></div>
@@ -687,6 +774,8 @@
 let C=[], T=[], R=[], ASOF="";
 let TIERS={};      // contract -> [[bed, units, rent, fmr, ua], ...] for multi-tier contracts
 let PROP_N={};     // property id -> number of contract rows in the master
+let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
+let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true;
 let view=[];
 let page=0, sortCol=0, sortAsc=true, timer=null;
 
@@ -798,6 +887,9 @@ function recompute(){
   if(uix!==undefined)for(const r of view){const v=R[r][uix];if(v!==null&&!isNaN(+v))units+=+v;}
   document.getElementById("statProps").textContent=view.length.toLocaleString();
   document.getElementById("statUnits").textContent=units.toLocaleString();
+
+  mapStale=true;
+  if(VIEW_MODE==="map"&&MAP)buildMarkers();
 }
 
 function disp(colIx,v){
@@ -1190,11 +1282,95 @@ async function watchRun(repo,triggered){
       const res=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
       if(!res.ok)continue;
       const d=await res.json();
-      if(d.asof&&d.asof!==oldAsof){await loadTiers();applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
+      if(d.asof&&d.asof!==oldAsof){await Promise.all([loadTiers(),loadCoords()]);applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
     }catch(e){}
   }
   setStatus("Rebuild finished \u2713 - refresh this page in a minute to see the new data.");
 }
+
+/* ── Map ─────────────────────────────────────────────────────────────
+   Lazily initialised on first switch. Shows the CURRENT filtered view
+   as clustered markers; rebuilt whenever filters/sort change while the
+   map is visible (or on switch if stale). */
+function ensureMap(){
+  if(MAP)return;
+  MAP=L.map("mapCanvas",{preferCanvas:true}).setView([39.3,-96.5],4);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains:"abcd",maxZoom:19
+  }).addTo(MAP);
+  CLUSTER=L.markerClusterGroup({
+    chunkedLoading:true, maxClusterRadius:55,
+    iconCreateFunction:function(c){
+      const n=c.getChildCount();
+      const sz=n<25?[30,"gc-s"]:n<250?[38,"gc-m"]:[46,"gc-l"];
+      return L.divIcon({html:'<div class="gc-cluster '+sz[1]+'" style="width:'+sz[0]+'px;height:'+sz[0]+'px">'+n.toLocaleString()+'</div>',
+                        className:"",iconSize:[sz[0],sz[0]]});
+    }
+  });
+  MAP.addLayer(CLUSTER);
+}
+function popupHtml(ri){
+  const row=R[ri];
+  const g=(c)=>{const i=IDX[c];return i===undefined?null:row[i];};
+  const cno=g("Contract Number");
+  const kv=(k,v)=>v===null||v===undefined||v===""?"":'<span class="k">'+k+'</span><span class="v">'+escHtml(''+v)+'</span>';
+  const ratio=g("Rent-to-FMR Ratio");
+  let h='<div class="pp-name">'+escHtml(''+(row[0]||"Property"))+'</div>'
+    +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
+    +'<div class="pp-grid">'
+    +kv("Total Units",g("Total Units")!==null?(+g("Total Units")).toLocaleString():null)
+    +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
+    +kv("HAP Expires",g("HAP Expiration Date"))
+    +kv("Program",g("Program Type"))
+    +'</div>';
+  if(cno&&TIERS[cno])h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
+  return h;
+}
+function openTiersFromRow(ri){
+  const row=R[ri];
+  const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
+  if(cno)openTiers(cno,''+(row[0]??""));
+}
+function buildMarkers(){
+  if(!MAP)return;
+  CLUSTER.clearLayers();
+  const ms=[];let mapped=0;
+  const pix=IDX["Property ID"],cix=IDX["Contract Number"];
+  for(const ri of view){
+    const pid=pix!==undefined?R[ri][pix]:null;
+    const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
+    if(!c)continue;
+    mapped++;
+    const cno=cix!==undefined?R[ri][cix]:null;
+    const flagged=cno&&TIERS[cno];
+    const m=L.circleMarker(c,{radius:6,weight:1.5,color:"#081937",
+      fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
+    m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
+    ms.push(m);
+  }
+  CLUSTER.addLayers(ms);
+  document.getElementById("mapInfo").textContent=
+    mapped.toLocaleString()+" of "+view.length.toLocaleString()+" properties mapped";
+  if(ms.length){try{MAP.fitBounds(CLUSTER.getBounds().pad(0.08),{maxZoom:11});}catch(e){}}
+  mapStale=false;
+}
+function setViewMode(m){
+  VIEW_MODE=m;
+  const isMap=m==="map";
+  document.getElementById("modeTable").classList.toggle("active",!isMap);
+  document.getElementById("modeMap").classList.toggle("active",isMap);
+  document.getElementById("mapWrap").style.display=isMap?"block":"none";
+  document.querySelector(".table-wrap").style.display=isMap?"none":"block";
+  document.getElementById("paginationBar").style.display=isMap?"none":"flex";
+  document.getElementById("scrollBar").style.display=isMap?"none":"flex";
+  if(isMap){
+    ensureMap();
+    setTimeout(()=>{MAP.invalidateSize();if(mapStale)buildMarkers();},60);
+  }
+}
+document.getElementById("modeTable").onclick=()=>setViewMode("table");
+document.getElementById("modeMap").onclick=()=>setViewMode("map");
 
 /* ── Multi-tier popup ── */
 function bedLabel(b){
@@ -1266,9 +1442,15 @@ async function loadTiers(){
     if(r.ok){const d=await r.json();TIERS=d.contracts||{};}
   }catch(e){TIERS={};}
 }
+async function loadCoords(){
+  try{
+    const r=await fetch("property_coords.json?v="+Date.now(),{cache:"no-store"});
+    if(r.ok){const d=await r.json();COORDS=d.coords||{};}
+  }catch(e){COORDS={};}
+}
 (async function boot(){
   try{
-    const tp=loadTiers();
+    const tp=Promise.all([loadTiers(),loadCoords()]);
     const r=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error("HTTP "+r.status);
     const d=await r.json();
