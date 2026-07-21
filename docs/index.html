@@ -212,6 +212,14 @@
       transition: all .15s;
     }
     .pp-tier:hover { background: #fdeedd; }
+    .pp-table {
+      margin-top: 6px; width: 100%; padding: 6px 0; border-radius: 3px;
+      border: 1px solid var(--navy); background: transparent; color: var(--navy);
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      transition: all .15s;
+    }
+    .pp-table:hover { background: var(--navy); color: var(--white); }
 
     #statusStrip {
       display: none;
@@ -591,7 +599,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21e · map";
+  const BUILD = "2026-07-21f · map declutter";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1300,7 +1308,12 @@ function ensureMap(){
     subdomains:"abcd",maxZoom:19
   }).addTo(MAP);
   CLUSTER=L.markerClusterGroup({
-    chunkedLoading:true, maxClusterRadius:55,
+    chunkedLoading:true,
+    /* cluster aggressively when zoomed out, back off as you zoom in,
+       and stop clustering entirely from zoom 14 - individual dots only */
+    maxClusterRadius:(z)=>z<8?60:z<11?45:z<13?30:15,
+    disableClusteringAtZoom:14,
+    spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){
       const n=c.getChildCount();
       const sz=n<25?[30,"gc-s"]:n<250?[38,"gc-m"]:[46,"gc-l"];
@@ -1325,7 +1338,16 @@ function popupHtml(ri){
     +kv("Program",g("Program Type"))
     +'</div>';
   if(cno&&TIERS[cno])h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
+  h+='<button class="pp-table" onclick="showInTable('+ri+')">Show in table</button>';
   return h;
+}
+function showInTable(ri){
+  const pid=IDX["Property ID"]!==undefined?R[ri][IDX["Property ID"]]:null;
+  if(pid===null||pid===undefined)return;
+  document.getElementById("gsearch").value=''+pid;
+  setViewMode("table");
+  page=0;recompute();
+  window.scrollTo({top:0,behavior:"smooth"});
 }
 function openTiersFromRow(ri){
   const row=R[ri];
@@ -1337,14 +1359,23 @@ function buildMarkers(){
   CLUSTER.clearLayers();
   const ms=[];let mapped=0;
   const pix=IDX["Property ID"],cix=IDX["Contract Number"];
+  const seen={};   /* pid -> how many markers already placed at that spot */
   for(const ri of view){
     const pid=pix!==undefined?R[ri][pix]:null;
     const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
     if(!c)continue;
     mapped++;
+    let lat=c[0],lon=c[1];
+    const k=seen[pid]=(seen[pid]||0)+1;
+    if(k>1){ /* 2nd+ contract at the same property: nudge ~15m in a ring */
+      const ang=(k-1)*2.4;                     /* golden-angle spacing */
+      const rr=0.00014;
+      lat+=rr*Math.cos(ang);
+      lon+=rr*Math.sin(ang)/Math.max(.2,Math.cos(lat*Math.PI/180));
+    }
     const cno=cix!==undefined?R[ri][cix]:null;
     const flagged=cno&&TIERS[cno];
-    const m=L.circleMarker(c,{radius:6,weight:1.5,color:"#081937",
+    const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);
