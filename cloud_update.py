@@ -68,6 +68,55 @@ def build_rent_tiers(detail):
             tiers[str(c)] = [[clean(x) for x in row] for row in g[cols].values.tolist()]
     return tiers
 
+GIS_URL = ("https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services/"
+           "MULTIFAMILY_PROPERTIES_ASSISTED/FeatureServer/0/query")
+
+def fetch_property_coords(wanted_ids):
+    """Pull LAT/LON for HUD multifamily properties from HUD's public GIS
+    layer, keyed by PROPERTY_ID, filtered to the ids we actually have.
+    Paged (2,000 records/request). Raises on failure - caller decides
+    whether that is fatal."""
+    import requests
+    coords, offset = {}, 0
+    while True:
+        r = requests.get(GIS_URL, params={
+            "where": "1=1",
+            "outFields": "PROPERTY_ID,LAT,LON",
+            "returnGeometry": "false",
+            "f": "json",
+            "resultOffset": offset,
+            "resultRecordCount": 2000,
+        }, timeout=120)
+        r.raise_for_status()
+        j = r.json()
+        if "error" in j:
+            raise RuntimeError(str(j["error"]))
+        feats = j.get("features", [])
+        for f in feats:
+            a = f.get("attributes", {})
+            pid, lat, lon = a.get("PROPERTY_ID"), a.get("LAT"), a.get("LON")
+            if pid is None or lat is None or lon is None: continue
+            pid = str(int(pid))
+            if pid in wanted_ids:
+                coords[pid] = [round(float(lat), 5), round(float(lon), 5)]
+        if len(feats) < 2000:
+            break
+        offset += 2000
+    return coords
+
+def write_coords_file(master):
+    """Refresh docs/property_coords.json. Never fails the update: on any
+    error the previous file (if present) is left in place."""
+    out = os.path.join(DOCS, "property_coords.json")
+    try:
+        wanted = set(str(p) for p in master["Property ID"].dropna().unique())
+        coords = fetch_property_coords(wanted)
+        with open(out, "w", encoding="utf-8") as f:
+            json.dump({"coords": coords}, f, separators=(",", ":"))
+        print(f"  coordinates matched for {len(coords):,} of {len(wanted):,} properties.", flush=True)
+    except Exception as e:
+        print(f"  ! coordinate refresh failed ({e}); keeping previous file.", flush=True)
+
 def main():
     print("Running the standard HAP update...", flush=True)
     master = hp.fetch_and_build(progress=lambda m: print("  " + m, flush=True))
@@ -82,6 +131,9 @@ def main():
 
     extra = [("Rents & UAs Detail", detail, DETAIL_NUM, set(), DETAIL_TEXT)]
     hw.write_master(master, os.path.join(DOCS, "HAP_Database_latest.xlsx"), extra_sheets=extra)
+
+    print("Refreshing property coordinates (HUD GIS layer)...", flush=True)
+    write_coords_file(master)
 
     # flag data for the site's multi-tier popup
     tiers = build_rent_tiers(detail)
