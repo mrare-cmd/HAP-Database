@@ -647,7 +647,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-07-21l · chuck-e-choke";
+  const BUILD = "2026-07-22 · export freeze";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1125,7 +1125,7 @@ document.getElementById("exportBtn").onclick=async()=>{
   await new Promise(r=>setTimeout(r,50));
   try{
     const wb=new ExcelJS.Workbook();
-    const ws=wb.addWorksheet("HAP",{views:[{state:"frozen",ySplit:1}]});
+    const ws=wb.addWorksheet("HAP",{views:[{state:"frozen",xSplit:1,ySplit:1}]});
     const XC=[...C,"Rent Tier"];   /* export columns = table columns + tier label */
 
     /* typed column definitions (number formats) must precede the data */
