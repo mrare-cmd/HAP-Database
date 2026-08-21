@@ -144,7 +144,7 @@
     .ms-car { color: rgba(255,255,255,.45); font-size: 10px; flex-shrink: 0; }
     .ms-panel {
       display: none; position: absolute; top: 38px; left: 0; z-index: 300;
-      min-width: 100%; width: max-content; max-width: 380px;
+      width: 330px; max-width: 90vw;
       background: var(--white); border: 1px solid var(--rule-dark); border-top: 3px solid var(--navy);
       border-radius: 3px; box-shadow: 0 12px 34px rgba(8,25,55,.32);
     }
@@ -160,17 +160,28 @@
       letter-spacing: .1em; text-transform: uppercase; transition: all .15s;
     }
     .ms-mini:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
-    .ms-list { max-height: 300px; overflow-y: auto; padding: 4px 0; }
-    .ms-opt {
+    .ms-list { max-height: 300px; overflow-y: auto; overflow-x: hidden; padding: 4px 0; }
+    /* NOTE: these options are <label>s inside .field, so they must out-rank
+       the navy search-bar rule ".field label" (which would render them
+       white, 9px and uppercase on a white panel). Hence ".ms .ms-opt". */
+    .ms .ms-opt {
       display: flex; align-items: center; gap: 8px;
-      padding: 5px 10px; cursor: pointer; font-size: 12px; color: var(--text);
+      padding: 5px 10px; cursor: pointer;
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 12px; font-weight: 500; color: var(--text);
+      text-transform: none; letter-spacing: normal;
       white-space: nowrap;
     }
-    .ms-opt:hover { background: var(--hover-row); }
-    .ms-opt input { accent-color: var(--navy); cursor: pointer; margin: 0; }
-    .ms-opt .ms-n {
-      margin-left: auto; padding-left: 12px;
-      font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-light);
+    .ms .ms-opt:hover { background: var(--hover-row); }
+    .ms .ms-opt input { accent-color: var(--navy); cursor: pointer; margin: 0; flex: 0 0 auto; }
+    .ms .ms-opt .ms-t {
+      flex: 1 1 auto; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .ms .ms-opt .ms-n {
+      flex: 0 0 auto; padding-left: 12px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10.5px;
+      font-weight: 400; color: var(--text-light); text-transform: none; letter-spacing: normal;
     }
 
     .sel-in {
@@ -724,7 +735,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21b · multi-select filters";
+  const BUILD = "2026-08-21c · dropdown legibility fix";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1811,7 +1822,9 @@ function populateSelects(){
         syncMsLabel(key);page=0;recompute();
       });
       const txt=document.createElement("span");
+      txt.className="ms-t";
       txt.textContent=(v===MS_BLANK?"(blank)":v);
+      txt.title=(v===MS_BLANK?"(blank)":v);   /* full value on hover */
       const cnt=document.createElement("span");cnt.className="ms-n";cnt.textContent=n.toLocaleString();
       lab.appendChild(cb);lab.appendChild(txt);lab.appendChild(cnt);
       list.appendChild(lab);
