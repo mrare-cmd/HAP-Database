@@ -547,6 +547,10 @@
       position: relative; z-index: 0;
     }
     #dashMap { position: relative; z-index: 0; overflow: hidden; }
+    .map-cap {
+      padding: 7px 12px; border-top: 1px solid var(--rule);
+      font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .04em;
+    }
     .card-h {
       padding: 9px 14px; border-bottom: 1px solid var(--rule);
       font-size: 10px; font-weight: 800; color: var(--text-light);
@@ -948,7 +952,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21k · rents popup for all properties";
+  const BUILD = "2026-08-21l · select-all + neighbours";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1040,7 +1044,7 @@
     <div class="ms" id="msProgram" style="width:172px">
       <button type="button" class="ms-btn" data-for="Program">All <span class="ms-car">&#9662;</span></button>
       <div class="ms-panel">
-        <div class="ms-tools"><button type="button" class="ms-mini" data-act="none">Clear</button></div>
+        <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
         <div class="ms-list"></div>
       </div>
     </div>
@@ -1050,7 +1054,7 @@
     <div class="ms" id="msRenewal" style="width:230px">
       <button type="button" class="ms-btn" data-for="Renewal">All <span class="ms-car">&#9662;</span></button>
       <div class="ms-panel">
-        <div class="ms-tools"><button type="button" class="ms-mini" data-act="none">Clear</button></div>
+        <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
         <div class="ms-list"></div>
       </div>
     </div>
@@ -2253,7 +2257,8 @@ function openDashboard(ri){
   document.getElementById("dashBody").innerHTML=`
     <div class="dash-grid">
       <div>
-        <div class="card"><div class="card-h">Location</div><div id="dashMap"></div></div>
+        <div class="card"><div class="card-h">Location</div><div id="dashMap"></div>
+          <div class="map-cap" id="dashMapInfo">&nbsp;</div></div>
         ${reacCard.replace('<div class="card">','<div class="card mt16">')}
       </div>
       <div>
@@ -2279,11 +2284,46 @@ function drawDashMap(pid,name){
   const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
   if(!c){el.innerHTML='<div class="muted-note">No mapped coordinates for this property.</div>';return;}
   if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
-  DASH_MAP=L.map(el,{preferCanvas:true,scrollWheelZoom:false}).setView(c,15);
+  DASH_MAP=L.map(el,{preferCanvas:true,scrollWheelZoom:false}).setView(c,14);
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}).addTo(DASH_MAP);
-  L.circleMarker(c,{radius:9,weight:2.5,color:"#081937",fillColor:"#3B7F83",fillOpacity:.9})
-    .addTo(DASH_MAP).bindTooltip(name,{permanent:false});
+
+  /* surrounding HAP properties: one marker per neighbouring Property ID
+     within ~2 miles, so the subject can be read in context */
+  const pix=IDX["Property ID"];
+  const MILES=2, dLat=MILES/69, dLon=MILES/(69*Math.max(.2,Math.cos(c[0]*Math.PI/180)));
+  const seen={},near=[];
+  if(pix!==undefined){
+    for(let i=0;i<R.length;i++){
+      const p=R[i][pix];
+      if(p===null||p===undefined||''+p===''+pid||seen[p])continue;
+      const nc=COORDS[p];
+      if(!nc)continue;
+      if(Math.abs(nc[0]-c[0])>dLat||Math.abs(nc[1]-c[1])>dLon)continue;
+      seen[p]=1;near.push({p,c:nc,i});
+      if(near.length>=250)break;
+    }
+  }
+  const cix=IDX["Contract Number"];
+  for(const n of near){
+    const row=R[n.i];
+    const flagged=cix!==undefined&&row[cix]&&TIERS[row[cix]];
+    const units=IDX["Total Units"]!==undefined?row[IDX["Total Units"]]:null;
+    L.circleMarker(n.c,{radius:5,weight:1,color:"#7d8ba6",
+      fillColor:flagged?"#e8b98a":"#9fb6c4",fillOpacity:.75})
+      .addTo(DASH_MAP)
+      .bindTooltip((''+(row[0]||"Property"))+(units!==null?" \u00B7 "+(+units).toLocaleString()+" units":""),{direction:"top"})
+      .on("click",()=>openDashboard(n.i));
+  }
+
+  /* subject property last, so it sits on top */
+  L.circleMarker(c,{radius:10,weight:3,color:"#081937",fillColor:"#3B7F83",fillOpacity:.95})
+    .addTo(DASH_MAP).bindTooltip(name,{permanent:false,direction:"top"});
+
+  const info=document.getElementById("dashMapInfo");
+  if(info)info.textContent=near.length
+    ? near.length+" other HAP propert"+(near.length===1?"y":"ies")+" within 2 miles \u00B7 click a dot to open it"
+    : "No other HAP properties within 2 miles";
   setTimeout(()=>DASH_MAP.invalidateSize(),60);
 }
 
@@ -2423,6 +2463,11 @@ function syncMsLabel(key){
   if(!box)return;
   const btn=box.querySelector(".ms-btn");
   const set=MSEL[key],n=set.size;
+  const tg=box.querySelector(".ms-toggle");
+  if(tg){
+    const tot=box.querySelectorAll(".ms-list input").length;
+    tg.textContent=(tot&&n>=tot)?"Unselect all":(n>0?"Clear":"Select all");
+  }
   let label="All";
   if(n===1){
     const v=[...set][0];
@@ -2445,12 +2490,14 @@ function syncMsLabel(key){
   document.addEventListener("keydown",(e)=>{
     if(e.key==="Escape")document.querySelectorAll(".ms.open").forEach(m=>m.classList.remove("open"));
   });
-  document.querySelectorAll(".ms-mini").forEach(b=>{
+  document.querySelectorAll(".ms-toggle").forEach(b=>{
     b.addEventListener("click",()=>{
       const box=b.closest(".ms");
       const key=box.id==="msProgram"?"Program":"Renewal";
+      const cbs=[...box.querySelectorAll(".ms-list input")];
+      const allOn=cbs.length>0&&cbs.every(cb=>cb.checked);
       MSEL[key].clear();
-      box.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
+      cbs.forEach(cb=>{cb.checked=!allOn;if(!allOn)MSEL[key].add(cb.value);});
       syncMsLabel(key);page=0;recompute();
     });
   });
