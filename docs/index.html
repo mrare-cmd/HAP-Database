@@ -10,8 +10,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-geoman-free/2.14.2/leaflet-geoman.min.css"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-geoman-free/2.14.2/leaflet-geoman.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.css"/>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.18.3/dist/leaflet-geoman.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -975,7 +975,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21m · draw-to-filter";
+  const BUILD = "2026-08-21n · draw tools CDN fix";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1862,7 +1862,16 @@ function ensureMap(){
       e.layer.on("remove",()=>{});
     });
     MAP.on("pm:remove",()=>clearGeo(true));
-  }catch(err){ /* geoman unavailable: map still works */ }
+  }catch(err){
+    console.warn("Draw tools unavailable:",err);
+    const h=document.querySelector(".geo-hint");
+    if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
+  }
+  if(!MAP.pm){
+    console.warn("Leaflet-Geoman did not load; drawing disabled.");
+    const h=document.querySelector(".geo-hint");
+    if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
+  }
 
   CLUSTER=L.markerClusterGroup({
     chunkedLoading:true,
