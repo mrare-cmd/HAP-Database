@@ -262,6 +262,17 @@
       display: flex; align-items: center; justify-content: center; transition: all .15s;
     }
     .geo-chip button:hover { background: #e5484d; color: #fff; }
+    .geo-clear-btn {
+      position: absolute; top: 10px; left: 50px; z-index: 750;
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 13px; border-radius: 3px; cursor: pointer;
+      border: 1px solid #e5484d; background: #fff; color: #c0392b;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase;
+      box-shadow: 0 2px 8px rgba(8,25,55,.22); transition: all .15s;
+    }
+    .geo-clear-btn:hover { background: #e5484d; color: #fff; }
+
     .geo-hint {
       position: absolute; top: 10px; left: 50px; z-index: 700;
       background: rgba(255,255,255,.95); border: 1px solid var(--rule-dark);
@@ -975,7 +986,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21n · draw tools CDN fix";
+  const BUILD = "2026-08-21o · clear drawn area";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1163,7 +1174,11 @@
   <div id="mapFrame">
     <div id="mapCanvas"></div>
     <div class="map-info" id="mapInfo">&nbsp;</div>
-    <div class="geo-hint">Use the tools at left to draw an area &mdash; the table, stats and exports follow it</div>
+    <div class="geo-hint" id="geoHint">Use the tools at left to draw an area &mdash; the table, stats and exports follow it</div>
+    <button type="button" class="geo-clear-btn" id="geoClearBtn" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Clear drawn area
+    </button>
     <div class="map-legend">
       <div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>
       <div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>
@@ -1726,7 +1741,7 @@ document.getElementById("resetBtn").onclick=()=>{
   MSEL.Program.clear();MSEL.Renewal.clear();
   document.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
   syncMsLabel("Program");syncMsLabel("Renewal");
-  clearGeo(true);
+  clearGeo(false);   /* the reset below recomputes once for everything */
   page=0;recompute();
 };
 document.getElementById("pageSizeSel").addEventListener("change",function(){
@@ -1859,9 +1874,11 @@ function ensureMap(){
       GEO_LAYERS.addLayer(e.layer);
       captureGeo(e.layer);
       e.layer.on("pm:edit",()=>captureGeo(e.layer));
-      e.layer.on("remove",()=>{});
+      e.layer.on("pm:update",()=>captureGeo(e.layer));
+      /* Geoman fires pm:remove on the LAYER when erased with the bin tool */
+      e.layer.on("pm:remove",()=>clearGeo(false));
     });
-    MAP.on("pm:remove",()=>clearGeo(true));
+    MAP.on("pm:remove",()=>clearGeo(false));
   }catch(err){
     console.warn("Draw tools unavailable:",err);
     const h=document.querySelector(".geo-hint");
@@ -1991,21 +2008,35 @@ function captureGeo(layer){
     }else{
       const ll=layer.getLatLngs()[0]||[];
       const ring=ll.map(p=>[p.lat,p.lng]);
-      if(ring.length<3){clearGeo(true);return;}
+      if(ring.length<3){clearGeo(false);return;}
       GEO={kind:"poly",ring,bbox:bboxOfRing(ring)};
     }
   }catch(e){return;}
   page=0;recompute();
   syncGeoChip();
 }
-function clearGeo(silent){
+let _geoClearing=false;
+function clearGeo(refresh){
+  if(_geoClearing)return;
+  const had=!!GEO||(GEO_LAYERS&&GEO_LAYERS.getLayers().length>0);
+  _geoClearing=true;
   GEO=null;
-  if(GEO_LAYERS)GEO_LAYERS.clearLayers();
+  try{
+    if(GEO_LAYERS)GEO_LAYERS.clearLayers();
+    /* leave any stray drawn layer behind if geoman put it on the map directly */
+    if(MAP)MAP.eachLayer(l=>{ if(l.pm&&l._drawnByGeoman)try{MAP.removeLayer(l);}catch(e){} });
+    if(MAP&&MAP.pm){ try{MAP.pm.disableGlobalRemovalMode();}catch(e){}
+                     try{MAP.pm.disableDraw();}catch(e){} }
+  }finally{_geoClearing=false;}
   syncGeoChip();
-  if(!silent){page=0;recompute();}
+  if(had&&refresh!==false){page=0;recompute();}
 }
 function syncGeoChip(){
   const chip=document.getElementById("geoChip");
+  const btn=document.getElementById("geoClearBtn");
+  const hint=document.getElementById("geoHint");
+  if(btn)btn.style.display=GEO?"flex":"none";
+  if(hint)hint.style.display=GEO?"none":"block";
   if(!chip)return;
   if(!GEO){chip.style.display="none";return;}
   chip.style.display="flex";
@@ -2030,7 +2061,8 @@ function setViewMode(m){
     setTimeout(()=>{MAP.invalidateSize();if(mapStale)buildMarkers();},60);
   }
 }
-document.getElementById("geoChipClear").onclick=()=>clearGeo(false);
+document.getElementById("geoChipClear").onclick=()=>clearGeo(true);
+document.getElementById("geoClearBtn").onclick=()=>clearGeo(true);
 document.getElementById("modeTable").onclick=()=>setViewMode("table");
 document.getElementById("modeMap").onclick=()=>setViewMode("map");
 
