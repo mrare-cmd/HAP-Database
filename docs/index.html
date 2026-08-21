@@ -10,6 +10,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.min.css"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-geoman-free/2.14.2/leaflet-geoman.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-geoman-free/2.14.2/leaflet-geoman.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -246,6 +248,27 @@
       color: rgba(255,255,255,.4); letter-spacing: .02em;
     }
     .result-line strong { color: rgba(255,255,255,.85); font-weight: 700; }
+    .geo-chip {
+      display: none; align-items: center; gap: 7px; margin-left: 14px;
+      padding: 3px 6px 3px 10px; border-radius: 12px;
+      background: rgba(84,198,184,.16); border: 1px solid rgba(84,198,184,.5);
+      color: #9fe6da; font-size: 10px; font-weight: 800;
+      letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+    }
+    .geo-chip button {
+      border: none; background: rgba(255,255,255,.12); color: inherit;
+      width: 17px; height: 17px; border-radius: 50%; cursor: pointer;
+      font-family: inherit; font-size: 9px; line-height: 1; padding: 0;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .geo-chip button:hover { background: #e5484d; color: #fff; }
+    .geo-hint {
+      position: absolute; top: 10px; left: 50px; z-index: 700;
+      background: rgba(255,255,255,.95); border: 1px solid var(--rule-dark);
+      border-radius: 3px; padding: 5px 10px;
+      font-size: 10px; font-weight: 700; color: var(--text-mid); letter-spacing: .04em;
+      pointer-events: none;
+    }
     .rl-right { display: flex; align-items: center; gap: 16px; }
     .rows-label {
       display: flex; align-items: center; gap: 6px;
@@ -952,7 +975,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21l · select-all + neighbours";
+  const BUILD = "2026-08-21m · draw-to-filter";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1069,6 +1092,11 @@
       <button id="modeMap">Map</button>
     </span>
     <span id="resultCount">&nbsp;</span>
+    <span id="geoChip" class="geo-chip" style="display:none">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+      <span id="geoChipLabel">Drawn area</span>
+      <button type="button" id="geoChipClear" title="Remove the drawn area">&#10005;</button>
+    </span>
   </span>
   <span class="rl-right">
     <label class="rows-label">View
@@ -1135,6 +1163,7 @@
   <div id="mapFrame">
     <div id="mapCanvas"></div>
     <div class="map-info" id="mapInfo">&nbsp;</div>
+    <div class="geo-hint">Use the tools at left to draw an area &mdash; the table, stats and exports follow it</div>
     <div class="map-legend">
       <div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>
       <div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>
@@ -1191,6 +1220,39 @@ let TIERS={};      // contract -> [[bed, units, rent, fmr, ua], ...] for multi-t
 let PROP_N={};     // property id -> number of contract rows in the master
 let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true;
+/* Drawn geographic filter: {kind:"poly", ring:[[lat,lng],...], bbox:{...}}
+   or {kind:"circle", lat, lng, radMi, bbox:{...}}. null = no geo filter. */
+let GEO=null, GEO_LAYERS=null;
+
+function bboxOfRing(ring){
+  let n=-90,s2=90,e=-180,w=180;
+  for(const [la,ln] of ring){ if(la>n)n=la; if(la<s2)s2=la; if(ln>e)e=ln; if(ln<w)w=ln; }
+  return {n,s:s2,e,w};
+}
+/* ray casting; ring is [[lat,lng],...] */
+function pointInRing(lat,lng,ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const yi=ring[i][0],xi=ring[i][1],yj=ring[j][0],xj=ring[j][1];
+    if(((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function milesBetween(lat1,ln1,lat2,ln2){
+  const dLat=(lat2-lat1)*69;
+  const dLon=(ln2-ln1)*69*Math.cos((lat1+lat2)/2*Math.PI/180);
+  return Math.sqrt(dLat*dLat+dLon*dLon);
+}
+function geoContains(pid){
+  if(!GEO)return true;
+  const c=(pid===null||pid===undefined)?null:COORDS[pid];
+  if(!c)return false;                        /* unmapped can't be inside a shape */
+  const b=GEO.bbox;
+  if(c[0]<b.s||c[0]>b.n||c[1]<b.w||c[1]>b.e)return false;   /* cheap reject */
+  return GEO.kind==="circle"
+    ? milesBetween(GEO.lat,GEO.lng,c[0],c[1])<=GEO.radMi
+    : pointInRing(c[0],c[1],GEO.ring);
+}
 let view=[];
 let page=0, sortCol=0, sortAsc=true, timer=null;
 
@@ -1271,6 +1333,10 @@ function matchSel(set,ix,row){
    own options stay selectable while reflecting every other filter. */
 function rowPasses(r,F,skip){
   const row=R[r];
+  if(GEO){
+    const pix=IDX["Property ID"];
+    if(!geoContains(pix===undefined?null:row[pix]))return false;
+  }
   if(F.uMin!==null||F.uMax!==null){
     const ui=IDX["Total Units"];
     const v=ui===undefined?null:row[ui];
@@ -1338,10 +1404,11 @@ function recompute(){
   /* Clear button goes red whenever any filter is doing something */
   const anyFilter = active.length>0 || !!gq
     || uMin!==null || uMax!==null
-    || MSEL.Program.size>0 || MSEL.Renewal.size>0;
+    || MSEL.Program.size>0 || MSEL.Renewal.size>0 || !!GEO;
   const rb=document.getElementById("resetBtn");
   if(rb)rb.classList.toggle("active",anyFilter);
 
+  syncGeoChip();
   mapStale=true;
   if(VIEW_MODE==="map"&&MAP)buildMarkers();
 }
@@ -1659,6 +1726,7 @@ document.getElementById("resetBtn").onclick=()=>{
   MSEL.Program.clear();MSEL.Renewal.clear();
   document.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
   syncMsLabel("Program");syncMsLabel("Renewal");
+  clearGeo(true);
   page=0;recompute();
 };
 document.getElementById("pageSizeSel").addEventListener("change",function(){
@@ -1774,6 +1842,28 @@ function ensureMap(){
     attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     subdomains:"abcd",maxZoom:19
   }).addTo(MAP);
+  /* drawing tools: polygon, rectangle, circle */
+  try{
+    MAP.pm.addControls({
+      position:"topleft", drawMarker:false, drawPolyline:false, drawText:false,
+      drawCircleMarker:false, cutPolygon:false, rotateMode:false,
+      drawPolygon:true, drawRectangle:true, drawCircle:true,
+      editMode:true, dragMode:false, removalMode:true
+    });
+    MAP.pm.setGlobalOptions({snappable:false,templineStyle:{color:"#081937"},
+      hintlineStyle:{color:"#081937",dashArray:"5,5"},
+      pathOptions:{color:"#081937",weight:2,fillColor:"#3B7F83",fillOpacity:.12}});
+    GEO_LAYERS=L.featureGroup().addTo(MAP);
+    MAP.on("pm:create",(e)=>{
+      GEO_LAYERS.clearLayers();          /* one shape at a time */
+      GEO_LAYERS.addLayer(e.layer);
+      captureGeo(e.layer);
+      e.layer.on("pm:edit",()=>captureGeo(e.layer));
+      e.layer.on("remove",()=>{});
+    });
+    MAP.on("pm:remove",()=>clearGeo(true));
+  }catch(err){ /* geoman unavailable: map still works */ }
+
   CLUSTER=L.markerClusterGroup({
     chunkedLoading:true,
     /* cluster aggressively when zoomed out, back off as you zoom in,
@@ -1882,6 +1972,41 @@ function buildMarkers(){
   if(ms.length){try{MAP.fitBounds(CLUSTER.getBounds().pad(0.08),{maxZoom:11});}catch(e){}}
   mapStale=false;
 }
+function captureGeo(layer){
+  try{
+    if(layer instanceof L.Circle){
+      const c=layer.getLatLng(), radMi=layer.getRadius()/1609.344;
+      const dLat=radMi/69, dLon=radMi/(69*Math.max(.2,Math.cos(c.lat*Math.PI/180)));
+      GEO={kind:"circle",lat:c.lat,lng:c.lng,radMi,
+           bbox:{n:c.lat+dLat,s:c.lat-dLat,e:c.lng+dLon,w:c.lng-dLon}};
+    }else{
+      const ll=layer.getLatLngs()[0]||[];
+      const ring=ll.map(p=>[p.lat,p.lng]);
+      if(ring.length<3){clearGeo(true);return;}
+      GEO={kind:"poly",ring,bbox:bboxOfRing(ring)};
+    }
+  }catch(e){return;}
+  page=0;recompute();
+  syncGeoChip();
+}
+function clearGeo(silent){
+  GEO=null;
+  if(GEO_LAYERS)GEO_LAYERS.clearLayers();
+  syncGeoChip();
+  if(!silent){page=0;recompute();}
+}
+function syncGeoChip(){
+  const chip=document.getElementById("geoChip");
+  if(!chip)return;
+  if(!GEO){chip.style.display="none";return;}
+  chip.style.display="flex";
+  const lbl=document.getElementById("geoChipLabel");
+  lbl.textContent=(GEO.kind==="circle"
+      ? GEO.radMi.toFixed(GEO.radMi<10?2:1)+" mi radius"
+      : "Drawn area ("+GEO.ring.length+" points)")
+    +" \u00B7 "+view.length.toLocaleString()+" propert"+(view.length===1?"y":"ies");
+}
+
 function setViewMode(m){
   VIEW_MODE=m;
   const isMap=m==="map";
@@ -1896,6 +2021,7 @@ function setViewMode(m){
     setTimeout(()=>{MAP.invalidateSize();if(mapStale)buildMarkers();},60);
   }
 }
+document.getElementById("geoChipClear").onclick=()=>clearGeo(false);
 document.getElementById("modeTable").onclick=()=>setViewMode("table");
 document.getElementById("modeMap").onclick=()=>setViewMode("map");
 
