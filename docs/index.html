@@ -326,6 +326,15 @@
       transition: all .15s;
     }
     .pp-tier:hover { background: #fdeedd; }
+    .pp-rents {
+      margin-top: 9px; width: 100%; padding: 6px 0; border-radius: 3px;
+      border: 1px solid #3B7F83; background: transparent; color: #2c6165;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      transition: all .15s;
+    }
+    .pp-rents:hover { background: #e9f5f1; }
+
     .pp-table {
       margin-top: 6px; width: 100%; padding: 6px 0; border-radius: 3px;
       border: 1px solid var(--navy); background: transparent; color: var(--navy);
@@ -939,7 +948,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21j · totals label + analytics";
+  const BUILD = "2026-08-21k · rents popup for all properties";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1791,7 +1800,12 @@ function popupHtml(ri){
     +kv("HAP Expires",g("HAP Expiration Date"))
     +kv("Program",g("Program Type"))
     +'</div>';
-  if(cno&&TIERS[cno])h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
+  if(cno&&TIERS[cno])
+    h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
+  else{
+    const n=rentLinesForRow(ri).lines.length;
+    if(n)h+='<button class="pp-rents" onclick="openRentsFromRow('+ri+')">View rents ('+n+' unit type'+(n>1?"s":"")+')</button>';
+  }
   h+='<button class="pp-table" onclick="openDashboard('+ri+')">Open property dashboard</button>';
   h+='<button class="pp-table" onclick="showInTable('+ri+')">Show in table</button>';
   return h;
@@ -1803,6 +1817,29 @@ function showInTable(ri){
   setViewMode("table");
   page=0;recompute();
   window.scrollTo({top:0,behavior:"smooth"});
+}
+/* Rent lines for any property row, in the tier array shape
+   [bed, units, rent, fmr, ua]. Flagged contracts use the tiers file;
+   everything else is rebuilt from the master row's bedroom columns. */
+function rentLinesForRow(ri){
+  const row=R[ri];
+  const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
+  if(cno&&TIERS[cno])return {lines:TIERS[cno],tiered:true,cno:cno};
+  const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
+  const lines=[];
+  for(const [bk,bn] of bks){
+    const ui=IDX[bk+" Units"], ri2=IDX[bk+" Rent"], ai=IDX[bk+" UA"];
+    const u=ui===undefined?null:row[ui];
+    const rt=ri2===undefined?null:row[ri2];
+    const ua=ai===undefined?null:row[ai];
+    if((u===null||u===undefined||+u===0)&&(rt===null||rt===undefined))continue;
+    lines.push([bn,u,rt,null,ua]);   /* FMR is only published per tier row */
+  }
+  return {lines:lines,tiered:false,cno:cno};
+}
+function openRentsFromRow(ri){
+  const d=rentLinesForRow(ri);
+  openTiers(d.cno,''+(R[ri][0]??""),d.lines,d.tiered);
 }
 function openTiersFromRow(ri){
   const row=R[ri];
@@ -2272,11 +2309,14 @@ function bedLabel(b){
   return n+" BR";
 }
 const money=v=>v===null||v===undefined?"\u2014":"$"+(+v).toLocaleString("en-US");
-function openTiers(contract,propName){
+function openTiers(contract,propName,overrideRows,isTiered){
   /* display copy sorted by bedroom; the underlying array stays in HUD
      source order (the export logic depends on it) */
-  const rows=(TIERS[contract]||[]).slice()
+  const src=overrideRows||TIERS[contract]||[];
+  const tiered=(isTiered!==undefined)?isTiered:!!TIERS[contract];
+  const rows=src.slice()
     .sort((a,b)=>(a[0]===null?99:+a[0])-(b[0]===null?99:+b[0]));
+  if(!rows.length){setStatus("No published unit-level rents for contract "+contract+".");return;}
   const ov=document.createElement("div");ov.className="modal-overlay";
   const distinct={}; /* bedroom sizes whose rents actually differ */
   rows.forEach(r=>{const k=''+r[0];(distinct[k]=distinct[k]||new Set()).add(r[2]);});
@@ -2293,7 +2333,7 @@ function openTiers(contract,propName){
     <div class="modal-head">
       <div>
         <div class="mh-title">${escHtml(propName||"Property")}</div>
-        <div class="mh-sub">Contract ${escHtml(contract)} \u00B7 Rent &amp; UA tier breakdown</div>
+        <div class="mh-sub">Contract ${escHtml(contract)} \u00B7 ${tiered?"Rent &amp; UA tier breakdown":"Rents &amp; utility allowances"}</div>
       </div>
       <button class="modal-close" title="Close">\u2715</button>
     </div>
@@ -2302,7 +2342,9 @@ function openTiers(contract,propName){
         <thead><tr><th>Bedroom</th><th style="text-align:right">Units</th><th style="text-align:right">Contract Rent</th><th style="text-align:right">FMR</th><th style="text-align:right">Utility Allow.</th></tr></thead>
         <tbody>${body}</tbody>
       </table>
-      <div class="tier-note">This contract reports more than one row for at least one bedroom size in HUD's rents file \u2014 typically separate assistance tiers or stages. The main table shows the first-listed rent per size; unit counts there are the sum of all tiers.</div>
+      <div class="tier-note">${tiered
+        ? "This contract reports more than one row for at least one bedroom size in HUD's rents file \u2014 typically separate assistance tiers or stages. The main table shows the first-listed rent per size; unit counts there are the sum of all tiers."
+        : "Contract rents and utility allowances by bedroom size, as published in HUD's rents file for this contract."}</div>
     </div>
   </div>`;
   function close(){ov.remove();document.removeEventListener("keydown",esc);}
