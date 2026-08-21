@@ -62,7 +62,27 @@
       letter-spacing: .12em; text-transform: uppercase;
     }
     .asof-label strong { color: rgba(255,255,255,.75); }
-    .header-right { display: flex; align-items: center; gap: 8px; }
+    .header-left { flex: 0 0 auto; }
+    .header-center { flex: 1 1 auto; display: flex; justify-content: center; padding: 0 20px; min-width: 0; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .hdr-search { position: relative; width: 100%; max-width: 340px; min-width: 130px; }
+    .hdr-search svg {
+      position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      color: rgba(255,255,255,.3); pointer-events: none; transition: color .15s;
+    }
+    .hdr-search input {
+      width: 100%; height: 34px; padding: 0 12px 0 32px;
+      border: 1px solid rgba(255,255,255,.16); border-radius: 3px;
+      background: rgba(255,255,255,.08); color: var(--white);
+      font-family: inherit; font-size: 13px;
+      transition: border-color .15s, background .15s;
+    }
+    .hdr-search input::placeholder { color: rgba(255,255,255,.3); }
+    .hdr-search input:focus {
+      outline: none; border-color: rgba(255,255,255,.55);
+      background: rgba(255,255,255,.14); box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .hdr-search:focus-within svg { color: rgba(255,255,255,.65); }
     .hdr-btn {
       display: flex; align-items: center; gap: 6px;
       padding: 0 14px; height: 32px; border-radius: 3px;
@@ -208,6 +228,10 @@
       transition: all .15s;
     }
     .btn-reset:hover { border-color: rgba(255,255,255,.4); color: rgba(255,255,255,.8); }
+    .btn-reset.active {
+      border-color: #e5484d; background: rgba(229,72,77,.16); color: #ff9ea1;
+    }
+    .btn-reset.active:hover { background: #e5484d; border-color: #e5484d; color: var(--white); }
 
     .result-line {
       padding: 7px 28px;
@@ -335,6 +359,26 @@
       font-size: 8px; font-weight: 800; color: var(--text-light);
       letter-spacing: .14em; text-transform: uppercase;
     }
+    .stat-legend {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px 18px;
+      padding: 6px 0; margin-left: 4px;
+    }
+    .sl-item {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 10px; font-weight: 700; color: var(--text-light);
+      letter-spacing: .04em; white-space: nowrap;
+    }
+    .sl-flag { color: #e08a3c; flex-shrink: 0; }
+    .sl-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 1px 5px; border: 1px solid var(--rule-dark); border-radius: 8px;
+      font-size: 9px; font-weight: 800; color: var(--text-light); line-height: 1.4;
+    }
+    .sl-swatch {
+      width: 16px; height: 11px; border-radius: 2px;
+      background: #f8efdf; border: 1px solid #e4d2b4; flex-shrink: 0;
+    }
+
     .stat-card .stat-value {
       font-size: 13px; font-weight: 800; color: var(--navy);
       letter-spacing: -.01em; font-variant-numeric: tabular-nums;
@@ -735,7 +779,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21c · dropdown legibility fix";
+  const BUILD = "2026-08-21d · legend + header search";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -751,6 +795,12 @@
     <h1>HAP Property Database</h1>
     <div class="header-divider"></div>
     <span class="asof-label">Data as of <strong id="asofVal">&mdash;</strong></span>
+  </div>
+  <div class="header-center">
+    <div class="hdr-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="gsearch" placeholder="Search all columns..." />
+    </div>
   </div>
   <div class="header-right">
     <button class="hdr-btn update" id="updateBtn">
@@ -843,13 +893,6 @@
       </div>
     </div>
   </div>
-  <div class="field">
-    <label>All Columns</label>
-    <div class="field-inner">
-      <input type="text" id="gsearch" placeholder="Search everything..." style="width:200px" />
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    </div>
-  </div>
   <button class="btn-reset" id="resetBtn">Clear</button>
 </div>
 
@@ -883,6 +926,20 @@
   <div class="stat-card">
     <span class="stat-label">Total Units</span>
     <span class="stat-value" id="statUnits">&mdash;</span>
+  </div>
+  <div class="stat-legend">
+    <span class="sl-item" title="This contract reports more than one rent tier for a bedroom size. Click the flag to see the breakdown.">
+      <svg class="sl-flag" width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+      Multiple rent tiers
+    </span>
+    <span class="sl-item" title="This Property ID appears on more than one contract. Click the badge to see them all.">
+      <span class="sl-badge">&times;2</span>
+      Multiple contracts at one property
+    </span>
+    <span class="sl-item">
+      <span class="sl-swatch"></span>
+      Highlighted row = either of the above
+    </span>
   </div>
 </div>
 
@@ -1081,6 +1138,13 @@ function recompute(){
   if(uix!==undefined)for(const r of view){const v=R[r][uix];if(v!==null&&!isNaN(+v))units+=+v;}
   document.getElementById("statProps").textContent=view.length.toLocaleString();
   document.getElementById("statUnits").textContent=units.toLocaleString();
+
+  /* Clear button goes red whenever any filter is doing something */
+  const anyFilter = active.length>0 || !!gq
+    || uMin!==null || uMax!==null
+    || MSEL.Program.size>0 || MSEL.Renewal.size>0;
+  const rb=document.getElementById("resetBtn");
+  if(rb)rb.classList.toggle("active",anyFilter);
 
   mapStale=true;
   if(VIEW_MODE==="map"&&MAP)buildMarkers();
