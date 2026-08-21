@@ -193,6 +193,7 @@
       white-space: nowrap;
     }
     .ms .ms-opt:hover { background: var(--hover-row); }
+    .ms .ms-opt.ms-zero { opacity: .38; }
     .ms .ms-opt input { accent-color: var(--navy); cursor: pointer; margin: 0; flex: 0 0 auto; }
     .ms .ms-opt .ms-t {
       flex: 1 1 auto; min-width: 0;
@@ -779,7 +780,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21d · legend + header search";
+  const BUILD = "2026-08-21e · faceted counts";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1020,6 +1021,7 @@ const FILTER_MAP=[
 const RATIO="Rent-to-FMR Ratio";
 const MS_BLANK="\u0000blank";
 const MSEL={Program:new Set(), Renewal:new Set()};   /* empty set = All */
+const MSREG={Program:new Map(), Renewal:new Map()};  /* value -> {opt,count} nodes */
 const INTC=new Set(["Total Units","Contract Units","property_total_unit_count",
   "0BR Units","1BR Units","2BR Units","3BR Units","4BR Units","5BR+ Units"]);
 
@@ -1061,55 +1063,64 @@ function buildHead(){
   head.innerHTML="";head.appendChild(tr);
 }
 
-function recompute(){
-  const active=FILTER_MAP.map(f=>({
-    q:document.getElementById(f.input).value.trim().toLowerCase(),
-    ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)
-  })).filter(f=>f.q);
-  const gq=document.getElementById("gsearch").value.trim().toLowerCase();
-  const uMinRaw=document.getElementById("unitsMin").value.replace(/[^0-9.]/g,"");
-  const uMaxRaw=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");
-  const uMin=uMinRaw===""?null:+uMinRaw, uMax=uMaxRaw===""?null:+uMaxRaw;
-  const uIx=IDX["Total Units"];
-  const pSet=MSEL.Program, rSet=MSEL.Renewal;
-  const pIx=IDX["Program Type"], rIx=IDX["Renewal Type"];
-  const matchSel=(set,ix,row)=>{
-    if(!set.size||ix===undefined)return true;   /* nothing ticked = All */
-    const v=row[ix];
-    if(v===null||v===undefined||(''+v).trim()==="")return set.has(MS_BLANK);
-    return set.has(''+v);
+/* Read every filter control into one state object. */
+function readFilters(){
+  return {
+    active: FILTER_MAP.map(f=>({
+      q:document.getElementById(f.input).value.trim().toLowerCase(),
+      ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)
+    })).filter(f=>f.q),
+    gq: document.getElementById("gsearch").value.trim().toLowerCase(),
+    uMin: (()=>{const v=document.getElementById("unitsMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
+    uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
+    pSet: MSEL.Program, rSet: MSEL.Renewal
   };
+}
+function matchSel(set,ix,row){
+  if(!set.size||ix===undefined)return true;      /* nothing ticked = All */
+  const v=row[ix];
+  if(v===null||v===undefined||(''+v).trim()==="")return set.has(MS_BLANK);
+  return set.has(''+v);
+}
+/* Does row r pass the filters? `skip` lets a facet exclude ITSELF so its
+   own options stay selectable while reflecting every other filter. */
+function rowPasses(r,F,skip){
+  const row=R[r];
+  if(F.uMin!==null||F.uMax!==null){
+    const ui=IDX["Total Units"];
+    const v=ui===undefined?null:row[ui];
+    if(v===null||v===undefined||isNaN(+v))return false;
+    if(F.uMin!==null&&+v<F.uMin)return false;
+    if(F.uMax!==null&&+v>F.uMax)return false;
+  }
+  if(skip!=="Program"&&!matchSel(F.pSet,IDX["Program Type"],row))return false;
+  if(skip!=="Renewal"&&!matchSel(F.rSet,IDX["Renewal Type"],row))return false;
+  for(const f of F.active){
+    let hit=false;
+    for(const i of f.ix){
+      const v=row[i];
+      if(v!==null&&(''+v).toLowerCase().includes(f.q)){hit=true;break;}
+    }
+    if(!hit)return false;
+  }
+  if(F.gq){
+    let hit=false;
+    for(let i=0;i<row.length;i++){
+      const v=row[i];
+      if(v!==null&&(''+v).toLowerCase().includes(F.gq)){hit=true;break;}
+    }
+    if(!hit)return false;
+  }
+  return true;
+}
+
+function recompute(){
+  const F=readFilters();
+  const active=F.active, gq=F.gq, uMin=F.uMin, uMax=F.uMax;
 
   view=[];
-  for(let r=0;r<R.length;r++){
-    let ok=true;
-    if(uMin!==null||uMax!==null){
-      const v=uIx===undefined?null:R[r][uIx];
-      if(v===null||v===undefined||isNaN(+v))ok=false;
-      else{ if(uMin!==null&&+v<uMin)ok=false; if(uMax!==null&&+v>uMax)ok=false; }
-    }
-    if(ok&&!matchSel(pSet,pIx,R[r]))ok=false;
-    if(ok&&!matchSel(rSet,rIx,R[r]))ok=false;
-    if(!ok){continue;}
-    for(const f of active){
-      let hit=false;
-      for(const i of f.ix){
-        const v=R[r][i];
-        if(v!==null&&(''+v).toLowerCase().includes(f.q)){hit=true;break;}
-      }
-      if(!hit){ok=false;break;}
-    }
-    if(ok&&gq){
-      let hit=false;
-      const row=R[r];
-      for(let i=0;i<row.length;i++){
-        const v=row[i];
-        if(v!==null&&(''+v).toLowerCase().includes(gq)){hit=true;break;}
-      }
-      if(!hit)ok=false;
-    }
-    if(ok)view.push(r);
-  }
+  for(let r=0;r<R.length;r++)if(rowPasses(r,F,null))view.push(r);
+  updateFacetCounts(F);
 
   const t=T[sortCol], ci=sortCol, dir=sortAsc?1:-1;
   const key = t==="num"
@@ -1877,6 +1888,7 @@ function populateSelects(){
     for(const v of [...MSEL[key]])if(!valid.has(v))MSEL[key].delete(v);
     const list=box.querySelector(".ms-list");
     list.innerHTML="";
+    MSREG[key].clear();
     for(const [v,n] of opts){
       const lab=document.createElement("label");lab.className="ms-opt";
       const cb=document.createElement("input");cb.type="checkbox";cb.value=v;
@@ -1892,8 +1904,31 @@ function populateSelects(){
       const cnt=document.createElement("span");cnt.className="ms-n";cnt.textContent=n.toLocaleString();
       lab.appendChild(cb);lab.appendChild(txt);lab.appendChild(cnt);
       list.appendChild(lab);
+      MSREG[key].set(v,{opt:lab,count:cnt});
     }
     syncMsLabel(key);
+  });
+}
+/* Recount each facet's options against every OTHER active filter, so the
+   two dropdowns stay in sync (and react to typing in any text filter).
+   Zero-count options dim but remain tickable. */
+function updateFacetCounts(F){
+  [["Program","Program Type"],["Renewal","Renewal Type"]].forEach(([key,col])=>{
+    const reg=MSREG[key];
+    if(!reg||!reg.size)return;
+    const ix=IDX[col];if(ix===undefined)return;
+    const counts=new Map();let blanks=0;
+    for(let r=0;r<R.length;r++){
+      if(!rowPasses(r,F,key))continue;
+      const v=R[r][ix];
+      if(v===null||v===undefined||(''+v).trim()===""){blanks++;continue;}
+      const k=''+v;counts.set(k,(counts.get(k)||0)+1);
+    }
+    reg.forEach((el,val)=>{
+      const n=(val===MS_BLANK)?blanks:(counts.get(val)||0);
+      el.count.textContent=n.toLocaleString();
+      el.opt.classList.toggle("ms-zero",n===0);
+    });
   });
 }
 function syncMsLabel(key){
