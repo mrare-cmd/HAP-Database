@@ -500,6 +500,109 @@
     }
     @keyframes kCap { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* ── Property dashboard overlay ── */
+    #dashWrap {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: var(--off-white); overflow-y: auto;
+    }
+    #dashWrap.open { display: block; }
+    .dash-top {
+      position: sticky; top: 0; z-index: 20;
+      background: var(--navy); border-bottom: 1px solid var(--navy-faint);
+      padding: 13px 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px;
+    }
+    .dt-name { font-size: 19px; font-weight: 800; color: var(--white); letter-spacing: -.01em; }
+    .dt-sub {
+      font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5);
+      margin-top: 3px; letter-spacing: .02em;
+    }
+    .dt-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .dash-back {
+      display: flex; align-items: center; gap: 7px;
+      height: 34px; padding: 0 16px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,.9); background: var(--white); color: var(--navy);
+      font-family: inherit; font-size: 11px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer;
+      transition: all .15s;
+    }
+    .dash-back:hover { background: rgba(255,255,255,.85); }
+
+    .dash-body { padding: 20px 28px 48px; max-width: 1500px; }
+    .dash-grid { display: grid; grid-template-columns: 360px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 1000px) { .dash-grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--white); border-top: 3px solid var(--navy);
+      box-shadow: 0 1px 4px rgba(8,25,55,.08); border-radius: 0 0 3px 3px;
+    }
+    .card-h {
+      padding: 9px 14px; border-bottom: 1px solid var(--rule);
+      font-size: 10px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .card-b { padding: 14px; }
+    #dashMap { height: 270px; background: var(--row-alt); }
+
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 1px; background: var(--rule); }
+    .kpi { background: var(--white); padding: 12px 14px; }
+    .kpi .k-l {
+      font-size: 9px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .kpi .k-v {
+      font-size: 22px; font-weight: 800; color: var(--navy);
+      letter-spacing: -.02em; font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 2px;
+    }
+    .kpi .k-s { font-size: 10px; font-weight: 600; color: var(--text-light); margin-top: 1px; }
+    .k-warn { color: #c9721f !important; }
+    .k-bad  { color: #c0392b !important; }
+    .k-good { color: #1c7a3f !important; }
+
+    .dtbl { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .dtbl th {
+      background: var(--navy); color: rgba(255,255,255,.62);
+      font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+      padding: 8px 10px; text-align: left; white-space: nowrap;
+    }
+    .dtbl th.r, .dtbl td.r { text-align: right; }
+    .dtbl td { padding: 7px 10px; border-bottom: 1px solid var(--rule); color: var(--text); }
+    .dtbl tbody tr:nth-child(even) td { background: var(--row-alt); }
+    .dtbl td.n { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-mid); }
+    .dtbl tr.tot td { font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); background: var(--white) !important; }
+    .dtbl td.bd { font-weight: 700; color: var(--navy); }
+    .tier-pill {
+      display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 8px;
+      background: #fdeedd; color: #c9721f; font-size: 9px; font-weight: 800; letter-spacing: .04em;
+    }
+    .cn-pill {
+      font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-mid);
+    }
+
+    .kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 16px; font-size: 12.5px; }
+    .kv .k {
+      font-size: 9.5px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .1em; text-transform: uppercase; align-self: center;
+    }
+    .kv .v { color: var(--text); text-align: right; word-break: break-word; }
+    .kv .v a { color: var(--navy); }
+    .flagset { display: flex; flex-wrap: wrap; gap: 6px; }
+    .flg {
+      padding: 3px 9px; border-radius: 10px; font-size: 10px; font-weight: 800;
+      letter-spacing: .04em; background: var(--hover-row); color: var(--navy);
+      border: 1px solid var(--rule-dark);
+    }
+    .reac-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .reac-b {
+      flex: 1 1 90px; text-align: center; padding: 9px 6px;
+      border: 1px solid var(--rule); border-radius: 3px; background: var(--row-alt);
+    }
+    .reac-b .rv { font-size: 19px; font-weight: 800; color: var(--navy); font-variant-numeric: tabular-nums; }
+    .reac-b .rd { font-size: 9.5px; color: var(--text-light); font-weight: 700; margin-top: 2px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 1000px) { .row-2 { grid-template-columns: 1fr; } }
+    .mt16 { margin-top: 16px; }
+    .muted-note { font-size: 11px; color: var(--text-light); padding: 10px 14px; }
+    .data-table tbody tr.row-click { cursor: pointer; }
+
     /* ── Empty state ── */
     .empty-state {
       padding: 64px 20px; text-align: center;
@@ -781,7 +884,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21f · dropdown over map";
+  const BUILD = "2026-08-21g · property dashboard";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -946,6 +1049,26 @@
 </div>
 
 <div id="statusStrip"></div>
+
+<div id="dashWrap">
+  <div class="dash-top">
+    <div>
+      <div class="dt-name" id="dashName">&nbsp;</div>
+      <div class="dt-sub" id="dashSub">&nbsp;</div>
+    </div>
+    <div class="dt-actions">
+      <button class="hdr-btn" id="dashRR">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Create Rent Roll
+      </button>
+      <button class="dash-back" id="dashBack">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Database
+      </button>
+    </div>
+  </div>
+  <div class="dash-body" id="dashBody"></div>
+</div>
 
 <div id="mapWrap">
   <div id="mapFrame">
@@ -1249,6 +1372,13 @@ function render(){
     const row=R[ri];
     const tr=document.createElement("tr");
     if(animate){tr.className="animate-in";tr.style.animationDelay=(i*.015)+"s";}
+    tr.classList.add("row-click");
+    tr.addEventListener("click",(e)=>{
+      /* let the flag, the x2 badge and the row buttons do their own thing */
+      if(e.target.closest(".tier-flag,.multi-badge,.copy-btn,.rr-btn,button,a"))return;
+      if(window.getSelection&&String(window.getSelection()).length>0)return;  /* text selection */
+      openDashboard(ri);
+    });
     const ct=document.createElement("td");ct.className="copy-col";
     const aw=document.createElement("div");aw.className="act-wrap";
     const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
@@ -1614,6 +1744,7 @@ function popupHtml(ri){
     +kv("Program",g("Program Type"))
     +'</div>';
   if(cno&&TIERS[cno])h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
+  h+='<button class="pp-table" onclick="openDashboard('+ri+')">Open property dashboard</button>';
   h+='<button class="pp-table" onclick="showInTable('+ri+')">Show in table</button>';
   return h;
 }
@@ -1818,6 +1949,239 @@ async function createRentRoll(ri){
     setStatus("Rent roll failed: "+e.message);
   }
 }
+
+/* ── Property dashboard ─────────────────────────────────────────────
+   Full-screen overlay. Purely additive: filters, sort, page and view
+   mode are untouched while it is open, so "Back to Database" returns
+   the user exactly where they were. */
+let DASH_MAP=null, DASH_PID=null, DASH_ROW=null;
+
+const dEsc=v=>escHtml(''+(v??""));
+const dMoney=v=>(v===null||v===undefined||v==="")?"\u2014":"$"+(+v).toLocaleString("en-US");
+const dNum=v=>(v===null||v===undefined||v==="")?"\u2014":(+v).toLocaleString("en-US");
+const dTxt=v=>(v===null||v===undefined||(''+v).trim()==="")?"\u2014":dEsc(v);
+function dMonthsOut(dstr){
+  if(!dstr)return null;
+  const dt=new Date(dstr);if(isNaN(dt))return null;
+  return Math.round((dt-new Date())/(1000*60*60*24*30.44));
+}
+function bedLabelN(b){const n=+b;if(n===0)return"Studio";if(n>=5)return"5+ BR";return n+" BR";}
+
+function openDashboard(ri){
+  const row=R[ri];
+  const pix=IDX["Property ID"];
+  const pid=pix!==undefined?row[pix]:null;
+  DASH_PID=pid;DASH_ROW=ri;
+  const rows=[];
+  if(pid!==null&&pid!==undefined){for(let i=0;i<R.length;i++)if(R[i][pix]===pid)rows.push(i);}
+  else rows.push(ri);
+  const g=(c,i)=>{const ix=IDX[c];return ix===undefined?null:R[i??rows[0]][ix];};
+
+  /* header */
+  document.getElementById("dashName").textContent=''+(row[0]||"Property");
+  const addr=[g("address_line1_text"),[g("City"),g("State")].filter(Boolean).join(", "),g("zip_code")].filter(Boolean).join(" \u00B7 ");
+  document.getElementById("dashSub").textContent=
+    addr+"   |   Property ID "+(pid??"\u2014")+"   |   "+rows.length+" contract"+(rows.length>1?"s":"");
+
+  /* KPIs */
+  const totUnits=rows.reduce((a,i)=>a+(g("Total Units",i)!==null?+g("Total Units",i):0),0);
+  const ratios=rows.map(i=>g("Rent-to-FMR Ratio",i)).filter(v=>v!==null&&v!==undefined);
+  const avgRatio=ratios.length?ratios.reduce((a,b)=>a+ +b,0)/ratios.length:null;
+  let soon=null,soonI=null;
+  rows.forEach(i=>{const m=dMonthsOut(g("HAP Expiration Date",i));if(m!==null&&(soon===null||m<soon)){soon=m;soonI=i;}});
+  const reac=g("Last REAC 1");
+  const reacN=reac!==null&&reac!==undefined?parseInt((''+reac).slice(0,2),10):null;
+  const expCls=soon===null?"":(soon<0?"k-bad":(soon<=24?"k-warn":"k-good"));
+  const reacCls=reacN===null?"":(reacN<60?"k-bad":(reacN<80?"k-warn":"k-good"));
+  const kpis=`
+    <div class="kpis">
+      <div class="kpi"><div class="k-l">Total Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
+      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">${ratios.length>1?"average of "+ratios.length:"\u00A0"}</div></div>
+      <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
+      <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
+    </div>`;
+
+  /* rent & UA matrix - one combined table, Contract column */
+  const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
+  const lines=[];
+  for(const i of rows){
+    const cno=g("Contract Number",i);
+    const t=cno?TIERS[cno]:null;
+    if(t){
+      const seen={};
+      for(const tr of t){
+        if(tr[0]===null||tr[0]===undefined)continue;
+        const b=+tr[0];seen[b]=(seen[b]||0)+1;
+        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3],ua:tr[4]});
+      }
+    }else{
+      for(const [bk,bn] of bks){
+        const u=g(bk+" Units",i), rt=g(bk+" Rent",i);
+        if((u===null||+u===0)&&(rt===null))continue;
+        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:null,ua:g(bk+" UA",i)});
+      }
+    }
+  }
+  lines.sort((a,b)=>a.bed-b.bed||(''+a.cno).localeCompare(''+b.cno)||a.tier-b.tier);
+  const multiTier={};lines.forEach(l=>{const k=l.cno+"|"+l.bed;multiTier[k]=(multiTier[k]||0)+1;});
+  let tot={u:0,rent:0};
+  const body=lines.map(l=>{
+    const gross=(l.rent!==null&&l.ua!==null)?(+l.rent)+(+l.ua):null;
+    const r2f=(l.rent!==null&&l.fmr)?((+l.rent)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
+    if(l.units)tot.u+=+l.units;
+    if(l.units&&l.rent)tot.rent+=(+l.units)*(+l.rent);
+    const isMulti=multiTier[l.cno+"|"+l.bed]>1;
+    return `<tr>
+      <td class="bd">${bedLabelN(l.bed)}${isMulti?'<span class="tier-pill">T'+l.tier+'</span>':""}</td>
+      ${rows.length>1?'<td class="cn-pill">'+dEsc(l.cno)+'</td>':""}
+      <td class="n r">${dNum(l.units)}</td>
+      <td class="n r">${dMoney(l.rent)}</td>
+      <td class="n r">${dMoney(l.ua)}</td>
+      <td class="n r">${dMoney(gross)}</td>
+      <td class="n r">${dMoney(l.fmr)}</td>
+      <td class="n r">${r2f}</td>
+    </tr>`;}).join("");
+  const rentCard=`
+    <div class="card">
+      <div class="card-h">Rents &amp; Utility Allowances</div>
+      ${lines.length?`<table class="dtbl">
+        <thead><tr>
+          <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
+          <th class="r">Units</th><th class="r">Contract Rent</th><th class="r">Utility Allow.</th>
+          <th class="r">Gross Rent</th><th class="r">FMR</th><th class="r">Rent/FMR</th>
+        </tr></thead>
+        <tbody>${body}
+          <tr class="tot"><td>TOTAL</td>${rows.length>1?"<td></td>":""}
+            <td class="n r">${dNum(tot.u)}</td>
+            <td class="n r" colspan="5">${tot.rent?dMoney(tot.rent)+" / month":"\u2014"}</td></tr>
+        </tbody></table>`:'<div class="muted-note">No unit-level rent data published for this property.</div>'}
+    </div>`;
+
+  /* contract terms table */
+  const cterms=`
+    <div class="card mt16">
+      <div class="card-h">Contract Terms</div>
+      <table class="dtbl">
+        <thead><tr><th>Contract</th><th>Program</th><th>Doc</th><th>Renewal Type</th>
+          <th class="r">Units</th><th class="r">Effective</th><th class="r">Expires</th><th class="r">Rent/FMR</th></tr></thead>
+        <tbody>${rows.map(i=>{
+          const m=dMonthsOut(g("HAP Expiration Date",i));
+          const cls=m===null?"":(m<0?"k-bad":(m<=24?"k-warn":""));
+          const rr=g("Rent-to-FMR Ratio",i);
+          return `<tr>
+            <td class="cn-pill">${dEsc(g("Contract Number",i))}</td>
+            <td>${dTxt(g("Program Type",i))}</td>
+            <td>${dTxt(g("Doc Type",i))}</td>
+            <td>${dTxt(g("Renewal Type",i))}</td>
+            <td class="n r">${dNum(g("Contract Units",i))}</td>
+            <td class="n r">${dTxt(g("HAP Effective Date",i))}</td>
+            <td class="n r ${cls}">${dTxt(g("HAP Expiration Date",i))}</td>
+            <td class="n r">${rr===null?"\u2014":(rr*100).toFixed(2)+"%"}</td>
+          </tr>`;}).join("")}
+        </tbody></table>
+    </div>`;
+
+  /* owner / management */
+  const contactCard=(title,org,phone,email,city,st,extraK,extraV)=>`
+    <div class="card">
+      <div class="card-h">${title}</div>
+      <div class="card-b"><div class="kv">
+        <span class="k">Organization</span><span class="v">${dTxt(org)}</span>
+        <span class="k">Phone</span><span class="v">${phone?'<a href="tel:'+dEsc(phone)+'">'+dEsc(phone)+"</a>":"\u2014"}</span>
+        <span class="k">Email</span><span class="v">${email?'<a href="mailto:'+dEsc(email)+'">'+dEsc(email)+"</a>":"\u2014"}</span>
+        <span class="k">Location</span><span class="v">${dTxt([city,st].filter(Boolean).join(", "))}</span>
+        ${extraK?'<span class="k">'+extraK+'</span><span class="v">'+dTxt(extraV)+"</span>":""}
+      </div></div>
+    </div>`;
+
+  /* REAC history */
+  const reacCard=`
+    <div class="card">
+      <div class="card-h">REAC Inspection History</div>
+      <div class="card-b"><div class="reac-row">
+        ${[1,2,3].map(n=>{
+          const sc=g("Last REAC "+n), dt=g("Last REAC Date "+n);
+          if(sc===null||sc===undefined||sc==="")return"";
+          const num=parseInt((''+sc).slice(0,2),10);
+          const c=isNaN(num)?"":(num<60?"k-bad":(num<80?"k-warn":"k-good"));
+          return '<div class="reac-b"><div class="rv '+c+'">'+dEsc(sc)+'</div><div class="rd">'+dTxt(dt)+"</div></div>";
+        }).join("")||'<div class="muted-note" style="padding:0">No REAC inspections on file.</div>'}
+      </div></div>
+    </div>`;
+
+  /* property flags + details */
+  const FL=[["is_202_811_ind","202/811"],["is_insured_ind","FHA Insured"],["is_236_ind","Section 236"],
+            ["is_opportunity_zone_ind","Opportunity Zone"],["is_bmir_ind","BMIR"],["is_hud_held_ind","HUD Held"],
+            ["is_hud_owned_ind","HUD Owned"],["is_nursing_home_ind","Nursing Home"],["is_assisted_living_ind","Assisted Living"],
+            ["is_risk_sharing_ind","Risk Sharing"],["is_refinanced_ind","Refinanced"]];
+  const flags=FL.filter(([c])=>{const v=g(c);return v&&(''+v).toUpperCase().startsWith("Y");})
+                .map(([,l])=>'<span class="flg">'+l+"</span>").join("");
+  const propCard=`
+    <div class="card">
+      <div class="card-h">Property Detail</div>
+      <div class="card-b">
+        <div class="kv">
+          <span class="k">Category</span><span class="v">${dTxt(g("property_category_name"))}</span>
+          <span class="k">Financing</span><span class="v">${dTxt(g("primary_financing_type"))}</span>
+          <span class="k">Total Units (HUD)</span><span class="v">${dNum(g("property_total_unit_count"))}</span>
+          <span class="k">County</span><span class="v">${dTxt(g("County"))}</span>
+          <span class="k">MSA</span><span class="v">${dTxt(g("msa_name_text"))}</span>
+          <span class="k">Cong. District</span><span class="v">${dTxt(g("congressional_district_code"))}</span>
+          <span class="k">Site Phone</span><span class="v">${g("property_phone_number")?'<a href="tel:'+dEsc(g("property_phone_number"))+'">'+dEsc(g("property_phone_number"))+"</a>":"\u2014"}</span>
+        </div>
+        ${flags?'<div class="flagset" style="margin-top:12px">'+flags+"</div>":""}
+      </div>
+    </div>`;
+
+  document.getElementById("dashBody").innerHTML=`
+    <div class="dash-grid">
+      <div>
+        <div class="card"><div class="card-h">Location</div><div id="dashMap"></div></div>
+        ${reacCard.replace('<div class="card">','<div class="card mt16">')}
+      </div>
+      <div>
+        <div class="card"><div class="card-h">Snapshot</div>${kpis}</div>
+        ${rentCard.replace('<div class="card">','<div class="card mt16">')}
+        ${cterms}
+      </div>
+    </div>
+    <div class="row-2">
+      ${contactCard("Owner",g("owner_organization_name"),g("owner_main_phone_number_text"),g("owner_contact_email_text"),g("owner_city_name"),g("owner_state_code"),"Owner Since",g("ownership_effective_date"))}
+      ${contactCard("Management Agent",g("mgmt_agent_org_name"),g("mgmt_agent_main_phone_number"),g("mgmt_contact_email_text"),g("mgmt_agent_city_name"),g("mgmt_agent_state_code"),null,null)}
+    </div>
+    <div class="row-2">${propCard}<div></div></div>`;
+
+  document.getElementById("dashWrap").classList.add("open");
+  document.body.style.overflow="hidden";
+  try{location.hash="property="+(pid??"");}catch(e){}
+  setTimeout(()=>drawDashMap(pid,''+(row[0]||"")),40);
+}
+
+function drawDashMap(pid,name){
+  const el=document.getElementById("dashMap");if(!el)return;
+  const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
+  if(!c){el.innerHTML='<div class="muted-note">No mapped coordinates for this property.</div>';return;}
+  if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
+  DASH_MAP=L.map(el,{preferCanvas:true,scrollWheelZoom:false}).setView(c,15);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}).addTo(DASH_MAP);
+  L.circleMarker(c,{radius:9,weight:2.5,color:"#081937",fillColor:"#3B7F83",fillOpacity:.9})
+    .addTo(DASH_MAP).bindTooltip(name,{permanent:false});
+  setTimeout(()=>DASH_MAP.invalidateSize(),60);
+}
+
+function closeDashboard(){
+  document.getElementById("dashWrap").classList.remove("open");
+  document.body.style.overflow="";
+  if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
+  try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}
+  /* filters, sort, page and view mode are all untouched */
+}
+document.getElementById("dashBack").onclick=closeDashboard;
+document.getElementById("dashRR").onclick=()=>{if(DASH_ROW!==null)createRentRoll(DASH_ROW);};
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape"&&document.getElementById("dashWrap").classList.contains("open"))closeDashboard();
+});
 
 /* ── Multi-tier popup ── */
 function bedLabel(b){
@@ -2030,6 +2394,14 @@ async function loadCoords(){
     if(r.ok){const d=await r.json();COORDS=d.coords||{};}
   }catch(e){COORDS={};}
 }
+function openFromHash(){
+  const m=/[#&]property=([^&]+)/.exec(location.hash||"");
+  if(!m)return;
+  const pid=decodeURIComponent(m[1]);
+  const pix=IDX["Property ID"];if(pix===undefined)return;
+  const ri=R.findIndex(r=>''+(r[pix]??"")===pid);
+  if(ri>=0)openDashboard(ri);
+}
 (async function boot(){
   try{
     const tp=Promise.all([loadTiers(),loadCoords()]);
@@ -2038,6 +2410,7 @@ async function loadCoords(){
     const d=await r.json();
     await tp;              /* have flags ready before first paint */
     applyData(d);
+    openFromHash();        /* shareable ...#property=800047477 links */
   }catch(e){
     document.getElementById("loading").innerHTML=
       `<p style="padding:20px;color:#888">Could not load the database (${e.message}). If this is a brand-new deployment, run the update workflow once from the Actions tab.</p>`;
