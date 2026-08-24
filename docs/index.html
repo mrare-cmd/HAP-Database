@@ -986,7 +986,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21o · clear drawn area";
+  const BUILD = "2026-08-21p · no clustering at z12";
   console.log("HAP Database build:", BUILD);
   const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
   const OWNER_REPO      = "";
@@ -1894,8 +1894,10 @@ function ensureMap(){
     chunkedLoading:true,
     /* cluster aggressively when zoomed out, back off as you zoom in,
        and stop clustering entirely from zoom 14 - individual dots only */
-    maxClusterRadius:(z)=>z<8?60:z<11?45:z<13?30:15,
-    disableClusteringAtZoom:14,
+    /* clustering fades out as you zoom: off entirely from z12, which is
+       roughly 12 scroll-steps in from the fully zoomed-out view */
+    maxClusterRadius:(z)=>z<7?60:z<9?45:z<11?28:14,
+    disableClusteringAtZoom:12,
     spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){
       const n=c.getChildCount();
