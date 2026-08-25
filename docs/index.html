@@ -1039,7 +1039,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25c · SAFMR";
+  const BUILD = "2026-08-25d · SAFMR + private-repo status";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1870,12 +1870,6 @@ function setStatusClock(msg,startMs,goalSec){
 }
 
 document.getElementById("updateBtn").onclick=async function(){
-  const repo=ghRepo();
-  if(!UPDATE_ENDPOINT){
-    if(repo)window.open(`https://github.com/${repo}/actions/workflows/update.yml`,"_blank");
-    setStatus("A GitHub tab just opened - click the grey 'Run workflow' button there (requires a GitHub login with repo access). The rebuild takes ~5-10 minutes; refresh this page afterwards.");
-    return;
-  }
   const btn=this;btn.disabled=true;
   const triggered=Date.now();
   setStatusClock("Requesting update\u2026 pulling this month's HUD files and rebuilding. You can leave this tab open.",triggered,240);
@@ -1883,25 +1877,25 @@ document.getElementById("updateBtn").onclick=async function(){
     const r=await authFetch("/update",{method:"POST"});
     const j=await r.json().catch(()=>({}));
     if(!r.ok||j.ok===false)throw new Error(j.error||("relay returned "+r.status));
-    if(repo)await watchRun(repo,triggered);
-    else setStatus("Update started. Refresh this page in ~10 minutes.");
+    await watchRun(triggered);
   }catch(e){
     setStatus("Update failed to start: "+e.message);
   }
   btn.disabled=false;
 };
 
-async function watchRun(repo,triggered){
-  const api=`https://api.github.com/repos/${repo}/actions/workflows/update.yml/runs?per_page=1`;
+async function watchRun(triggered){
+  /* the rebuild runs in the PRIVATE data repo, invisible to the browser;
+     the Worker reports its status for us */
   const t0=Date.now();
   /* STAGE 1 - the rebuild itself. Goal: 4 minutes. */
   while(Date.now()-t0<25*60*1000){
     await new Promise(r=>setTimeout(r,20000));
     try{
-      const res=await fetch(api,{cache:"no-store"});
+      const res=await authFetch("/status");
       if(!res.ok)continue;
       const j=await res.json();
-      const run=(j.workflow_runs||[])[0];
+      const run=(j&&j.status)?j:null;
       if(!run||new Date(run.created_at).getTime()<triggered-90000)
         {setStatusClock("Update requested - waiting for the engine to start\u2026",triggered,240);continue;}
       if(run.status!=="completed")
