@@ -446,7 +446,16 @@
       border-bottom: 1px solid var(--navy-faint);
       font-size: 12px; font-weight: 600;
       color: #dff0ff; letter-spacing: .02em;
+      align-items: center; justify-content: space-between; gap: 16px;
     }
+    #statusStrip.on { display: flex; }
+    #statusClose {
+      flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.28); background: transparent;
+      color: rgba(255,255,255,.7); cursor: pointer; font-family: inherit;
+      font-size: 10px; line-height: 1; padding: 0; transition: all .15s;
+    }
+    #statusClose:hover { background: rgba(255,255,255,.16); color: #fff; }
 
     /* ── Stat strip ── */
     .stat-strip {
@@ -681,6 +690,18 @@
     .dtbl td.n { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-mid); }
     .dtbl tr.tot td { font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); background: var(--white) !important; white-space: nowrap; }
     .dtbl td.bd { font-weight: 700; color: var(--navy); }
+    .stale-p { font-size: 13px; line-height: 1.6; color: var(--text); margin-top: 14px; }
+    .stale-btns { display: flex; gap: 8px; margin-top: 18px; }
+    .stale-go, .stale-dismiss {
+      flex: 1 1 auto; padding: 10px 14px; border-radius: 3px; cursor: pointer;
+      font-family: inherit; font-size: 11px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; transition: all .15s;
+    }
+    .stale-go { border: 1px solid var(--navy); background: var(--navy); color: #fff; }
+    .stale-go:hover { background: #0d2347; }
+    .stale-dismiss { border: 1px solid var(--rule-dark); background: transparent; color: var(--text-mid); }
+    .stale-dismiss:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+
     .tbl-note {
       padding: 9px 14px 0; font-size: 10.5px; color: var(--text-light); line-height: 1.5;
     }
@@ -1083,7 +1104,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25p · single-viewport layout";
+  const BUILD = "2026-08-25r · stale notice persists";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1279,7 +1300,10 @@
   </div>
 </div>
 
-<div id="statusStrip"></div>
+<div id="statusStrip">
+  <span id="statusText"></span>
+  <button type="button" id="statusClose" title="Dismiss">&#10005;</button>
+</div>
 
 <div id="dashWrap">
   <div class="dash-top">
@@ -1907,10 +1931,13 @@ document.getElementById("pageSizeSel").addEventListener("change",function(){
    lands. Without it: open the Run-workflow page (login required). */
 const statusEl=document.getElementById("statusStrip");
 let tickInt=null;
+const statusTextEl=document.getElementById("statusText");
 function setStatus(msg,show=true){
   if(tickInt){clearInterval(tickInt);tickInt=null;}
-  statusEl.textContent=msg;statusEl.style.display=show?"block":"none";
+  statusTextEl.textContent=msg;
+  statusEl.classList.toggle("on",!!show&&!!msg);
 }
+document.getElementById("statusClose").onclick=()=>setStatus("",false);
 /* Status line with a live elapsed clock against a goal, e.g.
    "Engine running…  —  1:23 elapsed · goal 4:00"                    */
 function fmtClock(s){const m=Math.floor(s/60),ss=Math.floor(s%60);return m+":"+String(ss).padStart(2,"0");}
@@ -1919,8 +1946,8 @@ function setStatusClock(msg,startMs,goalSec){
   const draw=()=>{
     const el=Math.max(0,(Date.now()-startMs)/1000);
     const over=el>goalSec?" (running a little long - that's OK)":"";
-    statusEl.textContent=msg+"  \u2014  "+fmtClock(el)+" elapsed \u00B7 goal "+fmtClock(goalSec)+over;
-    statusEl.style.display="block";
+    statusTextEl.textContent=msg+"  \u2014  "+fmtClock(el)+" elapsed \u00B7 goal "+fmtClock(goalSec)+over;
+    statusEl.classList.add("on");
   };
   draw();tickInt=setInterval(draw,1000);
 }
@@ -2974,6 +3001,49 @@ function showUsage(j){
   document.body.appendChild(ov);
 }
 
+/* ── Stale-data reminder ─────────────────────────────────────────────
+   Nudges the user to refresh when the data is over two weeks old, or when
+   a new month has started since the last update. Dismissible so it never
+   blocks work, but it returns on every load until the data is updated. */
+function maybeStaleNotice(){
+  if(!ASOF)return;
+  if(document.getElementById("staleNotice"))return;
+  const asof=new Date(ASOF+"T00:00:00");
+  if(isNaN(asof))return;
+  const now=new Date();
+  const ageDays=Math.floor((now-asof)/86400000);
+  const newMonth=(now.getFullYear()!==asof.getFullYear())||(now.getMonth()!==asof.getMonth());
+  if(ageDays<14&&!newMonth)return;
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.id="staleNotice";
+  ov.innerHTML=`<div class="modal-card" style="max-width:540px">
+    <div class="modal-head">
+      <div>
+        <div class="mh-title">Data may be out of date</div>
+        <div class="mh-sub">Last updated ${escHtml(ASOF)} \u00B7 ${ageDays} day${ageDays===1?"":"s"} ago</div>
+      </div>
+      <button class="modal-close" title="Close">\u2715</button>
+    </div>
+    <div class="modal-body">
+      <p class="stale-p">Please click the <strong>&ldquo;Update to Current Month&rdquo;</strong> button, as data is
+      likely outdated, or may have been newly updated this month.</p>
+      <p class="stale-p">Please note this process can take up to 10 minutes &mdash; if it takes longer than
+      that, please notify Mason Rareshide.</p>
+      <div class="stale-btns">
+        <button type="button" class="stale-go" id="staleGo">Update to Current Month</button>
+        <button type="button" class="stale-dismiss" id="staleLater">Dismiss</button>
+      </div>
+    </div>
+  </div>`;
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
+  const esc=e=>{if(e.key==="Escape")close();};
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  ov.querySelector(".modal-close").onclick=close;
+  ov.querySelector("#staleLater").onclick=close;
+  ov.querySelector("#staleGo").onclick=()=>{close();document.getElementById("updateBtn").click();};
+  document.addEventListener("keydown",esc);
+  document.body.appendChild(ov);
+}
+
 /* ── Load ── */
 function applyData(d){
   C=d.cols||[];T=d.types||[];R=d.rows||[];ASOF=d.asof||"";
@@ -3088,6 +3158,7 @@ async function loadEverything(){
   await tp;                /* have flags ready before first paint */
   applyData(d);
   openFromHash();          /* shareable ...#property=800047477 links */
+  setTimeout(maybeStaleNotice,600);
 }
 
 document.getElementById("agBtn").onclick=signIn;
