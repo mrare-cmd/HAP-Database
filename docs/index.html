@@ -1039,7 +1039,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25 · microsoft sign-in";
+  const BUILD = "2026-08-25b · page-limited export";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1085,7 +1085,7 @@
     </button>
     <button class="hdr-btn" id="exportBtn">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Export Results
+      Export Page
     </button>
 
   </div>
@@ -1184,7 +1184,7 @@
         <option value="50" selected>50</option>
         <option value="100">100</option>
         <option value="200">200</option>
-        <option value="all">All</option>
+        <option value="500">500</option>
       </select>
       rows
     </label>
@@ -1675,9 +1675,11 @@ function excelDate(v){ /* "MM/DD/YYYY" -> Date at UTC midnight (no TZ shift) */
   return isNaN(d)?null:d;
 }
 document.getElementById("exportBtn").onclick=async()=>{
-  if(!view.length)return;
-  if(view.length>5000&&!confirm("Export all "+view.length.toLocaleString()+" filtered rows? Large exports can take ~20-40 seconds to build in the browser."))return;
-  setStatus("Building formatted export ("+view.length.toLocaleString()+" rows)\u2026");
+  /* Exports the CURRENT PAGE only, so a single export can never exceed the
+     view limit (max 500 rows). Full-database downloads live in the vault. */
+  const pageRows=view.slice(page*PAGE_SIZE,page*PAGE_SIZE+PAGE_SIZE);
+  if(!pageRows.length)return;
+  setStatus("Building formatted export ("+pageRows.length.toLocaleString()+" rows)\u2026");
   await new Promise(r=>setTimeout(r,50));
   try{
     const wb=new ExcelJS.Workbook();
@@ -1705,7 +1707,7 @@ document.getElementById("exportBtn").onclick=async()=>{
       return ''+v;
     };
     const rows=[];
-    for(const ri of view){
+    for(const ri of pageRows){
       const base=C.map((c,i)=>typed(i,R[ri][i]));
       const cno=cnoIx!==undefined?R[ri][cnoIx]:null;
       const tiers=cno?TIERS[cno]:null;
@@ -1814,14 +1816,7 @@ document.getElementById("resetBtn").onclick=()=>{
   page=0;recompute();
 };
 document.getElementById("pageSizeSel").addEventListener("change",function(){
-  if(this.value==="all"){
-    if(view.length>2000&&!confirm("Show all "+view.length.toLocaleString()+" rows on one page? With this many rows the page can take a while to draw and may scroll slowly. Filtering first is usually faster.")){
-      this.value=String(PAGE_SIZE===Infinity?50:PAGE_SIZE);return;
-    }
-    PAGE_SIZE=Infinity;
-  }else{
-    PAGE_SIZE=+this.value;
-  }
+  PAGE_SIZE=+this.value||50;      /* 50 / 100 / 200 / 500 - no unlimited view */
   page=0;recompute();
 });
 
