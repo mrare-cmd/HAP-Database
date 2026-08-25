@@ -826,6 +826,7 @@
 
     .data-table thead tr { background: var(--navy); }
     .data-table thead th {
+      position: sticky; top: 58px; z-index: 3;   /* below the 58px page header */
       padding: 9px 11px;
       text-align: left;
       font-size: 10px; font-weight: 800;
@@ -892,7 +893,7 @@
       width: 72px; min-width: 72px; max-width: 72px;
     }
     .act-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
-    .data-table thead th.copy-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); }
+    .data-table thead th.copy-col { background: var(--navy); z-index: 6; border-right: 1px solid var(--navy-faint); }
     .data-table tbody tr:nth-child(even) td.copy-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.copy-col { background: var(--hover-row); }
 
@@ -919,7 +920,7 @@
     .name-resizer:hover::after, .name-resizer.active::after {
       background: rgba(255,255,255,.85); width: 2px;
     }
-    .data-table thead th.name-col { background: var(--navy); z-index: 4; border-right: 1px solid var(--navy-faint); font-weight: 800; }
+    .data-table thead th.name-col { background: var(--navy); z-index: 6; border-right: 1px solid var(--navy-faint); font-weight: 800; }
     .data-table thead th.name-col:hover { background: var(--navy-mid); }
     .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
@@ -1069,7 +1070,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25l · backend password gate";
+  const BUILD = "2026-08-25m · sticky header + doc filter";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1184,6 +1185,16 @@
     <label>Program Type</label>
     <div class="ms" id="msProgram" style="width:172px">
       <button type="button" class="ms-btn" data-for="Program">All <span class="ms-car">&#9662;</span></button>
+      <div class="ms-panel">
+        <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
+        <div class="ms-list"></div>
+      </div>
+    </div>
+  </div>
+  <div class="field">
+    <label>Doc Type</label>
+    <div class="ms" id="msDoc" style="width:150px">
+      <button type="button" class="ms-btn" data-for="Doc">All <span class="ms-car">&#9662;</span></button>
       <div class="ms-panel">
         <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
         <div class="ms-list"></div>
@@ -1390,8 +1401,8 @@ const FILTER_MAP=[
 const RATIO="Rent-to-FMR Ratio";
 const SAFMR_RATIO="Rent-to-SAFMR";
 const MS_BLANK="\u0000blank";
-const MSEL={Program:new Set(), Renewal:new Set()};   /* empty set = All */
-const MSREG={Program:new Map(), Renewal:new Map()};  /* value -> {opt,count} nodes */
+const MSEL={Program:new Set(), Renewal:new Set(), Doc:new Set()};   /* empty set = All */
+const MSREG={Program:new Map(), Renewal:new Map(), Doc:new Map()};  /* value -> {opt,count} nodes */
 const INTC=new Set(["Total Units","Contract Units","property_total_unit_count",
   "0BR Units","1BR Units","2BR Units","3BR Units","4BR Units","5BR+ Units"]);
 
@@ -1445,7 +1456,7 @@ function readFilters(){
     uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     sMin: (()=>{const v=document.getElementById("safmrMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     sMax: (()=>{const v=document.getElementById("safmrMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
-    pSet: MSEL.Program, rSet: MSEL.Renewal
+    pSet: MSEL.Program, rSet: MSEL.Renewal, dSet: MSEL.Doc
   };
 }
 function matchSel(set,ix,row){
@@ -1479,6 +1490,7 @@ function rowPasses(r,F,skip){
   }
   if(skip!=="Program"&&!matchSel(F.pSet,IDX["Program Type"],row))return false;
   if(skip!=="Renewal"&&!matchSel(F.rSet,IDX["Renewal Type"],row))return false;
+  if(skip!=="Doc"&&!matchSel(F.dSet,IDX["Doc Type"],row))return false;
   for(const f of F.active){
     let hit=false;
     for(const i of f.ix){
@@ -1537,7 +1549,7 @@ function recompute(){
   /* Clear button goes red whenever any filter is doing something */
   const anyFilter = active.length>0 || !!gq
     || uMin!==null || uMax!==null || F.sMin!==null || F.sMax!==null
-    || MSEL.Program.size>0 || MSEL.Renewal.size>0 || !!GEO;
+    || MSEL.Program.size>0 || MSEL.Renewal.size>0 || MSEL.Doc.size>0 || !!GEO;
   const rb=document.getElementById("resetBtn");
   if(rb)rb.classList.toggle("active",anyFilter);
 
@@ -1864,9 +1876,9 @@ document.getElementById("resetBtn").onclick=()=>{
   document.getElementById("unitsMax").value="";
   document.getElementById("safmrMin").value="";
   document.getElementById("safmrMax").value="";
-  MSEL.Program.clear();MSEL.Renewal.clear();
+  MSEL.Program.clear();MSEL.Renewal.clear();MSEL.Doc.clear();
   document.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
-  syncMsLabel("Program");syncMsLabel("Renewal");
+  syncMsLabel("Program");syncMsLabel("Renewal");syncMsLabel("Doc");
   clearGeo(false);   /* the reset below recomputes once for everything */
   page=0;recompute();
 };
@@ -2493,6 +2505,7 @@ function openDashboard(ri){
   const kpis=`
     <div class="kpis">
       <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
+      <div class="kpi"><div class="k-l">Total Units</div><div class="k-v">${dNum(g("property_total_unit_count"))}</div><div class="k-s">property total (HUD)</div></div>
       <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${
         wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</div>
         <div class="k-s">unit-weighted across all contracts</div></div>
@@ -2723,7 +2736,8 @@ function openTiers(contract,propName,overrideRows,isTiered){
    values appear automatically. Options carry row counts and keep the
    user's current pick if it still exists. */
 function populateSelects(){
-  [["msProgram","Program Type","Program"],["msRenewal","Renewal Type","Renewal"]].forEach(([id,col,key])=>{
+  [["msProgram","Program Type","Program"],["msRenewal","Renewal Type","Renewal"],
+   ["msDoc","Doc Type","Doc"]].forEach(([id,col,key])=>{
     const box=document.getElementById(id);if(!box)return;
     const ix=IDX[col];if(ix===undefined)return;
     const counts=new Map();let blanks=0;
@@ -2764,7 +2778,7 @@ function populateSelects(){
    two dropdowns stay in sync (and react to typing in any text filter).
    Zero-count options dim but remain tickable. */
 function updateFacetCounts(F){
-  [["Program","Program Type"],["Renewal","Renewal Type"]].forEach(([key,col])=>{
+  [["Program","Program Type"],["Renewal","Renewal Type"],["Doc","Doc Type"]].forEach(([key,col])=>{
     const reg=MSREG[key];
     if(!reg||!reg.size)return;
     const ix=IDX[col];if(ix===undefined)return;
@@ -2782,8 +2796,9 @@ function updateFacetCounts(F){
     });
   });
 }
+const MSBOX={Program:"msProgram",Renewal:"msRenewal",Doc:"msDoc"};
 function syncMsLabel(key){
-  const box=document.getElementById(key==="Program"?"msProgram":"msRenewal");
+  const box=document.getElementById(MSBOX[key]);
   if(!box)return;
   const btn=box.querySelector(".ms-btn");
   const set=MSEL[key],n=set.size;
@@ -2817,7 +2832,7 @@ function syncMsLabel(key){
   document.querySelectorAll(".ms-toggle").forEach(b=>{
     b.addEventListener("click",()=>{
       const box=b.closest(".ms");
-      const key=box.id==="msProgram"?"Program":"Renewal";
+      const key=box.id==="msProgram"?"Program":(box.id==="msDoc"?"Doc":"Renewal");
       const cbs=[...box.querySelectorAll(".ms-list input")];
       const allOn=cbs.length>0&&cbs.every(cb=>cb.checked);
       MSEL[key].clear();
