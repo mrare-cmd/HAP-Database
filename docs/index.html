@@ -32,6 +32,59 @@
       --copy-flash:  #dce8ff;
     }
 
+    #authGate {
+      position: fixed; inset: 0; z-index: 5000;
+      background: #081937;
+      display: flex; align-items: center; justify-content: center; padding: 24px;
+    }
+    #authGate.hidden { display: none; }
+    .ag-card {
+      background: #fff; border-top: 4px solid #3B7F83;
+      border-radius: 0 0 4px 4px; padding: 34px 38px 30px;
+      width: 100%; max-width: 400px; text-align: center;
+      box-shadow: 0 24px 70px rgba(0,0,0,.45);
+    }
+    .ag-brand {
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 10px; font-weight: 800; letter-spacing: .28em;
+      color: #6b7fa0; margin-bottom: 14px;
+    }
+    .ag-title {
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 21px; font-weight: 800; color: #081937; letter-spacing: -.01em;
+    }
+    .ag-sub {
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 12.5px; color: #6b7fa0; margin: 8px 0 22px; line-height: 1.5;
+    }
+    .ag-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 12px 16px; border-radius: 3px; cursor: pointer;
+      border: 1px solid #c4cde0; background: #fff; color: #0d1e3a;
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 13px; font-weight: 700; transition: all .15s;
+    }
+    .ag-btn:hover { border-color: #081937; background: #f4f6f9; }
+    .ag-btn:disabled { opacity: .55; cursor: progress; }
+    .ag-msg {
+      font-family: 'Libre Franklin', sans-serif;
+      font-size: 11.5px; color: #c0392b; margin-top: 14px; min-height: 16px; line-height: 1.5;
+    }
+    .ag-msg.ok { color: #6b7fa0; }
+    .who {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; font-weight: 700; color: rgba(255,255,255,.45);
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .who button {
+      border: 1px solid rgba(255,255,255,.22); background: transparent;
+      color: rgba(255,255,255,.6); border-radius: 3px; cursor: pointer;
+      font-family: inherit; font-size: 9px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; padding: 3px 8px;
+      transition: all .15s;
+    }
+    .who button:hover { border-color: rgba(255,255,255,.6); color: #fff; }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Libre Franklin', sans-serif;
@@ -986,12 +1039,26 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-21p · no clustering at z12";
+  const BUILD = "2026-08-25 · microsoft sign-in";
   console.log("HAP Database build:", BUILD);
-  const UPDATE_ENDPOINT = "https://hap-update.mrareshide.workers.dev";
+  const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
+  const UPDATE_ENDPOINT = API + "/update";
   const OWNER_REPO      = "";
   let   PAGE_SIZE       = 50;
 </script>
+
+<div id="authGate">
+  <div class="ag-card">
+    <div class="ag-brand">GREYSTEEL</div>
+    <div class="ag-title">HAP Property Database</div>
+    <div class="ag-sub">Sign in with your Greysteel account to continue.</div>
+    <button id="agBtn" class="ag-btn">
+      <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden="true"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
+    <div class="ag-msg" id="agMsg"></div>
+  </div>
+</div>
 
 <div class="top-stripe"></div>
 
@@ -1002,6 +1069,8 @@
     <h1>HAP Property Database</h1>
     <div class="header-divider"></div>
     <span class="asof-label">Data as of <strong id="asofVal">&mdash;</strong></span>
+    <div class="header-divider"></div>
+    <span class="who"><span id="whoName">&nbsp;</span><button id="signOut" title="Sign out">Sign out</button></span>
   </div>
   <div class="header-center">
     <div class="hdr-search">
@@ -1792,7 +1861,7 @@ document.getElementById("updateBtn").onclick=async function(){
   const triggered=Date.now();
   setStatusClock("Requesting update\u2026 pulling this month's HUD files and rebuilding. You can leave this tab open.",triggered,240);
   try{
-    const r=await fetch(UPDATE_ENDPOINT,{method:"POST"});
+    const r=await authFetch("/update",{method:"POST"});
     const j=await r.json().catch(()=>({}));
     if(!r.ok||j.ok===false)throw new Error(j.error||("relay returned "+r.status));
     if(repo)await watchRun(repo,triggered);
@@ -1837,7 +1906,7 @@ async function watchRun(repo,triggered){
     await new Promise(r=>setTimeout(r,20000));
     setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
     try{
-      const res=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
+      const res=await authFetch("/data/hap_state.json");
       if(!res.ok)continue;
       const d=await res.json();
       if(d.asof&&d.asof!==oldAsof){await Promise.all([loadTiers(),loadCoords()]);applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
@@ -2693,11 +2762,28 @@ const KONAMI_IMG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
       +'<div class="konami-cap">\u2191\u2191\u2193\u2193\u2190\u2192\u2190\u2192 B A START</div>'
       +'<div class="konami-vault">'
       +'<div class="kv-title">Vault \u00B7 Full Data Downloads</div>'
-      +'<a class="kv-link" href="HAP_Database_latest.xlsx" download>Full Database XLSX <span>master table + rents &amp; UAs detail</span></a>'
-      +'<a class="kv-link" href="HAP_Rents_UAs_latest.xlsx" download>Rents &amp; UAs XLSX <span>row-level contract rent schedule</span></a>'
+      +'<a class="kv-link" href="#" data-vault="HAP_Database_latest.xlsx">Full Database XLSX <span>master table + rents &amp; UAs detail</span></a>'
+      +'<a class="kv-link" href="#" data-vault="HAP_Rents_UAs_latest.xlsx">Rents &amp; UAs XLSX <span>row-level contract rent schedule</span></a>'
       +'</div>';
     const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
     const esc=(e)=>{if(e.key==="Escape")close();};
+    ov.querySelectorAll("[data-vault]").forEach(a=>{
+      a.addEventListener("click",async(e)=>{
+        e.preventDefault();e.stopPropagation();
+        const f=a.getAttribute("data-vault");
+        const orig=a.querySelector("span").textContent;
+        a.querySelector("span").textContent="preparing download\u2026";
+        try{
+          const r=await authFetch("/data/"+f);
+          if(!r.ok)throw new Error("HTTP "+r.status);
+          const blob=await r.blob();
+          const u=URL.createObjectURL(blob);
+          const dl=document.createElement("a");dl.href=u;dl.download=f;dl.click();
+          setTimeout(()=>URL.revokeObjectURL(u),5000);
+          a.querySelector("span").textContent=orig;
+        }catch(err){a.querySelector("span").textContent="download failed: "+err.message;}
+      });
+    });
     ov.addEventListener("click",(e)=>{ if(!e.target.closest(".konami-vault"))close(); });
     document.addEventListener("keydown",esc);
     document.body.appendChild(ov);
@@ -2725,15 +2811,77 @@ function applyData(d){
   document.getElementById("mainTable").style.display="table";
 }
 
+/* ── Auth ─────────────────────────────────────────────────────────────
+   The page holds a signed session token (issued by the Worker after a
+   Microsoft sign-in) and sends it as a Bearer header. Data lives in a
+   private repo and is only ever served by the Worker to a valid session. */
+const TKEY="hap_session";
+let AUTH=null;
+
+function tokenGet(){try{return localStorage.getItem(TKEY);}catch(e){return null;}}
+function tokenSet(t){try{t?localStorage.setItem(TKEY,t):localStorage.removeItem(TKEY);}catch(e){}}
+
+function agMsg(m,ok){
+  const el=document.getElementById("agMsg");
+  if(el){el.textContent=m||"";el.className="ag-msg"+(ok?" ok":"");}
+}
+function showGate(msg,ok){
+  document.getElementById("authGate").classList.remove("hidden");
+  if(msg)agMsg(msg,ok);
+}
+function hideGate(){document.getElementById("authGate").classList.add("hidden");}
+
+function signIn(){
+  const btn=document.getElementById("agBtn");
+  if(btn)btn.disabled=true;
+  agMsg("Redirecting to Microsoft\u2026",true);
+  const ret=location.origin+location.pathname;
+  location.href=API+"/login?return="+encodeURIComponent(ret);
+}
+function signOut(){
+  tokenSet(null);AUTH=null;
+  location.href=location.origin+location.pathname;
+}
+
+/* pull a token out of the URL fragment after the Microsoft round trip */
+function captureTokenFromHash(){
+  const m=/[#&]auth=([^&]+)/.exec(location.hash||"");
+  if(!m)return false;
+  tokenSet(decodeURIComponent(m[1]));
+  const clean=location.hash.replace(/[#&]auth=[^&]*/,"").replace(/^#&/,"#");
+  try{history.replaceState(null,"",location.pathname+location.search+(clean==="#"?"":clean));}catch(e){}
+  return true;
+}
+
+async function authFetch(path,opts){
+  const t=tokenGet();
+  if(!t)throw new Error("not signed in");
+  const o=Object.assign({},opts||{});
+  o.headers=Object.assign({},o.headers||{},{Authorization:"Bearer "+t});
+  o.cache="no-store";
+  const r=await fetch(API+path,o);
+  if(r.status===401){tokenSet(null);AUTH=null;showGate("Your session expired. Please sign in again.");throw new Error("session expired");}
+  return r;
+}
+async function checkSession(){
+  if(!tokenGet())return null;
+  try{
+    const r=await fetch(API+"/me",{headers:{Authorization:"Bearer "+tokenGet()},cache:"no-store"});
+    if(!r.ok){tokenSet(null);return null;}
+    const j=await r.json();
+    return j&&j.ok?j:null;
+  }catch(e){return null;}
+}
+
 async function loadTiers(){
   try{
-    const r=await fetch("rent_tiers.json?v="+Date.now(),{cache:"no-store"});
+    const r=await authFetch("/data/rent_tiers.json");
     if(r.ok){const d=await r.json();TIERS=d.contracts||{};}
   }catch(e){TIERS={};}
 }
 async function loadCoords(){
   try{
-    const r=await fetch("property_coords.json?v="+Date.now(),{cache:"no-store"});
+    const r=await authFetch("/data/property_coords.json");
     if(r.ok){const d=await r.json();COORDS=d.coords||{};}
   }catch(e){COORDS={};}
 }
@@ -2745,18 +2893,32 @@ function openFromHash(){
   const ri=R.findIndex(r=>''+(r[pix]??"")===pid);
   if(ri>=0)openDashboard(ri);
 }
+async function loadEverything(){
+  const tp=Promise.all([loadTiers(),loadCoords()]);
+  const r=await authFetch("/data/hap_state.json");
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();
+  await tp;                /* have flags ready before first paint */
+  applyData(d);
+  openFromHash();          /* shareable ...#property=800047477 links */
+}
+
+document.getElementById("agBtn").onclick=signIn;
+document.getElementById("signOut").onclick=signOut;
+
 (async function boot(){
+  const justReturned=captureTokenFromHash();
+  if(justReturned)agMsg("Signing you in\u2026",true);
+  AUTH=await checkSession();
+  if(!AUTH){showGate(justReturned?"Sign-in did not complete. Please try again.":"");return;}
+
+  document.getElementById("whoName").textContent=AUTH.name||AUTH.email||"";
+  hideGate();
   try{
-    const tp=Promise.all([loadTiers(),loadCoords()]);
-    const r=await fetch("hap_state.json?v="+Date.now(),{cache:"no-store"});
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    const d=await r.json();
-    await tp;              /* have flags ready before first paint */
-    applyData(d);
-    openFromHash();        /* shareable ...#property=800047477 links */
+    await loadEverything();
   }catch(e){
     document.getElementById("loading").innerHTML=
-      `<p style="padding:20px;color:#888">Could not load the database (${e.message}). If this is a brand-new deployment, run the update workflow once from the Actions tab.</p>`;
+      `<p style="padding:20px;color:#888">Could not load the database (${escHtml(e.message)}). If this is a brand-new deployment, run the update workflow once, then refresh.</p>`;
   }
 })();
 
