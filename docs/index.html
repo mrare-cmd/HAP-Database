@@ -761,6 +761,32 @@
     .kv-link span { font-size: 10px; font-weight: 600; color: var(--text-light); letter-spacing: .02em; }
     .kv-link:hover { background: var(--navy); color: var(--white); border-color: var(--navy); }
     .kv-link:hover span { color: rgba(255,255,255,.7); }
+    .kv-gate { margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--rule); }
+    .kv-gate-l {
+      font-size: 9px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .16em; text-transform: uppercase; margin-bottom: 6px; text-align: center;
+    }
+    .kv-gate-row { display: flex; gap: 6px; }
+    .kv-gate-row input {
+      flex: 1 1 auto; min-width: 0; height: 34px; padding: 0 10px;
+      border: 1px solid var(--rule-dark); border-radius: 3px;
+      font-family: inherit; font-size: 12.5px; color: var(--text); background: #fff;
+    }
+    .kv-gate-row input:focus {
+      outline: none; border-color: var(--navy); box-shadow: 0 0 0 3px rgba(8,25,55,.08);
+    }
+    .kv-gate-row button {
+      flex: 0 0 auto; height: 34px; padding: 0 16px; border-radius: 3px;
+      border: 1px solid var(--navy); background: var(--navy); color: #fff;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: all .15s;
+    }
+    .kv-gate-row button:hover { background: #0d2347; }
+    .kv-gate-msg {
+      min-height: 14px; margin-top: 6px; text-align: center;
+      font-size: 10.5px; font-weight: 700; color: #c0392b;
+    }
+    .kv-gate-msg.ok { color: var(--text-light); }
 
     /* ── Empty state ── */
     .empty-state {
@@ -1043,7 +1069,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25j · KPI matches table";
+  const BUILD = "2026-08-25l · backend password gate";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1702,6 +1728,7 @@ document.getElementById("exportBtn").onclick=async()=>{
      view limit (max 500 rows). Full-database downloads live in the vault. */
   const pageRows=view.slice(page*PAGE_SIZE,page*PAGE_SIZE+PAGE_SIZE);
   if(!pageRows.length)return;
+  track("export_page");
   setStatus("Building formatted export ("+pageRows.length.toLocaleString()+" rows)\u2026");
   await new Promise(r=>setTimeout(r,50));
   try{
@@ -2103,6 +2130,7 @@ function buildMarkers(){
   mapStale=false;
 }
 function captureGeo(layer){
+  track("map_draw");
   try{
     if(layer instanceof L.Circle){
       const c=layer.getLatLng(), radMi=layer.getRadius()/1609.344;
@@ -2152,6 +2180,7 @@ function syncGeoChip(){
 }
 
 function setViewMode(m){
+  if(m!==VIEW_MODE)track("view:"+m);
   VIEW_MODE=m;
   const isMap=m==="map";
   document.getElementById("modeTable").classList.toggle("active",!isMap);
@@ -2177,6 +2206,7 @@ document.getElementById("modeMap").onclick=()=>setViewMode("map");
    Lease Type | Occupancy | Market Rent | Contractual Rent + UA / Gross /
    FMR / Contract. Lease Type = Subsidized (HAP). Second tab = tie-out. */
 async function createRentRoll(ri){
+  track("rent_roll");
   const pix=IDX["Property ID"],cix=IDX["Contract Number"];
   const pid=pix!==undefined?R[ri][pix]:null;
   if(pid===null||pid===undefined){setStatus("This row has no Property ID - cannot build a rent roll.");return;}
@@ -2328,6 +2358,7 @@ function dMonthsOut(dstr){
 function bedLabelN(b){const n=+b;if(n===0)return"Studio";if(n>=5)return"5+ BR";return n+" BR";}
 
 function openDashboard(ri){
+  track("dashboard");
   const row=R[ri];
   const pix=IDX["Property ID"];
   const pid=pix!==undefined?row[pix]:null;
@@ -2642,6 +2673,7 @@ function bedLabel(b){
 }
 const money=v=>v===null||v===undefined?"\u2014":"$"+(+v).toLocaleString("en-US");
 function openTiers(contract,propName,overrideRows,isTiered){
+  track("rent_tiers");
   /* display copy sorted by bedroom; the underlying array stays in HUD
      source order (the export logic depends on it) */
   const src=overrideRows||TIERS[contract]||[];
@@ -2818,6 +2850,10 @@ const KONAMI_IMG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
       +'<div class="kv-title">Vault \u00B7 Full Data Downloads</div>'
       +'<a class="kv-link" href="#" data-vault="HAP_Database_latest.xlsx">Full Database XLSX <span>master table + rents &amp; UAs detail</span></a>'
       +'<a class="kv-link" href="#" data-vault="HAP_Rents_UAs_latest.xlsx">Rents &amp; UAs XLSX <span>row-level contract rent schedule</span></a>'
+      +'<div class="kv-gate"><div class="kv-gate-l">Access Backend</div>'
+      +'<div class="kv-gate-row"><input type="password" id="kvPass" placeholder="Password" autocomplete="off" spellcheck="false"/>'
+      +'<button type="button" id="kvGo">Enter</button></div>'
+      +'<div class="kv-gate-msg" id="kvMsg"></div></div>'
       +'</div>';
     const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
     const esc=(e)=>{if(e.key==="Escape")close();};
@@ -2838,6 +2874,29 @@ const KONAMI_IMG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
         }catch(err){a.querySelector("span").textContent="download failed: "+err.message;}
       });
     });
+    const pw=ov.querySelector("#kvPass"), go=ov.querySelector("#kvGo"), msg=ov.querySelector("#kvMsg");
+    const say=(t,ok)=>{if(msg){msg.textContent=t||"";msg.className="kv-gate-msg"+(ok?" ok":"");}};
+    async function tryBackend(){
+      if(!pw)return;
+      if(pw.value.trim().toLowerCase()!=="hippodrome"){
+        say("Incorrect password");pw.select();return;
+      }
+      say("Opening\u2026",true);
+      try{
+        const r=await authFetch("/usage?days=90");
+        let j=null;try{j=await r.json();}catch(e){}
+        if(r.status===403){say("This account is not authorised");return;}
+        if(r.status===501){say((j&&j.error)||"Usage logging is not configured yet");return;}
+        if(!r.ok)throw new Error((j&&j.error)||("HTTP "+r.status));
+        say("");close();showUsage(j);
+      }catch(err){say("Failed: "+err.message);}
+    }
+    if(go)go.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();tryBackend();});
+    if(pw)pw.addEventListener("keydown",(e)=>{
+      e.stopPropagation();                       /* keys here must not feed the konami buffer */
+      if(e.key==="Enter"){e.preventDefault();tryBackend();}
+    });
+    if(pw)setTimeout(()=>{try{pw.focus();}catch(e){}},120);
     ov.addEventListener("click",(e)=>{ if(!e.target.closest(".konami-vault"))close(); });
     document.addEventListener("keydown",esc);
     document.body.appendChild(ov);
@@ -2849,6 +2908,43 @@ const KONAMI_IMG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
     /* no auto-dismiss: the vault links stay until dismissed (click outside / Esc) */
   }
 })();
+
+/* ── Usage report (admin) ── */
+function showUsage(j){
+  const rows=(j.rows||[]);
+  const acts=new Set();rows.forEach(r=>Object.keys(r.actions||{}).forEach(a=>acts.add(a)));
+  const order=["signin","load:hap_state.json","dashboard","rent_tiers","rent_roll","export_page","view:map","map_draw","update"];
+  const cols=order.filter(a=>acts.has(a)).concat([...acts].filter(a=>!order.includes(a)).sort());
+  const fmtd=v=>v?String(v).slice(0,10):"\u2014";
+  const body=rows.map(r=>`<tr>
+      <td>${escHtml(r.email)}</td>
+      <td class="n r">${(r.days||0).toLocaleString()}</td>
+      <td class="n r">${(r.total||0).toLocaleString()}</td>
+      <td class="n r">${fmtd(r.last)}</td>
+      ${cols.map(a=>'<td class="n r">'+((r.actions&&r.actions[a])?r.actions[a].toLocaleString():"\u2014")+"</td>").join("")}
+    </tr>`).join("");
+  const ov=document.createElement("div");ov.className="modal-overlay";
+  ov.innerHTML=`<div class="modal-card" style="max-width:1000px">
+    <div class="modal-head">
+      <div><div class="mh-title">Usage Report</div>
+      <div class="mh-sub">${rows.length} people \u00B7 last ${j.days} days</div></div>
+      <button class="modal-close">\u2715</button>
+    </div>
+    <div class="modal-body">
+      <table class="dtbl" style="margin-top:14px">
+        <thead><tr><th>User</th><th class="r">Active days</th><th class="r">Actions</th><th class="r">Last seen</th>
+        ${cols.map(a=>'<th class="r">'+escHtml(a.replace("load:hap_state.json","loads").replace("view:",""))+"</th>").join("")}
+        </tr></thead>
+        <tbody>${body||'<tr><td colspan="9" style="padding:20px;color:#888">No usage recorded yet.</td></tr>'}</tbody>
+      </table>
+    </div></div>`;
+  const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
+  const esc=e=>{if(e.key==="Escape")close();};
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  ov.querySelector(".modal-close").onclick=close;
+  document.addEventListener("keydown",esc);
+  document.body.appendChild(ov);
+}
 
 /* ── Load ── */
 function applyData(d){
@@ -2917,6 +3013,15 @@ async function authFetch(path,opts){
   if(r.status===401){tokenSet(null);AUTH=null;showGate("Your session expired. Please sign in again.");throw new Error("session expired");}
   return r;
 }
+/* fire-and-forget usage event */
+function track(name){
+  try{
+    const t=tokenGet();if(!t)return;
+    fetch(API+"/event",{method:"POST",
+      headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},
+      body:JSON.stringify({name:name}),keepalive:true}).catch(()=>{});
+  }catch(e){}
+}
 async function checkSession(){
   if(!tokenGet())return null;
   try{
@@ -2967,6 +3072,7 @@ document.getElementById("signOut").onclick=signOut;
   if(!AUTH){showGate(justReturned?"Sign-in did not complete. Please try again.":"");return;}
 
   document.getElementById("whoName").textContent=AUTH.name||AUTH.email||"";
+  track("signin");
   hideGate();
   try{
     await loadEverything();
