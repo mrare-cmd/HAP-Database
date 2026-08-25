@@ -1039,7 +1039,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25b · page-limited export";
+  const BUILD = "2026-08-25c · SAFMR";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1140,6 +1140,14 @@
       <input type="text" id="unitsMin" class="num-in" placeholder="Min" inputmode="numeric" />
       <span class="range-dash">&ndash;</span>
       <input type="text" id="unitsMax" class="num-in" placeholder="Max" inputmode="numeric" />
+    </div>
+  </div>
+  <div class="field">
+    <label>Rent/SAFMR %</label>
+    <div class="range-inner">
+      <input type="text" id="safmrMin" class="num-in" placeholder="Min" inputmode="numeric" />
+      <span class="range-dash">&ndash;</span>
+      <input type="text" id="safmrMax" class="num-in" placeholder="Max" inputmode="numeric" />
     </div>
   </div>
   <div class="field">
@@ -1350,6 +1358,7 @@ const FILTER_MAP=[
   {input:"searchMsa",   cols:["msa_name_text"]},
 ];
 const RATIO="Rent-to-FMR Ratio";
+const SAFMR_RATIO="Rent-to-SAFMR";
 const MS_BLANK="\u0000blank";
 const MSEL={Program:new Set(), Renewal:new Set()};   /* empty set = All */
 const MSREG={Program:new Map(), Renewal:new Map()};  /* value -> {opt,count} nodes */
@@ -1404,6 +1413,8 @@ function readFilters(){
     gq: document.getElementById("gsearch").value.trim().toLowerCase(),
     uMin: (()=>{const v=document.getElementById("unitsMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
+    sMin: (()=>{const v=document.getElementById("safmrMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
+    sMax: (()=>{const v=document.getElementById("safmrMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     pSet: MSEL.Program, rSet: MSEL.Renewal
   };
 }
@@ -1427,6 +1438,14 @@ function rowPasses(r,F,skip){
     if(v===null||v===undefined||isNaN(+v))return false;
     if(F.uMin!==null&&+v<F.uMin)return false;
     if(F.uMax!==null&&+v>F.uMax)return false;
+  }
+  if(F.sMin!==null||F.sMax!==null){
+    const si=IDX[SAFMR_RATIO];
+    const v=si===undefined?null:row[si];
+    if(v===null||v===undefined||isNaN(+v))return false;
+    const pct=+v*100;
+    if(F.sMin!==null&&pct<F.sMin)return false;
+    if(F.sMax!==null&&pct>F.sMax)return false;
   }
   if(skip!=="Program"&&!matchSel(F.pSet,IDX["Program Type"],row))return false;
   if(skip!=="Renewal"&&!matchSel(F.rSet,IDX["Renewal Type"],row))return false;
@@ -1487,7 +1506,7 @@ function recompute(){
 
   /* Clear button goes red whenever any filter is doing something */
   const anyFilter = active.length>0 || !!gq
-    || uMin!==null || uMax!==null
+    || uMin!==null || uMax!==null || F.sMin!==null || F.sMax!==null
     || MSEL.Program.size>0 || MSEL.Renewal.size>0 || !!GEO;
   const rb=document.getElementById("resetBtn");
   if(rb)rb.classList.toggle("active",anyFilter);
@@ -1503,7 +1522,7 @@ function disp(colIx,v){
   if(T[colIx]==="num"){
     const f=+v;
     if(isNaN(f))return""+v;
-    if(c===RATIO)return (f*100).toFixed(2)+"%";
+    if(c===RATIO||c===SAFMR_RATIO)return (f*100).toFixed(2)+"%";
     if(INTC.has(c))return f.toLocaleString("en-US",{maximumFractionDigits:0});
     return f.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
   }
@@ -1690,7 +1709,7 @@ document.getElementById("exportBtn").onclick=async()=>{
     ws.columns=XC.map((c,i)=>({
       key:"c"+i,
       style: i<C.length&&T[i]==="date" ? {numFmt:"m/d/yyyy"}
-           : i<C.length&&T[i]==="num"  ? {numFmt:(c===RATIO?"0.00%":"#,##0")}
+           : i<C.length&&T[i]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":"#,##0")}
            : {}
     }));
 
@@ -1800,6 +1819,9 @@ FILTER_MAP.forEach(f=>{
   document.getElementById(f.input).addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
 });
 document.getElementById("gsearch").addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
+["safmrMin","safmrMax"].forEach(id=>{
+  document.getElementById(id).addEventListener("input",()=>debounce(()=>{page=0;recompute();},350));
+});
 ["unitsMin","unitsMax"].forEach(id=>{
   document.getElementById(id).addEventListener("input",()=>debounce(()=>{page=0;recompute();},350));
 });
@@ -1809,6 +1831,8 @@ document.getElementById("resetBtn").onclick=()=>{
   document.getElementById("gsearch").value="";
   document.getElementById("unitsMin").value="";
   document.getElementById("unitsMax").value="";
+  document.getElementById("safmrMin").value="";
+  document.getElementById("safmrMax").value="";
   MSEL.Program.clear();MSEL.Renewal.clear();
   document.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
   syncMsLabel("Program");syncMsLabel("Renewal");
@@ -2321,6 +2345,9 @@ function openDashboard(ri){
   const kpis=`
     <div class="kpis">
       <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
+      <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${(()=>{
+        const v=g(SAFMR_RATIO);return (v===null||v===undefined||isNaN(+v))?"\u2014":(+v*100).toFixed(1)+"%";})()}</div>
+        <div class="k-s">unit-weighted, incl. UA</div></div>
       <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">${ratios.length>1?"average of "+ratios.length:"\u00A0"}</div></div>
       <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
       <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
@@ -2337,13 +2364,15 @@ function openDashboard(ri){
       for(const tr of t){
         if(tr[0]===null||tr[0]===undefined)continue;
         const b=+tr[0];seen[b]=(seen[b]||0)+1;
-        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3],ua:tr[4]});
+        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3],ua:tr[4],
+                  safmr:(b<=4?g(b+"BR SAFMR",i):null)});
       }
     }else{
       for(const [bk,bn] of bks){
         const u=g(bk+" Units",i), rt=g(bk+" Rent",i);
         if((u===null||+u===0)&&(rt===null))continue;
-        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:null,ua:g(bk+" UA",i)});
+        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:null,ua:g(bk+" UA",i),
+                    safmr:(bn<=4?g(bn+"BR SAFMR",i):null)});
       }
     }
   }
@@ -2352,15 +2381,18 @@ function openDashboard(ri){
   /* colour-code each contract when a property has more than one */
   const cnos=[...new Set(lines.map(l=>''+l.cno))];
   const cIdx={};cnos.forEach((c,i)=>cIdx[c]=(i%6)+1);
-  const wt={u:0,rent:0,ua:0,gross:0,uRent:0,uUa:0,uGross:0};
+  const wt={u:0,rent:0,ua:0,gross:0,uRent:0,uUa:0,uGross:0,safNum:0,safDen:0};
   const body=lines.map((l,li)=>{
     const gross=(l.rent!==null&&l.ua!==null)?(+l.rent)+(+l.ua):(l.rent!==null?+l.rent:null);
     const r2f=(l.rent!==null&&l.fmr)?((+l.rent)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
+    /* SAFMRs are gross-rent standards, so compare gross to SAFMR */
+    const r2s=(gross!==null&&l.safmr)?((gross)/(+l.safmr)*100).toFixed(1)+"%":"\u2014";
     const u=l.units?+l.units:0;
     if(u)wt.u+=u;
     if(u&&l.rent!==null){wt.rent+=u*(+l.rent);wt.uRent+=u;}
     if(u&&l.ua!==null){wt.ua+=u*(+l.ua);wt.uUa+=u;}
     if(u&&gross!==null){wt.gross+=u*gross;wt.uGross+=u;}
+    if(u&&gross!==null&&l.safmr){wt.safNum+=u*gross;wt.safDen+=u*(+l.safmr);}
     const isMulti=multiTier[l.cno+"|"+l.bed]>1;
     const newContract=rows.length>1&&(li===0||''+lines[li-1].cno!==''+l.cno||lines[li-1].bed!==l.bed);
     return `<tr class="${isMulti?"tier-row":""}">
@@ -2372,6 +2404,8 @@ function openDashboard(ri){
       <td class="n r">${dMoney(gross)}</td>
       <td class="n r">${dMoney(l.fmr)}</td>
       <td class="n r">${r2f}</td>
+      <td class="n r">${dMoney(l.safmr)}</td>
+      <td class="n r">${r2s}</td>
     </tr>`;}).join("");
   const wAvg=(sum,units)=>units?Math.round(sum/units):null;
   const tierCount=Object.values(multiTier).filter(v=>v>1).length;
@@ -2398,6 +2432,7 @@ function openDashboard(ri){
           <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
           <th class="r">Units</th><th class="r">Contract Rent</th><th class="r">Utility Allow.</th>
           <th class="r">Gross Rent</th><th class="r">FMR</th><th class="r">Rent/FMR</th>
+          <th class="r">SAFMR</th><th class="r">Gross/SAFMR</th>
         </tr></thead>
         <tbody>${body}
           <tr class="tot">
@@ -2407,6 +2442,8 @@ function openDashboard(ri){
             <td class="n r">${dMoney(wAvg(wt.ua,wt.uUa))}</td>
             <td class="n r">${dMoney(wAvg(wt.gross,wt.uGross))}</td>
             <td class="n r">\u2014</td><td class="n r">\u2014</td>
+            <td class="n r">\u2014</td>
+            <td class="n r">${wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</td>
           </tr>
         </tbody></table>`:'<div class="muted-note">No unit-level rent data published for this property.</div>'}
     </div>`;
