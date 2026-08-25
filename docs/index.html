@@ -1043,7 +1043,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25i · tiered SAFMR + HUD FMR";
+  const BUILD = "2026-08-25j · KPI matches table";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -2356,16 +2356,7 @@ function openDashboard(ri){
   const reacN=reac!==null&&reac!==undefined?parseInt((''+reac).slice(0,2),10):null;
   const expCls=soon===null?"":(soon<0?"k-bad":(soon<=24?"k-warn":"k-good"));
   const reacCls=reacN===null?"":(reacN<60?"k-bad":(reacN<80?"k-warn":"k-good"));
-  const kpis=`
-    <div class="kpis">
-      <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
-      <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${(()=>{
-        const v=g(SAFMR_RATIO);return (v===null||v===undefined||isNaN(+v))?"\u2014":(+v*100).toFixed(1)+"%";})()}</div>
-        <div class="k-s">unit-weighted, incl. UA</div></div>
-      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">HUD published${ratios.length>1?" \u00B7 avg of "+ratios.length:""}</div></div>
-      <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
-      <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
-    </div>`;
+
 
   /* rent & UA matrix - one combined table, Contract column */
   const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
@@ -2466,6 +2457,17 @@ function openDashboard(ri){
             <td class="n r">${wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</td>
           </tr>
         </tbody></table>`:'<div class="muted-note">No unit-level rent data published for this property.</div>'}
+    </div>`;
+
+  const kpis=`
+    <div class="kpis">
+      <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
+      <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${
+        wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</div>
+        <div class="k-s">unit-weighted across all contracts</div></div>
+      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">HUD published${ratios.length>1?" \u00B7 avg of "+ratios.length:""}</div></div>
+      <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
+      <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
     </div>`;
 
   /* contract terms table */
