@@ -188,13 +188,14 @@
     .range-inner { display: flex; align-items: center; gap: 5px; }
     .range-dash { color: rgba(255,255,255,.3); font-size: 12px; }
     .num-in {
-      width: 62px; height: 34px; padding: 0 8px;
+      width: 62px; height: 34px; padding: 0 6px;
+      text-align: center;
       border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
       font-family: 'IBM Plex Mono', monospace; font-size: 12px;
       color: var(--white); background: rgba(255,255,255,.07);
       transition: border-color .15s, background .15s;
     }
-    .num-in::placeholder { color: rgba(255,255,255,.25); font-family: 'Libre Franklin', sans-serif; }
+    .num-in::placeholder { color: rgba(255,255,255,.25); font-family: 'Libre Franklin', sans-serif; text-align: center; }
     .num-in:focus {
       outline: none; border-color: rgba(255,255,255,.5);
       background: rgba(255,255,255,.12); box-shadow: 0 0 0 3px rgba(255,255,255,.06);
@@ -1039,7 +1040,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25d · SAFMR + private-repo status";
+  const BUILD = "2026-08-25f · robust update watcher";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -1877,950 +1878,83 @@ document.getElementById("updateBtn").onclick=async function(){
     const r=await authFetch("/update",{method:"POST"});
     const j=await r.json().catch(()=>({}));
     if(!r.ok||j.ok===false)throw new Error(j.error||("relay returned "+r.status));
-    await watchRun(triggered);
+    await watchRun(triggered,!!j.note);
   }catch(e){
     setStatus("Update failed to start: "+e.message);
   }
   btn.disabled=false;
 };
 
-async function watchRun(triggered){
-  /* the rebuild runs in the PRIVATE data repo, invisible to the browser;
-     the Worker reports its status for us */
+async function watchRun(triggered,suppressed){
+  /* The rebuild runs in the PRIVATE data repo, so the Worker reports its
+     status for us. Cases handled:
+       - a fresh run appears -> follow it to completion
+       - the trigger was suppressed by the cooldown, or the run finished
+         before we looked -> stop waiting after 2 min and check the data
+       - the data was already current today -> say so instead of spinning  */
   const t0=Date.now();
-  /* STAGE 1 - the rebuild itself. Goal: 4 minutes. */
+  let sawRunning=false;
   while(Date.now()-t0<25*60*1000){
-    await new Promise(r=>setTimeout(r,20000));
+    await new Promise(r=>setTimeout(r,15000));
+    let run=null;
     try{
       const res=await authFetch("/status");
-      if(!res.ok)continue;
-      const j=await res.json();
-      const run=(j&&j.status)?j:null;
-      if(!run||new Date(run.created_at).getTime()<triggered-90000)
-        {setStatusClock("Update requested - waiting for the engine to start\u2026",triggered,240);continue;}
-      if(run.status!=="completed")
-        {setStatusClock("Engine running: downloading HUD files and rebuilding the master table\u2026",triggered,240);continue;}
-      if(run.conclusion!=="success"){setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab on GitHub for details.");return;}
-      break;
-    }catch(e){}
+      if(res.ok){const j=await res.json();if(j&&j.status)run=j;}
+    }catch(e){ /* keep waiting */ }
+
+    if(run&&run.status!=="completed"){
+      sawRunning=true;
+      setStatusClock("Engine running: downloading HUD files and rebuilding the master table\u2026",triggered,240);
+      continue;
+    }
+    if(run&&run.status==="completed"){
+      const fresh=new Date(run.created_at).getTime()>=triggered-90000;
+      if(fresh||sawRunning){
+        if(run.conclusion!=="success"){
+          setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab in the data repo.");
+          return;
+        }
+        break;                       /* finished -> go look for new data */
+      }
+      /* an older completed run: the trigger was probably suppressed by the
+         cooldown, or it finished before our first poll. Give it 2 minutes,
+         then stop waiting and inspect the data itself. */
+      if(Date.now()-t0>2*60*1000){
+        if(suppressed)setStatus("An update was already running when you pressed the button \u2014 checking for new data\u2026");
+        break;
+      }
+      setStatusClock("Update requested - waiting for the engine to start\u2026",triggered,240);
+      continue;
+    }
+    setStatusClock("Update requested - waiting for the engine to start\u2026",triggered,240);
   }
-  /* Rebuild done. If the data was already current today, nothing will
-     change on the site - say so instead of waiting for a change.      */
+
   const oldAsof=ASOF;
   const today=new Date().toISOString().slice(0,10);
-  if(oldAsof===today){
-    setStatus("\u2713 Done - the database was already current as of "+today+", so nothing changed this run.");
-    return;
-  }
-  /* STAGE 2 - GitHub Pages publishing the new data. Goal: 2 minutes. */
   const pubStart=Date.now();
   setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
-  for(let i=0;i<12;i++){
-    await new Promise(r=>setTimeout(r,20000));
-    setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
+  for(let i=0;i<10;i++){
     try{
       const res=await authFetch("/data/hap_state.json");
-      if(!res.ok)continue;
-      const d=await res.json();
-      if(d.asof&&d.asof!==oldAsof){await Promise.all([loadTiers(),loadCoords()]);applyData(d);setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");return;}
+      if(res.ok){
+        const d=await res.json();
+        if(d.asof&&d.asof!==oldAsof){
+          await Promise.all([loadTiers(),loadCoords()]);
+          applyData(d);
+          setStatus("\u2713 Updated. Data is now current as of "+d.asof+".");
+          return;
+        }
+        if(d.asof===today&&i>=1){
+          setStatus("\u2713 Done \u2014 the database is current as of "+today+"; nothing changed this run.");
+          return;
+        }
+      }
     }catch(e){}
+    await new Promise(r=>setTimeout(r,20000));
+    setStatusClock("Rebuild finished \u2713 - publishing the new data\u2026",pubStart,120);
   }
-  setStatus("Rebuild finished \u2713 - refresh this page in a minute to see the new data.");
+  setStatus("Rebuild finished \u2713 - refresh the page in a minute to pick up the new data.");
 }
-
-/* ── Map ─────────────────────────────────────────────────────────────
-   Lazily initialised on first switch. Shows the CURRENT filtered view
-   as clustered markers; rebuilt whenever filters/sort change while the
-   map is visible (or on switch if stale). */
-function ensureMap(){
-  if(MAP)return;
-  MAP=L.map("mapCanvas",{preferCanvas:true}).setView([39.3,-96.5],4);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains:"abcd",maxZoom:19
-  }).addTo(MAP);
-  /* drawing tools: polygon, rectangle, circle */
-  try{
-    MAP.pm.addControls({
-      position:"topleft", drawMarker:false, drawPolyline:false, drawText:false,
-      drawCircleMarker:false, cutPolygon:false, rotateMode:false,
-      drawPolygon:true, drawRectangle:true, drawCircle:true,
-      editMode:true, dragMode:false, removalMode:true
-    });
-    MAP.pm.setGlobalOptions({snappable:false,templineStyle:{color:"#081937"},
-      hintlineStyle:{color:"#081937",dashArray:"5,5"},
-      pathOptions:{color:"#081937",weight:2,fillColor:"#3B7F83",fillOpacity:.12}});
-    GEO_LAYERS=L.featureGroup().addTo(MAP);
-    MAP.on("pm:create",(e)=>{
-      GEO_LAYERS.clearLayers();          /* one shape at a time */
-      GEO_LAYERS.addLayer(e.layer);
-      captureGeo(e.layer);
-      e.layer.on("pm:edit",()=>captureGeo(e.layer));
-      e.layer.on("pm:update",()=>captureGeo(e.layer));
-      /* Geoman fires pm:remove on the LAYER when erased with the bin tool */
-      e.layer.on("pm:remove",()=>clearGeo(false));
-    });
-    MAP.on("pm:remove",()=>clearGeo(false));
-  }catch(err){
-    console.warn("Draw tools unavailable:",err);
-    const h=document.querySelector(".geo-hint");
-    if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
-  }
-  if(!MAP.pm){
-    console.warn("Leaflet-Geoman did not load; drawing disabled.");
-    const h=document.querySelector(".geo-hint");
-    if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
-  }
-
-  CLUSTER=L.markerClusterGroup({
-    chunkedLoading:true,
-    /* cluster aggressively when zoomed out, back off as you zoom in,
-       and stop clustering entirely from zoom 14 - individual dots only */
-    /* clustering fades out as you zoom: off entirely from z12, which is
-       roughly 12 scroll-steps in from the fully zoomed-out view */
-    maxClusterRadius:(z)=>z<7?60:z<9?45:z<11?28:14,
-    disableClusteringAtZoom:12,
-    spiderfyOnMaxZoom:true,
-    iconCreateFunction:function(c){
-      const n=c.getChildCount();
-      const sz=n<25?[30,"gc-s"]:n<250?[38,"gc-m"]:[46,"gc-l"];
-      return L.divIcon({html:'<div class="gc-cluster '+sz[1]+'" style="width:'+sz[0]+'px;height:'+sz[0]+'px">'+n.toLocaleString()+'</div>',
-                        className:"",iconSize:[sz[0],sz[0]]});
-    }
-  });
-  MAP.addLayer(CLUSTER);
-}
-function popupHtml(ri){
-  const row=R[ri];
-  const g=(c)=>{const i=IDX[c];return i===undefined?null:row[i];};
-  const cno=g("Contract Number");
-  const kv=(k,v)=>v===null||v===undefined||v===""?"":'<span class="k">'+k+'</span><span class="v">'+escHtml(''+v)+'</span>';
-  const ratio=g("Rent-to-FMR Ratio");
-  let h='<div class="pp-name">'+escHtml(''+(row[0]||"Property"))+'</div>'
-    +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
-    +'<div class="pp-grid">'
-    +kv("Total Units",g("Total Units")!==null?(+g("Total Units")).toLocaleString():null)
-    +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
-    +kv("HAP Expires",g("HAP Expiration Date"))
-    +kv("Program",g("Program Type"))
-    +'</div>';
-  if(cno&&TIERS[cno])
-    h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
-  else{
-    const n=rentLinesForRow(ri).lines.length;
-    if(n)h+='<button class="pp-rents" onclick="openRentsFromRow('+ri+')">View rents ('+n+' unit type'+(n>1?"s":"")+')</button>';
-  }
-  h+='<button class="pp-table" onclick="openDashboard('+ri+')">Open property dashboard</button>';
-  h+='<button class="pp-table" onclick="showInTable('+ri+')">Show in table</button>';
-  return h;
-}
-function showInTable(ri){
-  const pid=IDX["Property ID"]!==undefined?R[ri][IDX["Property ID"]]:null;
-  if(pid===null||pid===undefined)return;
-  document.getElementById("gsearch").value=''+pid;
-  setViewMode("table");
-  page=0;recompute();
-  window.scrollTo({top:0,behavior:"smooth"});
-}
-/* Rent lines for any property row, in the tier array shape
-   [bed, units, rent, fmr, ua]. Flagged contracts use the tiers file;
-   everything else is rebuilt from the master row's bedroom columns. */
-function rentLinesForRow(ri){
-  const row=R[ri];
-  const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
-  if(cno&&TIERS[cno])return {lines:TIERS[cno],tiered:true,cno:cno};
-  const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
-  const lines=[];
-  for(const [bk,bn] of bks){
-    const ui=IDX[bk+" Units"], ri2=IDX[bk+" Rent"], ai=IDX[bk+" UA"];
-    const u=ui===undefined?null:row[ui];
-    const rt=ri2===undefined?null:row[ri2];
-    const ua=ai===undefined?null:row[ai];
-    if((u===null||u===undefined||+u===0)&&(rt===null||rt===undefined))continue;
-    lines.push([bn,u,rt,null,ua]);   /* FMR is only published per tier row */
-  }
-  return {lines:lines,tiered:false,cno:cno};
-}
-function openRentsFromRow(ri){
-  const d=rentLinesForRow(ri);
-  openTiers(d.cno,''+(R[ri][0]??""),d.lines,d.tiered);
-}
-function openTiersFromRow(ri){
-  const row=R[ri];
-  const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
-  if(cno)openTiers(cno,''+(row[0]??""));
-}
-function buildMarkers(){
-  if(!MAP)return;
-  CLUSTER.clearLayers();
-  const ms=[];let mapped=0;
-  const pix=IDX["Property ID"],cix=IDX["Contract Number"];
-  const seen={};   /* pid -> how many markers already placed at that spot */
-  for(const ri of view){
-    const pid=pix!==undefined?R[ri][pix]:null;
-    const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
-    if(!c)continue;
-    mapped++;
-    let lat=c[0],lon=c[1];
-    const k=seen[pid]=(seen[pid]||0)+1;
-    if(k>1){ /* 2nd+ contract at the same property: nudge ~15m in a ring */
-      const ang=(k-1)*2.4;                     /* golden-angle spacing */
-      const rr=0.00014;
-      lat+=rr*Math.cos(ang);
-      lon+=rr*Math.sin(ang)/Math.max(.2,Math.cos(lat*Math.PI/180));
-    }
-    const cno=cix!==undefined?R[ri][cix]:null;
-    const flagged=cno&&TIERS[cno];
-    const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
-      fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
-    m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
-    ms.push(m);
-  }
-  CLUSTER.addLayers(ms);
-  document.getElementById("mapInfo").textContent=
-    mapped.toLocaleString()+" of "+view.length.toLocaleString()+" properties mapped";
-  if(ms.length){try{MAP.fitBounds(CLUSTER.getBounds().pad(0.08),{maxZoom:11});}catch(e){}}
-  mapStale=false;
-}
-function captureGeo(layer){
-  try{
-    if(layer instanceof L.Circle){
-      const c=layer.getLatLng(), radMi=layer.getRadius()/1609.344;
-      const dLat=radMi/69, dLon=radMi/(69*Math.max(.2,Math.cos(c.lat*Math.PI/180)));
-      GEO={kind:"circle",lat:c.lat,lng:c.lng,radMi,
-           bbox:{n:c.lat+dLat,s:c.lat-dLat,e:c.lng+dLon,w:c.lng-dLon}};
-    }else{
-      const ll=layer.getLatLngs()[0]||[];
-      const ring=ll.map(p=>[p.lat,p.lng]);
-      if(ring.length<3){clearGeo(false);return;}
-      GEO={kind:"poly",ring,bbox:bboxOfRing(ring)};
-    }
-  }catch(e){return;}
-  page=0;recompute();
-  syncGeoChip();
-}
-let _geoClearing=false;
-function clearGeo(refresh){
-  if(_geoClearing)return;
-  const had=!!GEO||(GEO_LAYERS&&GEO_LAYERS.getLayers().length>0);
-  _geoClearing=true;
-  GEO=null;
-  try{
-    if(GEO_LAYERS)GEO_LAYERS.clearLayers();
-    /* leave any stray drawn layer behind if geoman put it on the map directly */
-    if(MAP)MAP.eachLayer(l=>{ if(l.pm&&l._drawnByGeoman)try{MAP.removeLayer(l);}catch(e){} });
-    if(MAP&&MAP.pm){ try{MAP.pm.disableGlobalRemovalMode();}catch(e){}
-                     try{MAP.pm.disableDraw();}catch(e){} }
-  }finally{_geoClearing=false;}
-  syncGeoChip();
-  if(had&&refresh!==false){page=0;recompute();}
-}
-function syncGeoChip(){
-  const chip=document.getElementById("geoChip");
-  const btn=document.getElementById("geoClearBtn");
-  const hint=document.getElementById("geoHint");
-  if(btn)btn.style.display=GEO?"flex":"none";
-  if(hint)hint.style.display=GEO?"none":"block";
-  if(!chip)return;
-  if(!GEO){chip.style.display="none";return;}
-  chip.style.display="flex";
-  const lbl=document.getElementById("geoChipLabel");
-  lbl.textContent=(GEO.kind==="circle"
-      ? GEO.radMi.toFixed(GEO.radMi<10?2:1)+" mi radius"
-      : "Drawn area ("+GEO.ring.length+" points)")
-    +" \u00B7 "+view.length.toLocaleString()+" propert"+(view.length===1?"y":"ies");
-}
-
-function setViewMode(m){
-  VIEW_MODE=m;
-  const isMap=m==="map";
-  document.getElementById("modeTable").classList.toggle("active",!isMap);
-  document.getElementById("modeMap").classList.toggle("active",isMap);
-  document.getElementById("mapWrap").style.display=isMap?"block":"none";
-  document.querySelector(".table-wrap").style.display=isMap?"none":"block";
-  document.getElementById("paginationBar").style.display=isMap?"none":"flex";
-  document.getElementById("scrollBar").style.display=isMap?"none":"flex";
-  if(isMap){
-    ensureMap();
-    setTimeout(()=>{MAP.invalidateSize();if(mapStale)buildMarkers();},60);
-  }
-}
-document.getElementById("geoChipClear").onclick=()=>clearGeo(true);
-document.getElementById("geoClearBtn").onclick=()=>clearGeo(true);
-document.getElementById("modeTable").onclick=()=>setViewMode("table");
-document.getElementById("modeMap").onclick=()=>setViewMode("map");
-
-/* ── Create Rent Roll ────────────────────────────────────────────────
-   Un-pivots the HAP rent schedule into one row per unit for the WHOLE
-   property (all contracts, Contract Number column), in the Radix/RedIQ
-   capture layout: Unit | Floor Plan | Net SF | Beds | Baths | Unit Type |
-   Lease Type | Occupancy | Market Rent | Contractual Rent + UA / Gross /
-   FMR / Contract. Lease Type = Subsidized (HAP). Second tab = tie-out. */
-async function createRentRoll(ri){
-  const pix=IDX["Property ID"],cix=IDX["Contract Number"];
-  const pid=pix!==undefined?R[ri][pix]:null;
-  if(pid===null||pid===undefined){setStatus("This row has no Property ID - cannot build a rent roll.");return;}
-  const mrows=[];for(let i=0;i<R.length;i++)if(R[i][pix]===pid)mrows.push(i);
-  const propName=''+(R[mrows[0]][0]||"Property");
-  setStatus("Building rent roll for "+propName+"\u2026");
-  await new Promise(r=>setTimeout(r,50));
-  try{
-    /* 1) schedule lines: {bed, bedLabel, count, rent, ua, fmr, cno, tier} */
-    const sched=[];
-    for(const mi of mrows){
-      const cno=cix!==undefined?R[mi][cix]:null;
-      const t=cno?TIERS[cno]:null;
-      if(t){
-        const tcount={};
-        for(const row of t){
-          if(row[0]===null||row[0]===undefined)continue;
-          const cnt=row[1]===null?0:Math.round(+row[1]);
-          if(cnt<=0)continue;
-          const bed=+row[0];
-          tcount[bed]=(tcount[bed]||0)+1;
-          sched.push({bed:bed,bedLabel:bed+"BR",count:cnt,rent:row[2],ua:row[4],fmr:row[3],cno:cno,tier:tcount[bed]});
-        }
-      }else{
-        const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
-        for(const [bk,bn] of bks){
-          const u=R[mi][IDX[bk+" Units"]];
-          if(u===null||u===undefined||+u<=0)continue;
-          sched.push({bed:bn,bedLabel:bk,count:Math.round(+u),rent:R[mi][IDX[bk+" Rent"]],ua:R[mi][IDX[bk+" UA"]],fmr:null,cno:cno,tier:1});
-        }
-      }
-    }
-    if(!sched.length){setStatus("No unit-mix data available for "+propName+" - HUD's rents file has no rows for its contract(s).");return;}
-    sched.sort((a,b)=>a.bed-b.bed||(''+a.cno).localeCompare(''+b.cno)||a.tier-b.tier);
-    const tiersPerBed={};sched.forEach(x=>{tiersPerBed[x.bedLabel]=Math.max(tiersPerBed[x.bedLabel]||0,x.tier);});
-
-    /* 2) un-pivot to units */
-    const seq={};const units=[];
-    for(const x of sched){
-      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
-      const tenant=x.rent===null?null:Math.min(1,+x.rent);
-      const subsidy=x.rent===null?null:(+x.rent-tenant);
-      for(let k=0;k<x.count;k++){
-        const n=seq[x.bedLabel]=(seq[x.bedLabel]||0)+1;
-        units.push([x.bedLabel.replace("+","p")+"-"+String(n).padStart(3,"0"),
-          fp,null,x.bed,1,"Residential",null,"Occupied",null,tenant,subsidy]);
-      }
-    }
-
-    /* 3) workbook */
-    const HDR=["Unit","Floor Plan","Net SF","Beds","Baths","Unit Type","Lease Type",
-               "Occupancy","Market Rent","Tenant Rent","Subsidy Rent"];
-    const NUMFMT={3:"0",4:"0",8:"#,##0",9:"#,##0",10:"#,##0"};
-    const wb=new ExcelJS.Workbook();
-    const ws=wb.addWorksheet("Rent Roll",{views:[{state:"frozen",ySplit:5}]});
-    const stamp=new Date().toISOString().slice(0,10);
-    ws.getCell("A1").value=propName;
-    ws.getCell("A1").font={bold:true,size:14,color:{argb:"FF081937"}};
-    const city=[R[mrows[0]][IDX["City"]],R[mrows[0]][IDX["State"]]].filter(Boolean).join(", ");
-    ws.getCell("A2").value=city+"  \u00B7  Property ID "+pid+"  \u00B7  Contract(s): "+mrows.map(i=>R[i][cix]).filter(Boolean).join(", ");
-    ws.getCell("A3").value="Synthetic rent roll un-pivoted from HUD Section 8 contract rent schedule (contractsrentutilityamt) \u00B7 data as of "+ASOF+" \u00B7 generated "+stamp+" \u00B7 all assisted units shown as Occupied \u00B7 contract rent split as Tenant Rent $1 + Subsidy Rent (contract rent \u2212 $1)";
-    ws.getCell("A3").font={size:9,italic:true,color:{argb:"FF6B7FA0"}};
-    ws.getRow(5).values=HDR;
-    ws.getRow(5).font={bold:true,color:{argb:"FFFFFFFF"},size:11};
-    ws.getRow(5).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};c.alignment={vertical:"middle"};});
-    ws.getRow(5).height=20;
-    for(const u of units)ws.addRow(u);
-    HDR.forEach((h,i)=>{
-      const col=ws.getColumn(i+1);
-      if(NUMFMT[i])col.numFmt=NUMFMT[i];
-      let w=h.length+3;
-      for(const u of units.slice(0,500)){const v=u[i];if(v!==null&&(''+v).length>w)w=(''+v).length;}
-      col.width=Math.min(Math.max(w+2,9),34);
-    });
-    ws.autoFilter={from:{row:5,column:1},to:{row:5,column:HDR.length}};
-
-    /* 4) tie-out tab */
-    const ws2=wb.addWorksheet("Tie-Out");
-    ws2.getCell("A1").value="Tie-Out Check \u2014 "+propName;
-    ws2.getCell("A1").font={bold:true,size:12,color:{argb:"FF081937"}};
-    ws2.getRow(3).values=["Floor Plan","Contract","Units","Contract Rent","Monthly Total"];
-    ws2.getRow(3).font={bold:true,color:{argb:"FFFFFFFF"}};
-    ws2.getRow(3).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};});
-    let totU=0,totM=0,r0=4;
-    for(const x of sched){
-      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
-      const m=(x.rent!==null?x.count*+x.rent:null);
-      ws2.getRow(r0++).values=[fp,''+(x.cno||""),x.count,x.rent,m];
-      totU+=x.count;if(m!==null)totM+=m;
-    }
-    const tr2=ws2.getRow(r0);
-    tr2.values=["TOTAL","",totU,null,totM];tr2.font={bold:true};
-    const masterTot=mrows.reduce((a,i)=>a+(R[i][IDX["Total Units"]]!==null?+R[i][IDX["Total Units"]]:0),0);
-    ws2.getCell(r0+2,1).value="Rent roll unit rows: "+units.length.toLocaleString()+"   \u00B7   Schedule units: "+totU.toLocaleString()
-      +"   \u00B7   Master 'Total Units' (all contracts): "+masterTot.toLocaleString()
-      +"   \u00B7   "+(units.length===totU?(totU===masterTot?"TIES":"note: master Total Units differs (separate HUD field)"):"MISMATCH");
-    [22,16,9,16,14].forEach((w,i)=>ws2.getColumn(i+1).width=w);
-    ws2.getColumn(4).numFmt="#,##0";ws2.getColumn(5).numFmt="#,##0";
-
-    /* 5) utility allowance summary (3rd sheet) */
-    const ws3=wb.addWorksheet("Utility Allowances");
-    ws3.getCell("A1").value="Utility Allowance Summary \u2014 "+propName;
-    ws3.getCell("A1").font={bold:true,size:12,color:{argb:"FF081937"}};
-    ws3.getCell("A2").value="Per-unit monthly utility allowances by floor plan, from HUD's contract rent schedule (data as of "+ASOF+")";
-    ws3.getCell("A2").font={size:9,italic:true,color:{argb:"FF6B7FA0"}};
-    ws3.getRow(4).values=["Floor Plan","Contract","Units","Utility Allowance","Monthly UA Total"];
-    ws3.getRow(4).font={bold:true,color:{argb:"FFFFFFFF"}};
-    ws3.getRow(4).eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF081937"}};});
-    let r3=5,uaTotU=0,uaTotM=0;
-    for(const x of sched){
-      const fp=x.bedLabel+" - HAP"+((tiersPerBed[x.bedLabel]>1)?(" T"+x.tier):"");
-      const m=(x.ua!==null?x.count*+x.ua:null);
-      ws3.getRow(r3++).values=[fp,''+(x.cno||""),x.count,x.ua,m];
-      uaTotU+=x.count;if(m!==null)uaTotM+=m;
-    }
-    const trU=ws3.getRow(r3);
-    trU.values=["TOTAL","",uaTotU,null,uaTotM];trU.font={bold:true};
-    [22,16,9,17,16].forEach((w,i)=>ws3.getColumn(i+1).width=w);
-    ws3.getColumn(4).numFmt="#,##0";ws3.getColumn(5).numFmt="#,##0";
-
-    const buf=await wb.xlsx.writeBuffer();
-    const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download=propName.replace(/[^A-Za-z0-9 ]+/g,"").trim().replace(/ +/g,"_")+"_RentRoll_"+stamp+".xlsx";
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-    setStatus("\u2713 Rent roll created: "+units.length.toLocaleString()+" units across "+mrows.length+" contract"+(mrows.length>1?"s":"")+".");
-  }catch(e){
-    setStatus("Rent roll failed: "+e.message);
-  }
-}
-
-/* ── Property dashboard ─────────────────────────────────────────────
-   Full-screen overlay. Purely additive: filters, sort, page and view
-   mode are untouched while it is open, so "Back to Database" returns
-   the user exactly where they were. */
-let DASH_MAP=null, DASH_PID=null, DASH_ROW=null;
-
-const dEsc=v=>escHtml(''+(v??""));
-const dMoney=v=>(v===null||v===undefined||v==="")?"\u2014":"$"+(+v).toLocaleString("en-US");
-const dNum=v=>(v===null||v===undefined||v==="")?"\u2014":(+v).toLocaleString("en-US");
-const dTxt=v=>(v===null||v===undefined||(''+v).trim()==="")?"\u2014":dEsc(v);
-function dMonthsOut(dstr){
-  if(!dstr)return null;
-  const dt=new Date(dstr);if(isNaN(dt))return null;
-  return Math.round((dt-new Date())/(1000*60*60*24*30.44));
-}
-function bedLabelN(b){const n=+b;if(n===0)return"Studio";if(n>=5)return"5+ BR";return n+" BR";}
-
-function openDashboard(ri){
-  const row=R[ri];
-  const pix=IDX["Property ID"];
-  const pid=pix!==undefined?row[pix]:null;
-  DASH_PID=pid;DASH_ROW=ri;
-  const rows=[];
-  if(pid!==null&&pid!==undefined){for(let i=0;i<R.length;i++)if(R[i][pix]===pid)rows.push(i);}
-  else rows.push(ri);
-  const g=(c,i)=>{const ix=IDX[c];return ix===undefined?null:R[i??rows[0]][ix];};
-
-  /* header */
-  document.getElementById("dashName").textContent=''+(row[0]||"Property");
-  const addr=[g("address_line1_text"),[g("City"),g("State")].filter(Boolean).join(", "),g("zip_code")].filter(Boolean).join(" \u00B7 ");
-  document.getElementById("dashSub").innerHTML=
-    dEsc(addr)+' &nbsp;|&nbsp; Property ID '+dEsc(pid??"\u2014")+' &nbsp;|&nbsp; '
-    +(rows.length>1
-      ? '<span class="sub-badge">'+rows.length+' CONTRACTS</span>'
-      : '1 contract');
-
-  /* KPIs */
-  const totUnits=rows.reduce((a,i)=>a+(g("Total Units",i)!==null?+g("Total Units",i):0),0);
-  const ratios=rows.map(i=>g("Rent-to-FMR Ratio",i)).filter(v=>v!==null&&v!==undefined);
-  const avgRatio=ratios.length?ratios.reduce((a,b)=>a+ +b,0)/ratios.length:null;
-  let soon=null,soonI=null;
-  rows.forEach(i=>{const m=dMonthsOut(g("HAP Expiration Date",i));if(m!==null&&(soon===null||m<soon)){soon=m;soonI=i;}});
-  const reac=g("Last REAC 1");
-  const reacN=reac!==null&&reac!==undefined?parseInt((''+reac).slice(0,2),10):null;
-  const expCls=soon===null?"":(soon<0?"k-bad":(soon<=24?"k-warn":"k-good"));
-  const reacCls=reacN===null?"":(reacN<60?"k-bad":(reacN<80?"k-warn":"k-good"));
-  const kpis=`
-    <div class="kpis">
-      <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
-      <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${(()=>{
-        const v=g(SAFMR_RATIO);return (v===null||v===undefined||isNaN(+v))?"\u2014":(+v*100).toFixed(1)+"%";})()}</div>
-        <div class="k-s">unit-weighted, incl. UA</div></div>
-      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">${ratios.length>1?"average of "+ratios.length:"\u00A0"}</div></div>
-      <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
-      <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
-    </div>`;
-
-  /* rent & UA matrix - one combined table, Contract column */
-  const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
-  const lines=[];
-  for(const i of rows){
-    const cno=g("Contract Number",i);
-    const t=cno?TIERS[cno]:null;
-    if(t){
-      const seen={};
-      for(const tr of t){
-        if(tr[0]===null||tr[0]===undefined)continue;
-        const b=+tr[0];seen[b]=(seen[b]||0)+1;
-        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3],ua:tr[4],
-                  safmr:(b<=4?g(b+"BR SAFMR",i):null)});
-      }
-    }else{
-      for(const [bk,bn] of bks){
-        const u=g(bk+" Units",i), rt=g(bk+" Rent",i);
-        if((u===null||+u===0)&&(rt===null))continue;
-        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:null,ua:g(bk+" UA",i),
-                    safmr:(bn<=4?g(bn+"BR SAFMR",i):null)});
-      }
-    }
-  }
-  lines.sort((a,b)=>a.bed-b.bed||(''+a.cno).localeCompare(''+b.cno)||a.tier-b.tier);
-  const multiTier={};lines.forEach(l=>{const k=l.cno+"|"+l.bed;multiTier[k]=(multiTier[k]||0)+1;});
-  /* colour-code each contract when a property has more than one */
-  const cnos=[...new Set(lines.map(l=>''+l.cno))];
-  const cIdx={};cnos.forEach((c,i)=>cIdx[c]=(i%6)+1);
-  const wt={u:0,rent:0,ua:0,gross:0,uRent:0,uUa:0,uGross:0,safNum:0,safDen:0};
-  const body=lines.map((l,li)=>{
-    const gross=(l.rent!==null&&l.ua!==null)?(+l.rent)+(+l.ua):(l.rent!==null?+l.rent:null);
-    const r2f=(l.rent!==null&&l.fmr)?((+l.rent)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
-    /* SAFMRs are gross-rent standards, so compare gross to SAFMR */
-    const r2s=(gross!==null&&l.safmr)?((gross)/(+l.safmr)*100).toFixed(1)+"%":"\u2014";
-    const u=l.units?+l.units:0;
-    if(u)wt.u+=u;
-    if(u&&l.rent!==null){wt.rent+=u*(+l.rent);wt.uRent+=u;}
-    if(u&&l.ua!==null){wt.ua+=u*(+l.ua);wt.uUa+=u;}
-    if(u&&gross!==null){wt.gross+=u*gross;wt.uGross+=u;}
-    if(u&&gross!==null&&l.safmr){wt.safNum+=u*gross;wt.safDen+=u*(+l.safmr);}
-    const isMulti=multiTier[l.cno+"|"+l.bed]>1;
-    const newContract=rows.length>1&&(li===0||''+lines[li-1].cno!==''+l.cno||lines[li-1].bed!==l.bed);
-    return `<tr class="${isMulti?"tier-row":""}">
-      <td class="bd">${bedLabelN(l.bed)}${isMulti?'<span class="tier-pill" title="This bedroom size has more than one rent tier under the same contract">TIER '+l.tier+'</span>':""}</td>
-      ${rows.length>1?'<td><span class="cn-tag c'+cIdx[''+l.cno]+'">'+dEsc(l.cno)+'</span></td>':""}
-      <td class="n r">${dNum(l.units)}</td>
-      <td class="n r">${dMoney(l.rent)}</td>
-      <td class="n r">${dMoney(l.ua)}</td>
-      <td class="n r">${dMoney(gross)}</td>
-      <td class="n r">${dMoney(l.fmr)}</td>
-      <td class="n r">${r2f}</td>
-      <td class="n r">${dMoney(l.safmr)}</td>
-      <td class="n r">${r2s}</td>
-    </tr>`;}).join("");
-  const wAvg=(sum,units)=>units?Math.round(sum/units):null;
-  const tierCount=Object.values(multiTier).filter(v=>v>1).length;
-  const banners=
-    (rows.length>1?`<div class="dnote dnote-blue">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-        <div><strong>${rows.length} separate HAP contracts</strong> at this property &mdash;
-        ${rows.map(i=>'<span class="cn-tag c'+((cnos.indexOf(''+g("Contract Number",i))%6)+1)+'">'+dEsc(g("Contract Number",i))+"</span>").join(" ")}.
-        Rents, terms and units below are shown per contract; the snapshot figures combine them.</div>
-      </div>`:"")
-    +(tierCount?`<div class="dnote dnote-amber">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
-        <div><strong>Multiple rent tiers</strong> &mdash; ${tierCount} bedroom size${tierCount>1?"s have":" has"}
-        more than one contract rent under the same contract (marked <span class="tier-pill">TIER n</span> below).
-        HUD publishes these as separate assistance tiers; the main table shows the first-listed rent.</div>
-      </div>`:"");
-
-  const rentCard=`
-    ${banners}
-    <div class="card">
-      <div class="card-h">Rents &amp; Utility Allowances</div>
-      ${lines.length?`<table class="dtbl">
-        <thead><tr>
-          <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
-          <th class="r">Units</th><th class="r">Contract Rent</th><th class="r">Utility Allow.</th>
-          <th class="r">Gross Rent</th><th class="r">FMR</th><th class="r">Rent/FMR</th>
-          <th class="r">SAFMR</th><th class="r">Gross/SAFMR</th>
-        </tr></thead>
-        <tbody>${body}
-          <tr class="tot">
-            <td>TOTAL / WTD. AVG.</td>${rows.length>1?"<td></td>":""}
-            <td class="n r">${dNum(wt.u)}</td>
-            <td class="n r">${dMoney(wAvg(wt.rent,wt.uRent))}</td>
-            <td class="n r">${dMoney(wAvg(wt.ua,wt.uUa))}</td>
-            <td class="n r">${dMoney(wAvg(wt.gross,wt.uGross))}</td>
-            <td class="n r">\u2014</td><td class="n r">\u2014</td>
-            <td class="n r">\u2014</td>
-            <td class="n r">${wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</td>
-          </tr>
-        </tbody></table>`:'<div class="muted-note">No unit-level rent data published for this property.</div>'}
-    </div>`;
-
-  /* contract terms table */
-  const cterms=`
-    <div class="card mt16">
-      <div class="card-h">Contract Terms</div>
-      <table class="dtbl">
-        <thead><tr><th>Contract</th><th>Program</th><th>Doc</th><th>Renewal Type</th>
-          <th class="r">Units</th><th class="r">Effective</th><th class="r">Expires</th><th class="r">Rent/FMR</th></tr></thead>
-        <tbody>${rows.map(i=>{
-          const m=dMonthsOut(g("HAP Expiration Date",i));
-          const cls=m===null?"":(m<0?"k-bad":(m<=24?"k-warn":""));
-          const rr=g("Rent-to-FMR Ratio",i);
-          return `<tr>
-            <td class="cn-pill">${dEsc(g("Contract Number",i))}</td>
-            <td>${dTxt(g("Program Type",i))}</td>
-            <td>${dTxt(g("Doc Type",i))}</td>
-            <td>${dTxt(g("Renewal Type",i))}</td>
-            <td class="n r">${dNum(g("Contract Units",i))}</td>
-            <td class="n r">${dTxt(g("HAP Effective Date",i))}</td>
-            <td class="n r ${cls}">${dTxt(g("HAP Expiration Date",i))}</td>
-            <td class="n r">${rr===null?"\u2014":(rr*100).toFixed(2)+"%"}</td>
-          </tr>`;}).join("")}
-        </tbody></table>
-    </div>`;
-
-  /* owner / management */
-  const contactCard=(title,org,phone,email,city,st,extraK,extraV)=>`
-    <div class="card">
-      <div class="card-h">${title}</div>
-      <div class="card-b"><div class="kv">
-        <span class="k">Organization</span><span class="v">${dTxt(org)}</span>
-        <span class="k">Phone</span><span class="v">${phone?'<a href="tel:'+dEsc(phone)+'">'+dEsc(phone)+"</a>":"\u2014"}</span>
-        <span class="k">Email</span><span class="v">${email?'<a href="mailto:'+dEsc(email)+'">'+dEsc(email)+"</a>":"\u2014"}</span>
-        <span class="k">Location</span><span class="v">${dTxt([city,st].filter(Boolean).join(", "))}</span>
-        ${extraK?'<span class="k">'+extraK+'</span><span class="v">'+dTxt(extraV)+"</span>":""}
-      </div></div>
-    </div>`;
-
-  /* REAC history */
-  const reacCard=`
-    <div class="card">
-      <div class="card-h">REAC Inspection History</div>
-      <div class="card-b"><div class="reac-row">
-        ${[1,2,3].map(n=>{
-          const sc=g("Last REAC "+n), dt=g("Last REAC Date "+n);
-          if(sc===null||sc===undefined||sc==="")return"";
-          const num=parseInt((''+sc).slice(0,2),10);
-          const c=isNaN(num)?"":(num<60?"k-bad":(num<80?"k-warn":"k-good"));
-          return '<div class="reac-b"><div class="rv '+c+'">'+dEsc(sc)+'</div><div class="rd">'+dTxt(dt)+"</div></div>";
-        }).join("")||'<div class="muted-note" style="padding:0">No REAC inspections on file.</div>'}
-      </div></div>
-    </div>`;
-
-  /* property flags + details */
-  const FL=[["is_202_811_ind","202/811"],["is_insured_ind","FHA Insured"],["is_236_ind","Section 236"],
-            ["is_opportunity_zone_ind","Opportunity Zone"],["is_bmir_ind","BMIR"],["is_hud_held_ind","HUD Held"],
-            ["is_hud_owned_ind","HUD Owned"],["is_nursing_home_ind","Nursing Home"],["is_assisted_living_ind","Assisted Living"],
-            ["is_risk_sharing_ind","Risk Sharing"],["is_refinanced_ind","Refinanced"]];
-  const flags=FL.filter(([c])=>{const v=g(c);return v&&(''+v).toUpperCase().startsWith("Y");})
-                .map(([,l])=>'<span class="flg">'+l+"</span>").join("");
-  const propCard=`
-    <div class="card">
-      <div class="card-h">Property Detail</div>
-      <div class="card-b">
-        <div class="kv">
-          <span class="k">Category</span><span class="v">${dTxt(g("property_category_name"))}</span>
-          <span class="k">Financing</span><span class="v">${dTxt(g("primary_financing_type"))}</span>
-          <span class="k">Total Units (HUD)</span><span class="v">${dNum(g("property_total_unit_count"))}</span>
-          <span class="k">County</span><span class="v">${dTxt(g("County"))}</span>
-          <span class="k">MSA</span><span class="v">${dTxt(g("msa_name_text"))}</span>
-          <span class="k">Cong. District</span><span class="v">${dTxt(g("congressional_district_code"))}</span>
-          <span class="k">Site Phone</span><span class="v">${g("property_phone_number")?'<a href="tel:'+dEsc(g("property_phone_number"))+'">'+dEsc(g("property_phone_number"))+"</a>":"\u2014"}</span>
-        </div>
-        ${flags?'<div class="flagset" style="margin-top:12px">'+flags+"</div>":""}
-      </div>
-    </div>`;
-
-  document.getElementById("dashBody").innerHTML=`
-    <div class="dash-grid">
-      <div>
-        <div class="card"><div class="card-h">Location</div><div id="dashMap"></div>
-          <div class="map-cap" id="dashMapInfo">&nbsp;</div></div>
-        ${reacCard.replace('<div class="card">','<div class="card mt16">')}
-      </div>
-      <div>
-        <div class="card"><div class="card-h">Snapshot</div>${kpis}</div>
-        <div class="mt16">${rentCard}</div>
-        ${cterms}
-      </div>
-    </div>
-    <div class="row-2">
-      ${contactCard("Owner",g("owner_organization_name"),g("owner_main_phone_number_text"),g("owner_contact_email_text"),g("owner_city_name"),g("owner_state_code"),"Owner Since",g("ownership_effective_date"))}
-      ${contactCard("Management Agent",g("mgmt_agent_org_name"),g("mgmt_agent_main_phone_number"),g("mgmt_contact_email_text"),g("mgmt_agent_city_name"),g("mgmt_agent_state_code"),null,null)}
-    </div>
-    <div class="row-2">${propCard}<div></div></div>`;
-
-  document.getElementById("dashWrap").classList.add("open");
-  document.body.style.overflow="hidden";
-  try{location.hash="property="+(pid??"");}catch(e){}
-  setTimeout(()=>drawDashMap(pid,''+(row[0]||"")),40);
-}
-
-function drawDashMap(pid,name){
-  const el=document.getElementById("dashMap");if(!el)return;
-  const c=pid!==null&&pid!==undefined?COORDS[pid]:null;
-  if(!c){el.innerHTML='<div class="muted-note">No mapped coordinates for this property.</div>';return;}
-  if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
-  DASH_MAP=L.map(el,{preferCanvas:true,scrollWheelZoom:false}).setView(c,14);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}).addTo(DASH_MAP);
-
-  /* surrounding HAP properties: one marker per neighbouring Property ID
-     within ~2 miles, so the subject can be read in context */
-  const pix=IDX["Property ID"];
-  const MILES=2, dLat=MILES/69, dLon=MILES/(69*Math.max(.2,Math.cos(c[0]*Math.PI/180)));
-  const seen={},near=[];
-  if(pix!==undefined){
-    for(let i=0;i<R.length;i++){
-      const p=R[i][pix];
-      if(p===null||p===undefined||''+p===''+pid||seen[p])continue;
-      const nc=COORDS[p];
-      if(!nc)continue;
-      if(Math.abs(nc[0]-c[0])>dLat||Math.abs(nc[1]-c[1])>dLon)continue;
-      seen[p]=1;near.push({p,c:nc,i});
-      if(near.length>=250)break;
-    }
-  }
-  const cix=IDX["Contract Number"];
-  for(const n of near){
-    const row=R[n.i];
-    const flagged=cix!==undefined&&row[cix]&&TIERS[row[cix]];
-    const units=IDX["Total Units"]!==undefined?row[IDX["Total Units"]]:null;
-    L.circleMarker(n.c,{radius:5,weight:1,color:"#7d8ba6",
-      fillColor:flagged?"#e8b98a":"#9fb6c4",fillOpacity:.75})
-      .addTo(DASH_MAP)
-      .bindTooltip((''+(row[0]||"Property"))+(units!==null?" \u00B7 "+(+units).toLocaleString()+" units":""),{direction:"top"})
-      .on("click",()=>openDashboard(n.i));
-  }
-
-  /* subject property last, so it sits on top */
-  L.circleMarker(c,{radius:10,weight:3,color:"#081937",fillColor:"#3B7F83",fillOpacity:.95})
-    .addTo(DASH_MAP).bindTooltip(name,{permanent:false,direction:"top"});
-
-  const info=document.getElementById("dashMapInfo");
-  if(info)info.textContent=near.length
-    ? near.length+" other HAP propert"+(near.length===1?"y":"ies")+" within 2 miles \u00B7 click a dot to open it"
-    : "No other HAP properties within 2 miles";
-  setTimeout(()=>DASH_MAP.invalidateSize(),60);
-}
-
-function closeDashboard(){
-  document.getElementById("dashWrap").classList.remove("open");
-  document.body.style.overflow="";
-  if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
-  try{history.replaceState(null,"",location.pathname+location.search);}catch(e){}
-  /* filters, sort, page and view mode are all untouched */
-}
-document.getElementById("dashBack").onclick=closeDashboard;
-document.getElementById("dashRR").onclick=()=>{if(DASH_ROW!==null)createRentRoll(DASH_ROW);};
-document.addEventListener("keydown",(e)=>{
-  if(e.key==="Escape"&&document.getElementById("dashWrap").classList.contains("open"))closeDashboard();
-});
-
-/* ── Multi-tier popup ── */
-function bedLabel(b){
-  if(b===null||b===undefined)return"\u2014";
-  const n=+b;
-  if(n===0)return"Studio";
-  if(n>=5)return"5+ BR";
-  return n+" BR";
-}
-const money=v=>v===null||v===undefined?"\u2014":"$"+(+v).toLocaleString("en-US");
-function openTiers(contract,propName,overrideRows,isTiered){
-  /* display copy sorted by bedroom; the underlying array stays in HUD
-     source order (the export logic depends on it) */
-  const src=overrideRows||TIERS[contract]||[];
-  const tiered=(isTiered!==undefined)?isTiered:!!TIERS[contract];
-  const rows=src.slice()
-    .sort((a,b)=>(a[0]===null?99:+a[0])-(b[0]===null?99:+b[0]));
-  if(!rows.length){setStatus("No published unit-level rents for contract "+contract+".");return;}
-  const ov=document.createElement("div");ov.className="modal-overlay";
-  const distinct={}; /* bedroom sizes whose rents actually differ */
-  rows.forEach(r=>{const k=''+r[0];(distinct[k]=distinct[k]||new Set()).add(r[2]);});
-  const body=rows.map(r=>{
-    const differs=distinct[''+r[0]]&&distinct[''+r[0]].size>1;
-    return `<tr>
-      <td class="br-lead">${bedLabel(r[0])}${differs?'':''}</td>
-      <td class="tn">${r[1]===null?"\u2014":(+r[1]).toLocaleString()}</td>
-      <td class="tn">${money(r[2])}</td>
-      <td class="tn">${money(r[3])}</td>
-      <td class="tn">${money(r[4])}</td>
-    </tr>`;}).join("");
-  ov.innerHTML=`<div class="modal-card">
-    <div class="modal-head">
-      <div>
-        <div class="mh-title">${escHtml(propName||"Property")}</div>
-        <div class="mh-sub">Contract ${escHtml(contract)} \u00B7 ${tiered?"Rent &amp; UA tier breakdown":"Rents &amp; utility allowances"}</div>
-      </div>
-      <button class="modal-close" title="Close">\u2715</button>
-    </div>
-    <div class="modal-body">
-      <table class="tier-table">
-        <thead><tr><th>Bedroom</th><th style="text-align:right">Units</th><th style="text-align:right">Contract Rent</th><th style="text-align:right">FMR</th><th style="text-align:right">Utility Allow.</th></tr></thead>
-        <tbody>${body}</tbody>
-      </table>
-      <div class="tier-note">${tiered
-        ? "This contract reports more than one row for at least one bedroom size in HUD's rents file \u2014 typically separate assistance tiers or stages. The main table shows the first-listed rent per size; unit counts there are the sum of all tiers."
-        : "Contract rents and utility allowances by bedroom size, as published in HUD's rents file for this contract."}</div>
-    </div>
-  </div>`;
-  function close(){ov.remove();document.removeEventListener("keydown",esc);}
-  function esc(e){if(e.key==="Escape")close();}
-  ov.addEventListener("click",e=>{if(e.target===ov)close();});
-  ov.querySelector(".modal-close").onclick=close;
-  document.addEventListener("keydown",esc);
-  document.body.appendChild(ov);
-}
-
-/* Fill the Program/Renewal dropdowns from the data itself, so new HUD
-   values appear automatically. Options carry row counts and keep the
-   user's current pick if it still exists. */
-function populateSelects(){
-  [["msProgram","Program Type","Program"],["msRenewal","Renewal Type","Renewal"]].forEach(([id,col,key])=>{
-    const box=document.getElementById(id);if(!box)return;
-    const ix=IDX[col];if(ix===undefined)return;
-    const counts=new Map();let blanks=0;
-    for(const r of R){
-      const v=r[ix];
-      if(v===null||v===undefined||(''+v).trim()===""){blanks++;continue;}
-      const k=''+v;counts.set(k,(counts.get(k)||0)+1);
-    }
-    const opts=[...counts.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
-    if(blanks)opts.push([MS_BLANK,blanks]);
-    /* drop any prior selections that no longer exist in the data */
-    const valid=new Set(opts.map(o=>o[0]));
-    for(const v of [...MSEL[key]])if(!valid.has(v))MSEL[key].delete(v);
-    const list=box.querySelector(".ms-list");
-    list.innerHTML="";
-    MSREG[key].clear();
-    for(const [v,n] of opts){
-      const lab=document.createElement("label");lab.className="ms-opt";
-      const cb=document.createElement("input");cb.type="checkbox";cb.value=v;
-      cb.checked=MSEL[key].has(v);
-      cb.addEventListener("change",()=>{
-        if(cb.checked)MSEL[key].add(v);else MSEL[key].delete(v);
-        syncMsLabel(key);page=0;recompute();
-      });
-      const txt=document.createElement("span");
-      txt.className="ms-t";
-      txt.textContent=(v===MS_BLANK?"(blank)":v);
-      txt.title=(v===MS_BLANK?"(blank)":v);   /* full value on hover */
-      const cnt=document.createElement("span");cnt.className="ms-n";cnt.textContent=n.toLocaleString();
-      lab.appendChild(cb);lab.appendChild(txt);lab.appendChild(cnt);
-      list.appendChild(lab);
-      MSREG[key].set(v,{opt:lab,count:cnt});
-    }
-    syncMsLabel(key);
-  });
-}
-/* Recount each facet's options against every OTHER active filter, so the
-   two dropdowns stay in sync (and react to typing in any text filter).
-   Zero-count options dim but remain tickable. */
-function updateFacetCounts(F){
-  [["Program","Program Type"],["Renewal","Renewal Type"]].forEach(([key,col])=>{
-    const reg=MSREG[key];
-    if(!reg||!reg.size)return;
-    const ix=IDX[col];if(ix===undefined)return;
-    const counts=new Map();let blanks=0;
-    for(let r=0;r<R.length;r++){
-      if(!rowPasses(r,F,key))continue;
-      const v=R[r][ix];
-      if(v===null||v===undefined||(''+v).trim()===""){blanks++;continue;}
-      const k=''+v;counts.set(k,(counts.get(k)||0)+1);
-    }
-    reg.forEach((el,val)=>{
-      const n=(val===MS_BLANK)?blanks:(counts.get(val)||0);
-      el.count.textContent=n.toLocaleString();
-      el.opt.classList.toggle("ms-zero",n===0);
-    });
-  });
-}
-function syncMsLabel(key){
-  const box=document.getElementById(key==="Program"?"msProgram":"msRenewal");
-  if(!box)return;
-  const btn=box.querySelector(".ms-btn");
-  const set=MSEL[key],n=set.size;
-  const tg=box.querySelector(".ms-toggle");
-  if(tg){
-    const tot=box.querySelectorAll(".ms-list input").length;
-    tg.textContent=(tot&&n>=tot)?"Unselect all":(n>0?"Clear":"Select all");
-  }
-  let label="All";
-  if(n===1){
-    const v=[...set][0];
-    label=(v===MS_BLANK?"(blank)":v);
-    if(label.length>26)label=label.slice(0,24)+"\u2026";
-  }else if(n>1)label=n+" selected";
-  btn.innerHTML=escHtml(label)+' <span class="ms-car">\u25BE</span>';
-  btn.classList.toggle("has-sel",n>0);
-}
-/* open/close behaviour + Clear buttons */
-(function(){
-  document.addEventListener("click",(e)=>{
-    const btn=e.target.closest(".ms-btn");
-    const inPanel=e.target.closest(".ms-panel");
-    document.querySelectorAll(".ms").forEach(ms=>{
-      if(btn&&ms.contains(btn))ms.classList.toggle("open");
-      else if(!(inPanel&&ms.contains(inPanel)))ms.classList.remove("open");
-    });
-  });
-  document.addEventListener("keydown",(e)=>{
-    if(e.key==="Escape")document.querySelectorAll(".ms.open").forEach(m=>m.classList.remove("open"));
-  });
-  document.querySelectorAll(".ms-toggle").forEach(b=>{
-    b.addEventListener("click",()=>{
-      const box=b.closest(".ms");
-      const key=box.id==="msProgram"?"Program":"Renewal";
-      const cbs=[...box.querySelectorAll(".ms-list input")];
-      const allOn=cbs.length>0&&cbs.every(cb=>cb.checked);
-      MSEL[key].clear();
-      cbs.forEach(cb=>{cb.checked=!allOn;if(!allOn)MSEL[key].add(cb.value);});
-      syncMsLabel(key);page=0;recompute();
-    });
-  });
-})();
-
-/* ── Konami code easter egg: \u2191\u2191\u2193\u2193\u2190\u2192\u2190\u2192 B A Start(Enter) ── */
-const KONAMI_IMG="data:image/jpeg;base64,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";
-(function(){
-  const SEQ=["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","KeyB","KeyA","Enter"];
-  let buf=[];
-  document.addEventListener("keydown",(e)=>{
-    const t=e.target;
-    if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.tagName==="SELECT"))return;
-    const code=e.code==="NumpadEnter"?"Enter":e.code;
-    buf.push(code);
-    if(buf.length>SEQ.length)buf=buf.slice(-SEQ.length);
-    if(buf.length===SEQ.length&&buf.every((c,i)=>c===SEQ[i])){buf=[];konamiReveal();}
-  });
-  function konamiReveal(){
-    if(document.querySelector(".konami-overlay"))return;
-    const ov=document.createElement("div");ov.className="konami-overlay";
-    ov.innerHTML='<div class="konami-title">Chuck-E-Choke</div>'
-      +'<img class="konami-img" src="'+KONAMI_IMG+'" alt=""/>'
-      +'<div class="konami-cap">\u2191\u2191\u2193\u2193\u2190\u2192\u2190\u2192 B A START</div>'
-      +'<div class="konami-vault">'
-      +'<div class="kv-title">Vault \u00B7 Full Data Downloads</div>'
-      +'<a class="kv-link" href="#" data-vault="HAP_Database_latest.xlsx">Full Database XLSX <span>master table + rents &amp; UAs detail</span></a>'
-      +'<a class="kv-link" href="#" data-vault="HAP_Rents_UAs_latest.xlsx">Rents &amp; UAs XLSX <span>row-level contract rent schedule</span></a>'
-      +'</div>';
-    const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
-    const esc=(e)=>{if(e.key==="Escape")close();};
-    ov.querySelectorAll("[data-vault]").forEach(a=>{
-      a.addEventListener("click",async(e)=>{
-        e.preventDefault();e.stopPropagation();
-        const f=a.getAttribute("data-vault");
-        const orig=a.querySelector("span").textContent;
-        a.querySelector("span").textContent="preparing download\u2026";
-        try{
-          const r=await authFetch("/data/"+f);
-          if(!r.ok)throw new Error("HTTP "+r.status);
-          const blob=await r.blob();
-          const u=URL.createObjectURL(blob);
-          const dl=document.createElement("a");dl.href=u;dl.download=f;dl.click();
-          setTimeout(()=>URL.revokeObjectURL(u),5000);
-          a.querySelector("span").textContent=orig;
-        }catch(err){a.querySelector("span").textContent="download failed: "+err.message;}
-      });
-    });
-    ov.addEventListener("click",(e)=>{ if(!e.target.closest(".konami-vault"))close(); });
-    document.addEventListener("keydown",esc);
-    document.body.appendChild(ov);
-    /* celebratory burst around the portrait */
-    setTimeout(()=>{
-      const img=ov.querySelector(".konami-img");
-      if(img)for(let b=0;b<3;b++)setTimeout(()=>particles(img),b*180);
-    },350);
-    /* no auto-dismiss: the vault links stay until dismissed (click outside / Esc) */
-  }
-})();
 
 /* ── Load ── */
 function applyData(d){
