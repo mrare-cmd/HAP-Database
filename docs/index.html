@@ -674,6 +674,9 @@
     .dtbl td.n { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-mid); }
     .dtbl tr.tot td { font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); background: var(--white) !important; white-space: nowrap; }
     .dtbl td.bd { font-weight: 700; color: var(--navy); }
+    .tbl-note {
+      padding: 9px 14px 0; font-size: 10.5px; color: var(--text-light); line-height: 1.5;
+    }
     .tier-pill {
       display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 8px;
       background: #fdeedd; color: #c9721f; font-size: 9px; font-weight: 800; letter-spacing: .04em;
@@ -1040,7 +1043,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25h · SAFMR + restored";
+  const BUILD = "2026-08-25i · tiered SAFMR + HUD FMR";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
@@ -2359,7 +2362,7 @@ function openDashboard(ri){
       <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${(()=>{
         const v=g(SAFMR_RATIO);return (v===null||v===undefined||isNaN(+v))?"\u2014":(+v*100).toFixed(1)+"%";})()}</div>
         <div class="k-s">unit-weighted, incl. UA</div></div>
-      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">${ratios.length>1?"average of "+ratios.length:"\u00A0"}</div></div>
+      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">HUD published${ratios.length>1?" \u00B7 avg of "+ratios.length:""}</div></div>
       <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
       <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
     </div>`;
@@ -2442,7 +2445,8 @@ function openDashboard(ri){
     ${banners}
     <div class="card">
       <div class="card-h">Rents &amp; Utility Allowances</div>
-      ${lines.length?`<table class="dtbl">
+      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is calculated from the rent schedule; the total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP.</div>
+      <table class="dtbl">
         <thead><tr>
           <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
           <th class="r">Units</th><th class="r">Contract Rent</th><th class="r">Utility Allow.</th>
@@ -2457,7 +2461,7 @@ function openDashboard(ri){
             <td class="n r">${dMoney(wAvg(wt.ua,wt.uUa))}</td>
             <td class="n r">${dMoney(wAvg(wt.gross,wt.uGross))}</td>
             <td class="n r">${dMoney(wAvg(wt.fmr,wt.uFmr))}</td>
-            <td class="n r">${wt.fmrDen>0?((wt.fmrNum/wt.fmrDen)*100).toFixed(1)+"%":"\u2014"}</td>
+            <td class="n r" title="HUD's published contract-level rent-to-FMR ratio">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(1)+"%*"}</td>
             <td class="n r">${dMoney(wAvg(wt.safmr,wt.uSafmr))}</td>
             <td class="n r">${wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</td>
           </tr>
