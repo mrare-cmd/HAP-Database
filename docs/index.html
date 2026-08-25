@@ -832,6 +832,9 @@
     .data-table thead tr { background: var(--navy); }
     .data-table thead th {
       position: sticky; top: 0; z-index: 3;   /* sticks to the scrolling pane */
+      /* a sticky cell does NOT carry its row's background, so each th needs
+         its own or the data scrolls through it */
+      background: var(--navy);
       padding: 9px 11px;
       text-align: left;
       font-size: 10px; font-weight: 800;
@@ -1073,7 +1076,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25n · freeze panes fix";
+  const BUILD = "2026-08-25o · header background fix";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   const UPDATE_ENDPOINT = API + "/update";
