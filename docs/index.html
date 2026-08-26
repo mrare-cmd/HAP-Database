@@ -1104,9 +1104,13 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25r · stale notice persists";
+  const BUILD = "2026-08-25s · basemap key + fallback";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
+  /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
+     the map falls back to Esri's keyless light-grey tiles - both work, and
+     neither shows a watermark. */
+  const CARTO_KEY = "";
   const UPDATE_ENDPOINT = API + "/update";
   const OWNER_REPO      = "";
   let   PAGE_SIZE       = 50;
@@ -2027,6 +2031,21 @@ async function watchRun(triggered,suppressed){
   setStatus("Rebuild finished \u2713 - refresh the page in a minute to pick up the new data.");
 }
 
+/* Basemap layer, shared by the main map and the dashboard mini-map.
+   CARTO Positron when a key is configured, otherwise Esri Light Gray. */
+function baseTiles(){
+  if(CARTO_KEY){
+    return L.tileLayer(
+      "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key="+encodeURIComponent(CARTO_KEY),
+      {attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>',
+       subdomains:"abcd", maxZoom:20});
+  }
+  return L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    {attribution:"Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ",
+     maxZoom:20, maxNativeZoom:16});
+}
+
 /* ── Map ─────────────────────────────────────────────────────────────
    Lazily initialised on first switch. Shows the CURRENT filtered view
    as clustered markers; rebuilt whenever filters/sort change while the
@@ -2034,10 +2053,7 @@ async function watchRun(triggered,suppressed){
 function ensureMap(){
   if(MAP)return;
   MAP=L.map("mapCanvas",{preferCanvas:true}).setView([39.3,-96.5],4);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    subdomains:"abcd",maxZoom:19
-  }).addTo(MAP);
+  baseTiles().addTo(MAP);
   /* drawing tools: polygon, rectangle, circle */
   try{
     MAP.pm.addControls({
@@ -2661,8 +2677,7 @@ function drawDashMap(pid,name){
   if(!c){el.innerHTML='<div class="muted-note">No mapped coordinates for this property.</div>';return;}
   if(DASH_MAP){DASH_MAP.remove();DASH_MAP=null;}
   DASH_MAP=L.map(el,{preferCanvas:true,scrollWheelZoom:false}).setView(c,14);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    {attribution:"&copy; OpenStreetMap &copy; CARTO",subdomains:"abcd",maxZoom:19}).addTo(DASH_MAP);
+  baseTiles().addTo(DASH_MAP);
 
   /* surrounding HAP properties: one marker per neighbouring Property ID
      within ~2 miles, so the subject can be read in context */
