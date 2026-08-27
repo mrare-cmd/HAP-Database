@@ -1104,13 +1104,13 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25s · basemap key + fallback";
+  const BUILD = "2026-08-25t · map keeps your view";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
      the map falls back to Esri's keyless light-grey tiles - both work, and
      neither shows a watermark. */
-  const CARTO_KEY = "cb1_283y_1_ea1ff976c73e2af455b826a1";
+  const CARTO_KEY = "";
   const UPDATE_ENDPOINT = API + "/update";
   const OWNER_REPO      = "";
   let   PAGE_SIZE       = 50;
@@ -1393,7 +1393,7 @@ let C=[], T=[], R=[], ASOF="";
 let TIERS={};      // contract -> [[bed, units, rent, fmr, ua], ...] for multi-tier contracts
 let PROP_N={};     // property id -> number of contract rows in the master
 let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
-let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true;
+let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* Drawn geographic filter: {kind:"poly", ring:[[lat,lng],...], bbox:{...}}
    or {kind:"circle", lat, lng, radMi, bbox:{...}}. null = no geo filter. */
 let GEO=null, GEO_LAYERS=null;
@@ -2168,7 +2168,7 @@ function openTiersFromRow(ri){
 function buildMarkers(){
   if(!MAP)return;
   CLUSTER.clearLayers();
-  const ms=[];let mapped=0;
+  const ms=[],pts=[];let mapped=0;
   const pix=IDX["Property ID"],cix=IDX["Contract Number"];
   const seen={};   /* pid -> how many markers already placed at that spot */
   for(const ri of view){
@@ -2189,12 +2189,24 @@ function buildMarkers(){
     const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
-    ms.push(m);
+    ms.push(m);pts.push([lat,lon]);
   }
   CLUSTER.addLayers(ms);
   document.getElementById("mapInfo").textContent=
     mapped.toLocaleString()+" of "+view.length.toLocaleString()+" properties mapped";
-  if(ms.length){try{MAP.fitBounds(CLUSTER.getBounds().pad(0.08),{maxZoom:11});}catch(e){}}
+  /* Keep the user's current view when they change filters. Only reframe on
+     the very first draw, or when none of the new results are on screen
+     (e.g. filtering to Texas while looking at Maine). */
+  if(ms.length){
+    let onScreen=false;
+    try{
+      const b=MAP.getBounds();
+      for(const p of pts){ if(b.contains(p)){onScreen=true;break;} }
+    }catch(e){}
+    if(!MAP_FITTED||!onScreen){
+      try{MAP.fitBounds(CLUSTER.getBounds().pad(0.08),{maxZoom:11});MAP_FITTED=true;}catch(e){}
+    }
+  }
   mapStale=false;
 }
 function captureGeo(layer){
