@@ -281,6 +281,16 @@
     }
     .sel-in option { background: var(--navy-mid); color: var(--white); }
 
+    #zipShape {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      width: 24px; height: 24px; border-radius: 3px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.55); cursor: pointer; transition: all .15s;
+    }
+    #zipShape:hover { border-color: rgba(255,255,255,.6); color: #fff; background: rgba(255,255,255,.16); }
+    #zipShape:disabled { opacity: .5; cursor: progress; }
+
     .btn-reset {
       height: 34px; padding: 0 14px; border-radius: 3px;
       border: 1px solid rgba(255,255,255,.15);
@@ -1104,7 +1114,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25v · shareable filter links";
+  const BUILD = "2026-08-25w · ZIP boundary draw";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1192,7 +1202,10 @@
   <div class="field">
     <label>ZIP</label>
     <div class="field-inner">
-      <input type="text" id="searchZip" placeholder="Zip..." style="width:88px" />
+      <input type="text" id="searchZip" placeholder="Zip..." style="width:104px;padding-right:32px" />
+      <button type="button" id="zipShape" title="Draw this ZIP's boundary on the map and filter to it">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+      </button>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
@@ -1404,6 +1417,19 @@ function bboxOfRing(ring){
   for(const [la,ln] of ring){ if(la>n)n=la; if(la<s2)s2=la; if(ln>e)e=ln; if(ln<w)w=ln; }
   return {n,s:s2,e,w};
 }
+/* even-odd across every ring: handles islands and holes correctly */
+function pointInRings(lat,lng,rings){
+  let inside=false;
+  for(const r of rings) if(pointInRing(lat,lng,r)) inside=!inside;
+  return inside;
+}
+function bboxOfRings(rings){
+  let n=-90,s=90,e=-180,w=180;
+  for(const r of rings) for(const [la,ln] of r){
+    if(la>n)n=la; if(la<s)s=la; if(ln>e)e=ln; if(ln<w)w=ln;
+  }
+  return {n,s,e,w};
+}
 /* ray casting; ring is [[lat,lng],...] */
 function pointInRing(lat,lng,ring){
   let inside=false;
@@ -1424,9 +1450,8 @@ function geoContains(pid){
   if(!c)return false;                        /* unmapped can't be inside a shape */
   const b=GEO.bbox;
   if(c[0]<b.s||c[0]>b.n||c[1]<b.w||c[1]>b.e)return false;   /* cheap reject */
-  return GEO.kind==="circle"
-    ? milesBetween(GEO.lat,GEO.lng,c[0],c[1])<=GEO.radMi
-    : pointInRing(c[0],c[1],GEO.ring);
+  if(GEO.kind==="circle")return milesBetween(GEO.lat,GEO.lng,c[0],c[1])<=GEO.radMi;
+  return pointInRings(c[0],c[1],GEO.rings||[GEO.ring]);
 }
 let view=[];
 let page=0, sortCol=0, sortAsc=true, timer=null;
@@ -1904,6 +1929,15 @@ const debounce=(fn,ms)=>{clearTimeout(timer);timer=setTimeout(fn,ms);};
 FILTER_MAP.forEach(f=>{
   document.getElementById(f.input).addEventListener("input",()=>debounce(()=>{page=0;recompute();},300));
 });
+(function(){
+  const zb=document.getElementById("zipShape"), zi=document.getElementById("searchZip");
+  async function go(){
+    zb.disabled=true;
+    try{ await applyZipBoundary(zi.value); } finally { zb.disabled=false; }
+  }
+  zb.addEventListener("click",go);
+  zi.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){e.preventDefault();go();} });
+})();
 document.getElementById("copyLinkBtn").onclick=function(){
   clearTimeout(_hashTimer);
   const q=serializeFilters();const str=q.toString();
@@ -2079,20 +2113,7 @@ function ensureMap(){
       pathOptions:{color:"#081937",weight:2,fillColor:"#3B7F83",fillOpacity:.12}});
     GEO_LAYERS=L.featureGroup().addTo(MAP);
     /* a shape restored from a shared link needs drawing once the map exists */
-    if(GEO){
-      try{
-        const st={color:"#081937",weight:2,fillColor:"#3B7F83",fillOpacity:.12};
-        const layer=(GEO.kind==="circle")
-          ? L.circle([GEO.lat,GEO.lng],Object.assign({radius:GEO.radMi*1609.344},st))
-          : L.polygon(GEO.ring,st);
-        GEO_LAYERS.addLayer(layer);
-        layer.on("pm:edit",()=>captureGeo(layer));
-        layer.on("pm:update",()=>captureGeo(layer));
-        layer.on("pm:remove",()=>clearGeo(false));
-        syncGeoChip();
-        MAP.fitBounds(layer.getBounds().pad(0.15));MAP_FITTED=true;
-      }catch(e){}
-    }
+    if(GEO)drawGeoLayer();
     MAP.on("pm:create",(e)=>{
       GEO_LAYERS.clearLayers();          /* one shape at a time */
       GEO_LAYERS.addLayer(e.layer);
@@ -2248,13 +2269,63 @@ function captureGeo(layer){
       const ll=layer.getLatLngs()[0]||[];
       const ring=ll.map(p=>[p.lat,p.lng]);
       if(ring.length<3){clearGeo(false);return;}
-      GEO={kind:"poly",ring,bbox:bboxOfRing(ring)};
+      GEO={kind:"poly",ring,rings:[ring],bbox:bboxOfRing(ring)};
     }
   }catch(e){return;}
   page=0;recompute();
   syncGeoChip();
 }
 let _geoClearing=false;
+/* ZIP boundary from the Census TIGERweb service (public, no key).
+   Layer 2 = 2020 ZIP Code Tabulation Areas. */
+const ZCTA_URL="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/2/query";
+async function applyZipBoundary(zip,opts){
+  zip=String(zip||"").trim().slice(0,5);
+  if(!/^\d{5}$/.test(zip)){setStatus("Enter a full 5-digit ZIP code to draw its boundary.");return false;}
+  const quiet=opts&&opts.quiet;
+  if(!quiet)setStatus("Fetching the boundary for ZIP "+zip+"\u2026");
+  try{
+    const u=ZCTA_URL+"?where="+encodeURIComponent("ZCTA5='"+zip+"'")
+           +"&outFields=ZCTA5&returnGeometry=true&outSR=4326&f=json";
+    const r=await fetch(u,{cache:"no-store"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const j=await r.json();
+    if(j.error)throw new Error(j.error.message||"census error");
+    const f=(j.features||[])[0];
+    if(!f||!f.geometry||!f.geometry.rings){setStatus("No boundary published for ZIP "+zip+".");return false;}
+    /* Esri rings are [lng,lat]; Leaflet wants [lat,lng] */
+    const rings=f.geometry.rings.map(r2=>r2.map(pt=>[pt[1],pt[0]])).filter(r2=>r2.length>=3);
+    if(!rings.length){setStatus("No usable boundary for ZIP "+zip+".");return false;}
+    const main=rings.slice().sort((a,b)=>b.length-a.length)[0];
+    GEO={kind:"poly",zip,ring:main,rings,bbox:bboxOfRings(rings)};
+    drawGeoLayer();
+    page=0;recompute();
+    if(VIEW_MODE!=="map")setViewMode("map");
+    setStatus("");
+    return true;
+  }catch(e){
+    setStatus("Could not load the boundary for ZIP "+zip+" ("+e.message+").");
+    return false;
+  }
+}
+/* (re)draw whatever GEO holds onto the map, if the map exists yet */
+function drawGeoLayer(){
+  if(!MAP||!GEO_LAYERS)return;
+  GEO_LAYERS.clearLayers();
+  try{
+    const st={color:"#081937",weight:2,fillColor:"#3B7F83",fillOpacity:.12};
+    const layer=(GEO.kind==="circle")
+      ? L.circle([GEO.lat,GEO.lng],Object.assign({radius:GEO.radMi*1609.344},st))
+      : L.polygon(GEO.rings||[GEO.ring],st);
+    GEO_LAYERS.addLayer(layer);
+    layer.on("pm:edit",()=>captureGeo(layer));
+    layer.on("pm:update",()=>captureGeo(layer));
+    layer.on("pm:remove",()=>clearGeo(false));
+    syncGeoChip();
+    MAP.fitBounds(layer.getBounds().pad(0.12));MAP_FITTED=true;
+  }catch(e){}
+}
+
 function clearGeo(refresh){
   if(_geoClearing)return;
   const had=!!GEO||(GEO_LAYERS&&GEO_LAYERS.getLayers().length>0);
@@ -2282,7 +2353,8 @@ function syncGeoChip(){
   const lbl=document.getElementById("geoChipLabel");
   lbl.textContent=(GEO.kind==="circle"
       ? GEO.radMi.toFixed(GEO.radMi<10?2:1)+" mi radius"
-      : "Drawn area ("+GEO.ring.length+" points)")
+      : GEO.zip ? ("ZIP "+GEO.zip+" boundary")
+      : "Drawn area ("+(GEO.ring?GEO.ring.length:0)+" points)")
     +" \u00B7 "+view.length.toLocaleString()+" propert"+(view.length===1?"y":"ies");
 }
 
@@ -2954,7 +3026,7 @@ const URL_TEXT={name:"searchName",city:"searchCity",state:"searchState",
                 umin:"unitsMin",umax:"unitsMax",smin:"safmrMin",smax:"safmrMax"};
 const URL_SETS={prog:"Program",renew:"Renewal",doc:"Doc"};
 const URL_BLANK="(blank)";
-let _hashTimer=null, _suppressHash=false;
+let _hashTimer=null, _suppressHash=false, PENDING_ZIP=null;
 
 function hashParams(){
   try{ return new URLSearchParams((location.hash||"").replace(/^#/,"")); }
@@ -2972,6 +3044,7 @@ function serializeFilters(){
   if(GEO){
     if(GEO.kind==="circle")
       q.set("geo","c:"+GEO.lat.toFixed(5)+","+GEO.lng.toFixed(5)+","+GEO.radMi.toFixed(3));
+    else if(GEO.zip) q.set("geo","z:"+GEO.zip);   /* tiny, and exact on reload */
     else{
       /* keep URLs sane: at most 60 vertices, 5dp (~1m) */
       let ring=GEO.ring;
@@ -3022,10 +3095,13 @@ function applyFilterHash(){
         GEO={kind:"circle",lat,lng,radMi:mi,
              bbox:{n:lat+dLat,s:lat-dLat,e:lng+dLon,w:lng-dLon}};
       }
+    }else if(g&&g.startsWith("z:")){
+      /* fetched after the first render so the page paints immediately */
+      PENDING_ZIP=g.slice(2);
     }else if(g&&g.startsWith("p:")){
       const ring=g.slice(2).split(";").map(pair=>pair.split(",").map(Number))
                   .filter(pt=>pt.length===2&&pt.every(n=>isFinite(n)));
-      if(ring.length>=3)GEO={kind:"poly",ring,bbox:bboxOfRing(ring)};
+      if(ring.length>=3)GEO={kind:"poly",ring,rings:[ring],bbox:bboxOfRing(ring)};
     }
     const sc=q.get("sort");
     if(sc){const i=C.indexOf(sc);if(i>=0)sortCol=i;}
@@ -3330,6 +3406,7 @@ async function loadEverything(){
   _suppressHash=false;
   applyData(d);
   if(fromLink&&hashParams().get("view")==="map")setViewMode("map");
+  if(PENDING_ZIP){const z=PENDING_ZIP;PENDING_ZIP=null;applyZipBoundary(z,{quiet:true});}
   openFromHash();          /* shareable ...#property=800047477 links */
   setTimeout(maybeStaleNotice,600);
 }
