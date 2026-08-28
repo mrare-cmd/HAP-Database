@@ -1203,7 +1203,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28n · byline";
+  const BUILD = "2026-08-28o · renewal default";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1455,10 +1455,10 @@
     <div class="color-by">
       <span class="cb-l">Color by</span>
       <select id="colorBy">
-        <option value="flags">Multi-tier Rents</option>
+        <option value="renewal" selected>Renewal Option</option>
         <option value="safmr">Rent / SAFMR</option>
-        <option value="renewal">Renewal Option</option>
         <option value="gpr">Total GPR (incl. UA)</option>
+        <option value="flags">Multi-tier Rents</option>
       </select>
     </div>
   </div>
@@ -1514,7 +1514,7 @@ let PROP_N={};     // property id -> number of contract rows in the master
 let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* map dot coloring: "flags" (multi-tier amber) or "safmr" (stoplight ramp) */
-let COLOR_MODE="flags", MARKERS=[], _recolorTimer=null;
+let COLOR_MODE="renewal", MARKERS=[], _recolorTimer=null;
 const CLR_MISS="#b9c2cf";
 /* Fixed rent-to-SAFMR bands: the same ratio is always the same color, on
    every screen and in every view, so colors can be compared across
