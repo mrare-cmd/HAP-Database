@@ -1144,7 +1144,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28d · fixed SAFMR bands";
+  const BUILD = "2026-08-28e · renewal option colouring";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1389,8 +1389,9 @@
     <div class="color-by">
       <span class="cb-l">Color by</span>
       <select id="colorBy">
-        <option value="flags">Flags</option>
+        <option value="flags">Multi-tier Rents</option>
         <option value="safmr">Rent / SAFMR</option>
+        <option value="renewal">Renewal Option</option>
       </select>
     </div>
   </div>
@@ -1459,6 +1460,29 @@ const SAFMR_BANDS=[
   {max:1.50, color:"#3f9e5c", label:"125 \u2013 150%"},
   {max:Infinity, color:"#1c6b3a", label:"150% and up"},
 ];
+/* Renewal options collapse to their leading number: 1a/1b -> 1,
+   3a/3b -> 3, and so on. Anything unrecognised falls to "other". */
+const RENEW_GROUPS=[
+  {key:"1", color:"#2f7fd1", label:"1 \u00b7 Mark-Up-To-Market"},
+  {key:"2", color:"#3f9e5c", label:"2 \u00b7 Renew at/below comparable"},
+  {key:"3", color:"#e8b93c", label:"3 \u00b7 Mark-to-Market / OAHP"},
+  {key:"4", color:"#e2703a", label:"4 \u00b7 Exempt from OAHP"},
+  {key:"5", color:"#9061c2", label:"5 \u00b7 Demonstration / preservation"},
+  {key:"6", color:"#c0392b", label:"6 \u00b7 Opt-out notice"},
+];
+const RENEW_OTHER="#7d8ba6";
+function renewGroup(v){
+  if(v===null||v===undefined)return null;
+  const m=/^\s*(\d+)/.exec(''+v);
+  return m?m[1]:null;
+}
+function renewColor(v){
+  const g=renewGroup(v);
+  if(!g)return CLR_MISS;
+  const b=RENEW_GROUPS.find(x=>x.key===g);
+  return b?b.color:RENEW_OTHER;
+}
+
 function safmrColor(v){
   if(v===null||v===undefined||!isFinite(v))return CLR_MISS;
   for(const b of SAFMR_BANDS) if(v<b.max) return b.color;
@@ -2280,7 +2304,7 @@ function buildMarkers(){
   if(!MAP)return;
   CLUSTER.clearLayers();
   MARKERS=[];
-  const sIx=IDX[SAFMR_RATIO];
+  const sIx=IDX[SAFMR_RATIO], rIx=IDX["Renewal Type"];
   const ms=[],pts=[];let mapped=0;
   const pix=IDX["Property ID"],cix=IDX["Contract Number"];
   const seen={};   /* pid -> how many markers already placed at that spot */
@@ -2300,11 +2324,13 @@ function buildMarkers(){
     const cno=cix!==undefined?R[ri][cix]:null;
     const flagged=cno&&TIERS[cno];
     const val=(sIx===undefined)?null:R[ri][sIx];
+    const rv=(rIx===undefined)?null:R[ri][rIx];
     const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
-    MARKERS.push({m,lat,lon,flagged:!!flagged,val:(val===null||val===undefined||!isFinite(val))?null:+val});
+    MARKERS.push({m,lat,lon,flagged:!!flagged,rv,
+                  val:(val===null||val===undefined||!isFinite(val))?null:+val});
   }
   CLUSTER.addLayers(ms);
   document.getElementById("mapInfo").textContent=
@@ -2330,28 +2356,37 @@ function buildMarkers(){
    currently on screen, so panning and filtering both re-grade the colours. */
 function recolorMarkers(){
   if(!MAP||!MARKERS.length){updateMapLegend(null);return;}
-  if(COLOR_MODE!=="safmr"){
-    for(const k of MARKERS)k.m.setStyle({fillColor:k.flagged?"#e08a3c":"#3B7F83"});
-    updateMapLegend(false);
-    return;
-  }
   let missing=0;
-  for(const k of MARKERS){
-    if(k.val===null)missing++;
-    k.m.setStyle({fillColor:safmrColor(k.val)});
+  if(COLOR_MODE==="safmr"){
+    for(const k of MARKERS){
+      if(k.val===null)missing++;
+      k.m.setStyle({fillColor:safmrColor(k.val)});
+    }
+  }else if(COLOR_MODE==="renewal"){
+    for(const k of MARKERS){
+      if(!renewGroup(k.rv))missing++;
+      k.m.setStyle({fillColor:renewColor(k.rv)});
+    }
+  }else{
+    for(const k of MARKERS)k.m.setStyle({fillColor:k.flagged?"#e08a3c":"#3B7F83"});
   }
-  updateMapLegend(true,missing);
+  updateMapLegend(COLOR_MODE,missing);
 }
-function updateMapLegend(showBands,missing){
+function updateMapLegend(mode,missing){
   const el=document.getElementById("mapLegend");if(!el)return;
-  if(!showBands){
+  const none=(lbl)=>missing?'<div class="lg"><span class="dot" style="background:'+CLR_MISS+'"></span> '+lbl+' ('+missing.toLocaleString()+')</div>':"";
+  if(mode==="safmr"){
+    el.innerHTML='<div class="lg-t">Gross rent to SAFMR</div>'
+      +SAFMR_BANDS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
+      +none("no SAFMR");
+  }else if(mode==="renewal"){
+    el.innerHTML='<div class="lg-t">Renewal option</div>'
+      +RENEW_GROUPS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
+      +none("no renewal type");
+  }else{
     el.innerHTML='<div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>'
       +'<div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>';
-    return;
   }
-  el.innerHTML='<div class="lg-t">Gross rent to SAFMR</div>'
-    +SAFMR_BANDS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
-    +(missing?'<div class="lg"><span class="dot" style="background:'+CLR_MISS+'"></span> no SAFMR ('+missing.toLocaleString()+')</div>':"");
 }
 function captureGeo(layer){
   track("map_draw");
