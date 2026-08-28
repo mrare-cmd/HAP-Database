@@ -412,15 +412,6 @@
       font-size: 9px; font-weight: 800; color: var(--text-light);
       letter-spacing: .12em; text-transform: uppercase;
     }
-    .map-legend .lg-ramp {
-      width: 132px; height: 9px; border-radius: 5px; margin: 2px 0 1px;
-      border: 1px solid var(--rule-dark);
-      background: linear-gradient(to right,#d64545 0%,#e8b93c 50%,#2f9e5f 100%);
-    }
-    .map-legend .lg-ends {
-      display: flex; justify-content: space-between;
-      font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; color: var(--text-mid);
-    }
     .color-by {
       position: absolute; top: 10px; right: 10px; z-index: 750;
       display: flex; align-items: center; gap: 7px;
@@ -1153,7 +1144,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28c · SAFMR in map popups";
+  const BUILD = "2026-08-28d · fixed SAFMR bands";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1241,7 +1232,7 @@
   <div class="field">
     <label>ZIP</label>
     <div class="field-inner">
-      <input type="text" id="searchZip" placeholder="Zip..." style="width:100px;padding-right:30px" />
+      <input type="text" id="searchZip" placeholder="Zip..." style="width:118px;padding-right:30px" />
       <button type="button" id="zipShape" title="Draw this ZIP's boundary on the map and filter to it">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
       </button>
@@ -1455,23 +1446,23 @@ let PROP_N={};     // property id -> number of contract rows in the master
 let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* map dot colouring: "flags" (multi-tier amber) or "safmr" (stoplight ramp) */
-let COLOR_MODE="flags", MARKERS=[], _recolorTimer=null, SAFMR_SCALE=null;
+let COLOR_MODE="flags", MARKERS=[], _recolorTimer=null;
 const CLR_MISS="#b9c2cf";
-const STOP_LOW=[214,69,69], STOP_MID=[232,185,60], STOP_HIGH=[47,158,95];  /* red / amber / green */
-const hex=c=>"#"+c.map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
-const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
-/* t in [0,1]; 0 = red, .5 = amber, 1 = green */
-function stoplight(t){
-  t=Math.max(0,Math.min(1,t));
-  return hex(t<0.5?mix(STOP_LOW,STOP_MID,t/0.5):mix(STOP_MID,STOP_HIGH,(t-0.5)/0.5));
-}
-/* clamp to the 5th-95th percentile of what is on screen, so one outlier
-   cannot flatten the whole ramp */
-function scaleFrom(values){
-  const v=values.filter(x=>x!==null&&x!==undefined&&isFinite(x)).sort((a,b)=>a-b);
-  if(!v.length)return null;
-  const lo=v[Math.floor(v.length*0.05)], hi=v[Math.floor(v.length*0.95)];
-  return (hi>lo)?{lo,hi}:{lo:v[0]-0.0001,hi:v[v.length-1]+0.0001};
+/* Fixed rent-to-SAFMR bands: the same ratio is always the same colour, on
+   every screen and in every view, so colours can be compared across
+   sessions and shared screenshots. Red = lowest, dark green = highest. */
+const SAFMR_BANDS=[
+  {max:0.50, color:"#c0392b", label:"under 50%"},
+  {max:0.75, color:"#e2703a", label:"50 \u2013 75%"},
+  {max:1.00, color:"#e8b93c", label:"75 \u2013 100%"},
+  {max:1.25, color:"#8cbf4a", label:"100 \u2013 125%"},
+  {max:1.50, color:"#3f9e5c", label:"125 \u2013 150%"},
+  {max:Infinity, color:"#1c6b3a", label:"150% and up"},
+];
+function safmrColor(v){
+  if(v===null||v===undefined||!isFinite(v))return CLR_MISS;
+  for(const b of SAFMR_BANDS) if(v<b.max) return b.color;
+  return SAFMR_BANDS[SAFMR_BANDS.length-1].color;
 }
 /* Drawn geographic filter: {kind:"poly", ring:[[lat,lng],...], bbox:{...}}
    or {kind:"circle", lat, lng, radMi, bbox:{...}}. null = no geo filter. */
@@ -2200,9 +2191,6 @@ function ensureMap(){
     if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
   }
 
-  /* panning or zooming changes what is on screen, so the ramp re-grades */
-  MAP.on("moveend zoomend",scheduleRecolor);
-
   CLUSTER=L.markerClusterGroup({
     chunkedLoading:true,
     /* cluster aggressively when zoomed out, back off as you zoom in,
@@ -2229,8 +2217,7 @@ function popupHtml(ri){
   const ratio=g("Rent-to-FMR Ratio");
   const sratio=g(SAFMR_RATIO);
   const sHas=(sratio!==null&&sratio!==undefined&&isFinite(sratio));
-  const sColor=!sHas?CLR_MISS
-    :(SAFMR_SCALE?stoplight((+sratio-SAFMR_SCALE.lo)/(SAFMR_SCALE.hi-SAFMR_SCALE.lo)):"#3d5070");
+  const sColor=safmrColor(sHas?+sratio:null);
   const kvSafmr='<span class="k">Rent / SAFMR</span>'
     +'<span class="v"><span class="pp-chip" style="background:'+sColor+'">'
     +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span></span>';
@@ -2343,42 +2330,28 @@ function buildMarkers(){
    currently on screen, so panning and filtering both re-grade the colours. */
 function recolorMarkers(){
   if(!MAP||!MARKERS.length){updateMapLegend(null);return;}
-  /* the scale is computed in both modes so popups can colour their ratio
-     even while the dots are showing flags */
-  let b=null;try{b=MAP.getBounds();}catch(e){}
-  const inView=[];
-  for(const k of MARKERS) if(!b||b.contains([k.lat,k.lon])) inView.push(k);
-  const scope=inView.length?inView:MARKERS;
-  const sc=scaleFrom(scope.map(k=>k.val));
-  SAFMR_SCALE=sc;
-
   if(COLOR_MODE!=="safmr"){
     for(const k of MARKERS)k.m.setStyle({fillColor:k.flagged?"#e08a3c":"#3B7F83"});
-    updateMapLegend(null);
+    updateMapLegend(false);
     return;
   }
+  let missing=0;
   for(const k of MARKERS){
-    k.m.setStyle({fillColor:(k.val===null||!sc)?CLR_MISS:stoplight((k.val-sc.lo)/(sc.hi-sc.lo))});
+    if(k.val===null)missing++;
+    k.m.setStyle({fillColor:safmrColor(k.val)});
   }
-  updateMapLegend(sc,scope.filter(k=>k.val===null).length);
+  updateMapLegend(true,missing);
 }
-function scheduleRecolor(){
-  clearTimeout(_recolorTimer);
-  _recolorTimer=setTimeout(recolorMarkers,180);
-}
-function updateMapLegend(sc,missing){
+function updateMapLegend(showBands,missing){
   const el=document.getElementById("mapLegend");if(!el)return;
-  if(COLOR_MODE!=="safmr"){
+  if(!showBands){
     el.innerHTML='<div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>'
       +'<div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>';
     return;
   }
-  if(!sc){el.innerHTML='<div class="lg">No Rent/SAFMR values in view</div>';return;}
-  const pct=v=>(v*100).toFixed(0)+"%";
   el.innerHTML='<div class="lg-t">Gross rent to SAFMR</div>'
-    +'<div class="lg-ramp"></div>'
-    +'<div class="lg-ends"><span>'+pct(sc.lo)+'</span><span>'+pct(sc.hi)+'</span></div>'
-    +(missing?'<div class="lg"><span class="dot" style="background:'+CLR_MISS+'"></span> no SAFMR ('+missing+')</div>':"");
+    +SAFMR_BANDS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
+    +(missing?'<div class="lg"><span class="dot" style="background:'+CLR_MISS+'"></span> no SAFMR ('+missing.toLocaleString()+')</div>':"");
 }
 function captureGeo(layer){
   track("map_draw");
