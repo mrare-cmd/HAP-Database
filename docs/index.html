@@ -457,6 +457,11 @@
     .pp-grid { display: grid; grid-template-columns: auto auto; gap: 2px 14px; }
     .pp-grid .k { font-size: 10px; font-weight: 800; color: var(--text-light); letter-spacing: .08em; text-transform: uppercase; }
     .pp-grid .v { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
+    .pp-chip {
+      display: inline-block; padding: 1px 7px; border-radius: 9px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+      color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.28);
+    }
     .pp-tier {
       margin-top: 9px; width: 100%; padding: 6px 0; border-radius: 3px;
       border: 1px solid #e08a3c; background: transparent; color: #c9721f;
@@ -1148,7 +1153,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28b · SAFMR heat colouring";
+  const BUILD = "2026-08-28c · SAFMR in map popups";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1450,7 +1455,7 @@ let PROP_N={};     // property id -> number of contract rows in the master
 let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* map dot colouring: "flags" (multi-tier amber) or "safmr" (stoplight ramp) */
-let COLOR_MODE="flags", MARKERS=[], _recolorTimer=null;
+let COLOR_MODE="flags", MARKERS=[], _recolorTimer=null, SAFMR_SCALE=null;
 const CLR_MISS="#b9c2cf";
 const STOP_LOW=[214,69,69], STOP_MID=[232,185,60], STOP_HIGH=[47,158,95];  /* red / amber / green */
 const hex=c=>"#"+c.map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
@@ -2222,10 +2227,18 @@ function popupHtml(ri){
   const cno=g("Contract Number");
   const kv=(k,v)=>v===null||v===undefined||v===""?"":'<span class="k">'+k+'</span><span class="v">'+escHtml(''+v)+'</span>';
   const ratio=g("Rent-to-FMR Ratio");
+  const sratio=g(SAFMR_RATIO);
+  const sHas=(sratio!==null&&sratio!==undefined&&isFinite(sratio));
+  const sColor=!sHas?CLR_MISS
+    :(SAFMR_SCALE?stoplight((+sratio-SAFMR_SCALE.lo)/(SAFMR_SCALE.hi-SAFMR_SCALE.lo)):"#3d5070");
+  const kvSafmr='<span class="k">Rent / SAFMR</span>'
+    +'<span class="v"><span class="pp-chip" style="background:'+sColor+'">'
+    +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span></span>';
   let h='<div class="pp-name">'+escHtml(''+(row[0]||"Property"))+'</div>'
     +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
     +'<div class="pp-grid">'
     +kv("Total Units",g("Total Units")!==null?(+g("Total Units")).toLocaleString():null)
+    +kvSafmr
     +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
     +kv("HAP Expires",g("HAP Expiration Date"))
     +kv("Program",g("Program Type"))
@@ -2330,16 +2343,20 @@ function buildMarkers(){
    currently on screen, so panning and filtering both re-grade the colours. */
 function recolorMarkers(){
   if(!MAP||!MARKERS.length){updateMapLegend(null);return;}
-  if(COLOR_MODE!=="safmr"){
-    for(const k of MARKERS)k.m.setStyle({fillColor:k.flagged?"#e08a3c":"#3B7F83"});
-    updateMapLegend(null);
-    return;
-  }
+  /* the scale is computed in both modes so popups can colour their ratio
+     even while the dots are showing flags */
   let b=null;try{b=MAP.getBounds();}catch(e){}
   const inView=[];
   for(const k of MARKERS) if(!b||b.contains([k.lat,k.lon])) inView.push(k);
   const scope=inView.length?inView:MARKERS;
   const sc=scaleFrom(scope.map(k=>k.val));
+  SAFMR_SCALE=sc;
+
+  if(COLOR_MODE!=="safmr"){
+    for(const k of MARKERS)k.m.setStyle({fillColor:k.flagged?"#e08a3c":"#3B7F83"});
+    updateMapLegend(null);
+    return;
+  }
   for(const k of MARKERS){
     k.m.setStyle({fillColor:(k.val===null||!sc)?CLR_MISS:stoplight((k.val-sc.lo)/(sc.hi-sc.lo))});
   }
