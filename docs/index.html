@@ -168,9 +168,10 @@
       font-size: 9px; font-weight: 800; color: rgba(255,255,255,.4);
       text-transform: uppercase; letter-spacing: .15em;
     }
-    .field-inner { position: relative; }
+    .field-inner { position: relative; display: flex; align-items: center; }
+    .field-inner input { display: block; }
     .field-inner svg {
-      position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+      position: absolute; left: 9px; top: 0; bottom: 0; margin: auto 0;
       color: rgba(255,255,255,.25); pointer-events: none; transition: color .15s;
     }
     input[type="text"] {
@@ -193,14 +194,17 @@
     .range-inner { display: flex; align-items: center; gap: 5px; }
     .range-dash { color: rgba(255,255,255,.3); font-size: 12px; }
     .num-in {
-      width: 56px; height: 34px; padding: 0 6px;
-      text-align: center;
+      width: 66px; height: 34px; padding: 0 4px;
+      text-align: center; line-height: 32px;
       border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
       font-family: 'IBM Plex Mono', monospace; font-size: 12px;
       color: var(--white); background: rgba(255,255,255,.07);
       transition: border-color .15s, background .15s;
     }
-    .num-in::placeholder { color: rgba(255,255,255,.25); font-family: 'Libre Franklin', sans-serif; text-align: center; }
+    .num-in::placeholder {
+      color: rgba(255,255,255,.25); font-family: 'Libre Franklin', sans-serif;
+      text-align: center; letter-spacing: 0;
+    }
     .num-in:focus {
       outline: none; border-color: rgba(255,255,255,.5);
       background: rgba(255,255,255,.12); box-shadow: 0 0 0 3px rgba(255,255,255,.06);
@@ -282,7 +286,7 @@
     .sel-in option { background: var(--navy-mid); color: var(--white); }
 
     #zipShape {
-      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      position: absolute; right: 4px; top: 5px;   /* (34 - 24) / 2 */
       width: 24px; height: 24px; border-radius: 3px; padding: 0;
       display: flex; align-items: center; justify-content: center;
       border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.06);
@@ -1114,7 +1118,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-25w · ZIP boundary draw";
+  const BUILD = "2026-08-25x · filter alignment";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1174,7 +1178,7 @@
   <div class="field">
     <label>Property Name</label>
     <div class="field-inner">
-      <input type="text" id="searchName" placeholder="Search..." style="width:168px" />
+      <input type="text" id="searchName" placeholder="Search..." style="width:158px" />
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
@@ -1202,7 +1206,7 @@
   <div class="field">
     <label>ZIP</label>
     <div class="field-inner">
-      <input type="text" id="searchZip" placeholder="Zip..." style="width:104px;padding-right:32px" />
+      <input type="text" id="searchZip" placeholder="Zip..." style="width:100px;padding-right:30px" />
       <button type="button" id="zipShape" title="Draw this ZIP's boundary on the map and filter to it">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
       </button>
@@ -1212,7 +1216,7 @@
   <div class="field">
     <label>MSA</label>
     <div class="field-inner">
-      <input type="text" id="searchMsa" placeholder="MSA name..." style="width:150px" />
+      <input type="text" id="searchMsa" placeholder="MSA name..." style="width:138px" />
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
