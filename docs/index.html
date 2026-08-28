@@ -739,6 +739,17 @@
     .dtbl td.n { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-mid); }
     .dtbl tr.tot td { font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); background: var(--white) !important; white-space: nowrap; }
     .dtbl td.bd { font-weight: 700; color: var(--navy); }
+    .u-note {
+      font-size: 11.5px; line-height: 1.6; color: var(--text-light);
+      margin-top: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--rule);
+    }
+    .u-scroll { overflow-x: auto; }
+    .u-ago {
+      display: block; font-family: 'Libre Franklin', sans-serif;
+      font-size: 9.5px; color: var(--text-light); letter-spacing: .04em;
+    }
+    .dtbl tfoot .tot td { border-top: 2px solid var(--navy); font-weight: 800; color: var(--navy); }
+
     .wn-card { max-width: 620px; }
     .wn-intro {
       font-size: 12.5px; line-height: 1.6; color: var(--text);
@@ -1176,7 +1187,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28g · US spelling";
+  const BUILD = "2026-08-28h · usage report + state names";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1253,7 +1264,7 @@
   <div class="field">
     <label>State</label>
     <div class="field-inner">
-      <input type="text" id="searchState" placeholder="e.g. MD" style="width:90px" />
+      <input type="text" id="searchState" placeholder="MD or Maryland" style="width:120px" />
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
@@ -1572,6 +1583,25 @@ let view=[];
 let page=0, sortCol=0, sortAsc=true, timer=null;
 
 let IDX={};
+const STATE_NAMES={alabama:"AL",alaska:"AK",arizona:"AZ",arkansas:"AR",california:"CA",colorado:"CO",
+connecticut:"CT",delaware:"DE","district of columbia":"DC",florida:"FL",georgia:"GA",guam:"GU",hawaii:"HI",
+idaho:"ID",illinois:"IL",indiana:"IN",iowa:"IA",kansas:"KS",kentucky:"KY",louisiana:"LA",maine:"ME",
+maryland:"MD",massachusetts:"MA",michigan:"MI",minnesota:"MN",mississippi:"MS",missouri:"MO",montana:"MT",
+nebraska:"NE",nevada:"NV","new hampshire":"NH","new jersey":"NJ","new mexico":"NM","new york":"NY",
+"north carolina":"NC","north dakota":"ND",ohio:"OH",oklahoma:"OK",oregon:"OR",pennsylvania:"PA",
+"puerto rico":"PR","rhode island":"RI","south carolina":"SC","south dakota":"SD",tennessee:"TN",texas:"TX",
+utah:"UT",vermont:"VT",virginia:"VA","virgin islands":"VI",washington:"WA","west virginia":"WV",
+wisconsin:"WI",wyoming:"WY"};
+/* "Texas", "tex" and "TX" should all work. Names only kick in at 3+ chars so
+   typing "ma" still means MA rather than also Maine and Maryland. */
+function stateCodesFor(q){
+  if(!q||q.length<3)return null;
+  const codes=new Set();
+  for(const [name,code] of Object.entries(STATE_NAMES))
+    if(name.startsWith(q))codes.add(code);
+  return codes.size?codes:null;
+}
+
 const FILTER_MAP=[
   {input:"searchName",  cols:["Property Name"]},
   {input:"searchCity",  cols:["City"]},
@@ -1629,10 +1659,12 @@ function buildHead(){
 /* Read every filter control into one state object. */
 function readFilters(){
   return {
-    active: FILTER_MAP.map(f=>({
-      q:document.getElementById(f.input).value.trim().toLowerCase(),
-      ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)
-    })).filter(f=>f.q),
+    active: FILTER_MAP.map(f=>{
+      const q=document.getElementById(f.input).value.trim().toLowerCase();
+      const o={q,ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)};
+      if(f.input==="searchState")o.codes=stateCodesFor(q);   /* "texas" -> TX */
+      return o;
+    }).filter(f=>f.q),
     gq: document.getElementById("gsearch").value.trim().toLowerCase(),
     uMin: (()=>{const v=document.getElementById("unitsMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
@@ -1677,7 +1709,10 @@ function rowPasses(r,F,skip){
     let hit=false;
     for(const i of f.ix){
       const v=row[i];
-      if(v!==null&&(''+v).toLowerCase().includes(f.q)){hit=true;break;}
+      if(v===null||v===undefined)continue;
+      const sv=(''+v).toLowerCase();
+      if(sv.includes(f.q)){hit=true;break;}
+      if(f.codes&&f.codes.has((''+v).trim().toUpperCase())){hit=true;break;}
     }
     if(!hit)return false;
   }
@@ -2287,7 +2322,9 @@ function popupHtml(ri){
     +kvSafmr
     +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
     +kv("HAP Expires",g("HAP Expiration Date"))
-    +kv("Program",g("Program Type"))
+    +kv("Renewal",(()=>{const v=g("Renewal Type");
+        if(!v)return null;
+        const t=''+v; return t.length>26?t.slice(0,24)+"\u2026":t;})())
     +'</div>';
   if(cno&&TIERS[cno])
     h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
@@ -3369,31 +3406,89 @@ const KONAMI_IMG="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBAU
 /* ── Usage report (admin) ── */
 function showUsage(j){
   const rows=(j.rows||[]);
+  /* friendly names for the raw action keys the Worker records */
+  const LABELS={
+    "signin":["Sign-ins","browser sessions started"],
+    "load:hap_state.json":["Loads","times the database was loaded"],
+    "load:rent_tiers.json":["Tier data","rent-tier file loads (part of a normal load)"],
+    "load:property_coords.json":["Coords","coordinate file loads (part of a normal load)"],
+    "dashboard":["Dashboards","property dashboards opened"],
+    "rent_tiers":["Tier popups","rent-tier breakdowns viewed"],
+    "rent_roll":["Rent rolls","rent roll workbooks built"],
+    "export_page":["Exports","Export Page workbooks built"],
+    "view:map":["Map view","switches into map view"],
+    "view:table":["Table view","switches back to table view"],
+    "map_draw":["Map draws","areas drawn or ZIP boundaries applied"],
+    "update":["Updates","HUD update runs triggered"],
+    "download:HAP_Database_latest.xlsx":["Full DB","full database downloads from the vault"],
+    "download:HAP_Rents_UAs_latest.xlsx":["Rents XLSX","rents & UAs downloads from the vault"],
+  };
   const acts=new Set();rows.forEach(r=>Object.keys(r.actions||{}).forEach(a=>acts.add(a)));
-  const order=["signin","load:hap_state.json","dashboard","rent_tiers","rent_roll","export_page","view:map","map_draw","update"];
+  const order=["signin","load:hap_state.json","dashboard","rent_tiers","rent_roll","export_page",
+               "view:map","map_draw","update","download:HAP_Database_latest.xlsx",
+               "download:HAP_Rents_UAs_latest.xlsx"];
   const cols=order.filter(a=>acts.has(a)).concat([...acts].filter(a=>!order.includes(a)).sort());
-  const fmtd=v=>v?String(v).slice(0,10):"\u2014";
+  const lbl=a=>(LABELS[a]||[a,a])[0];
+  const tip=a=>(LABELS[a]||[a,"raw action key: "+a])[1];
+
+  const stamp=v=>{
+    if(!v)return "\u2014";
+    const d=new Date(v);if(isNaN(d))return ''+v;
+    return d.toLocaleString(undefined,{year:"numeric",month:"short",day:"numeric",
+                                       hour:"numeric",minute:"2-digit"});
+  };
+  const ago=v=>{
+    if(!v)return "";
+    const d=new Date(v);if(isNaN(d))return "";
+    const mins=Math.round((Date.now()-d)/60000);
+    if(mins<1)return "just now";
+    if(mins<60)return mins+"m ago";
+    const h=Math.round(mins/60); if(h<24)return h+"h ago";
+    const dd=Math.round(h/24); return dd+"d ago";
+  };
+
+  const totals={};let totActions=0,totDays=0;
+  rows.forEach(r=>{totActions+=r.total||0;totDays+=r.days||0;
+    for(const [a,n] of Object.entries(r.actions||{}))totals[a]=(totals[a]||0)+n;});
+
   const body=rows.map(r=>`<tr>
-      <td>${escHtml(r.email)}</td>
+      <td class="bd">${escHtml(r.email)}</td>
       <td class="n r">${(r.days||0).toLocaleString()}</td>
       <td class="n r">${(r.total||0).toLocaleString()}</td>
-      <td class="n r">${fmtd(r.last)}</td>
+      <td class="n r" title="${escHtml(r.last||"")}">${stamp(r.last)}<span class="u-ago">${ago(r.last)}</span></td>
+      <td class="n r">${stamp(r.first).replace(/,.*$/,"")}</td>
       ${cols.map(a=>'<td class="n r">'+((r.actions&&r.actions[a])?r.actions[a].toLocaleString():"\u2014")+"</td>").join("")}
     </tr>`).join("");
+
   const ov=document.createElement("div");ov.className="modal-overlay";
-  ov.innerHTML=`<div class="modal-card" style="max-width:1000px">
+  ov.innerHTML=`<div class="modal-card" style="max-width:min(1180px,96vw)">
     <div class="modal-head">
       <div><div class="mh-title">Usage Report</div>
-      <div class="mh-sub">${rows.length} people \u00B7 last ${j.days} days</div></div>
+      <div class="mh-sub">${rows.length} ${rows.length===1?"person":"people"} \u00B7 last ${j.days} days \u00B7 ${totActions.toLocaleString()} actions</div></div>
       <button class="modal-close">\u2715</button>
     </div>
     <div class="modal-body">
-      <table class="dtbl" style="margin-top:14px">
-        <thead><tr><th>User</th><th class="r">Active days</th><th class="r">Actions</th><th class="r">Last seen</th>
-        ${cols.map(a=>'<th class="r">'+escHtml(a.replace("load:hap_state.json","loads").replace("view:",""))+"</th>").join("")}
+      <div class="u-note">Each column counts one kind of action. Hover a heading to see exactly what it
+      measures. &ldquo;Active days&rdquo; is the number of separate days a person used the database;
+      &ldquo;Last used&rdquo; is their most recent action.</div>
+      <div class="u-scroll">
+      <table class="dtbl">
+        <thead><tr>
+          <th title="Greysteel account">User</th>
+          <th class="r" title="Separate days with at least one action">Active days</th>
+          <th class="r" title="All recorded actions in the window">Actions</th>
+          <th class="r" title="Most recent recorded action">Last used</th>
+          <th class="r" title="First action ever recorded for this account">First seen</th>
+          ${cols.map(a=>'<th class="r" title="'+escHtml(tip(a))+'">'+escHtml(lbl(a))+"</th>").join("")}
         </tr></thead>
-        <tbody>${body||'<tr><td colspan="9" style="padding:20px;color:#888">No usage recorded yet.</td></tr>'}</tbody>
+        <tbody>${body||'<tr><td colspan="6" style="padding:20px;color:#888">No usage recorded yet.</td></tr>'}</tbody>
+        ${rows.length?`<tfoot><tr class="tot">
+          <td>TOTAL</td><td class="n r">${totDays.toLocaleString()}</td>
+          <td class="n r">${totActions.toLocaleString()}</td><td></td><td></td>
+          ${cols.map(a=>'<td class="n r">'+((totals[a]||0).toLocaleString())+"</td>").join("")}
+        </tr></tfoot>`:""}
       </table>
+      </div>
     </div></div>`;
   const close=()=>{ov.remove();document.removeEventListener("keydown",esc);};
   const esc=e=>{if(e.key==="Escape")close();};
