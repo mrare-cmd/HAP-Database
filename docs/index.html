@@ -1193,7 +1193,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28j · GPR includes UA";
+  const BUILD = "2026-08-28k · coverage in map popups";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -2366,6 +2366,18 @@ function popupHtml(ri){
     +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
     +'<div class="pp-grid">'
     +kv("Total Units",g("Total Units")!==null?(+g("Total Units")).toLocaleString():null)
+    +kv("S8 Coverage",(()=>{
+        /* prefer the pipeline column; fall back to the arithmetic so the row
+           works before the next update run populates it */
+        let cov=g("Section 8 Coverage");
+        if(cov===null||cov===undefined||!isFinite(cov)){
+          const cu=g("Contract Units"), pu=g("property_total_unit_count");
+          cov=(cu&&pu&&+pu>0)?(+cu)/(+pu):null;
+        }
+        if(cov===null||!isFinite(cov))return null;
+        const cu=g("Contract Units"), pu=g("property_total_unit_count");
+        return (cov*100).toFixed(0)+"%"+((cu&&pu)?"  ("+(+cu).toLocaleString()+"/"+(+pu).toLocaleString()+")":"");
+      })())
     +kvSafmr
     +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
     +kv("HAP Expires",g("HAP Expiration Date"))
