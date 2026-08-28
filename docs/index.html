@@ -110,6 +110,15 @@
       border-bottom: 1px solid var(--navy-faint);
     }
     .header-left { display: flex; align-items: center; gap: 14px; }
+    #whatsNewBtn {
+      width: 26px; height: 26px; flex-shrink: 0; border-radius: 3px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid rgba(255,255,255,.25); background: transparent;
+      color: rgba(255,255,255,.6); cursor: pointer; transition: all .15s;
+    }
+    #whatsNewBtn:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,.1); }
+    #whatsNewBtn svg { display: block; }
+
     .site-label {
       font-size: 10px; font-weight: 800;
       color: rgba(255,255,255,.5); letter-spacing: .2em;
@@ -730,6 +739,29 @@
     .dtbl td.n { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--text-mid); }
     .dtbl tr.tot td { font-weight: 800; color: var(--navy); border-top: 2px solid var(--navy); background: var(--white) !important; white-space: nowrap; }
     .dtbl td.bd { font-weight: 700; color: var(--navy); }
+    .wn-card { max-width: 620px; }
+    .wn-intro {
+      font-size: 12.5px; line-height: 1.6; color: var(--text);
+      background: var(--hover-row); border-left: 3px solid var(--navy);
+      padding: 10px 12px; border-radius: 3px; margin-top: 14px;
+    }
+    .wn-item { margin-top: 15px; }
+    .wn-t {
+      font-size: 12.5px; font-weight: 800; color: var(--navy); letter-spacing: -.01em;
+    }
+    .wn-b { font-size: 12.5px; line-height: 1.6; color: var(--text-mid); margin-top: 2px; }
+    .wn-foot {
+      margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--rule);
+      font-size: 11.5px; line-height: 1.6; color: var(--text-light);
+    }
+    .wn-ok {
+      width: 100%; margin-top: 16px; padding: 11px 14px; border-radius: 3px;
+      border: 1px solid var(--navy); background: var(--navy); color: #fff;
+      font-family: inherit; font-size: 11px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: all .15s;
+    }
+    .wn-ok:hover { background: #0d2347; }
+
     .stale-p { font-size: 13px; line-height: 1.6; color: var(--text); margin-top: 14px; }
     .stale-btns { display: flex; gap: 8px; margin-top: 18px; }
     .stale-go, .stale-dismiss {
@@ -1144,7 +1176,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28e · renewal option colouring";
+  const BUILD = "2026-08-28f · what’s new banner";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1173,6 +1205,9 @@
 
 <header>
   <div class="header-left">
+    <button type="button" id="whatsNewBtn" title="What's new">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+    </button>
     <span class="site-label">Greysteel</span>
     <div class="header-divider"></div>
     <h1>HAP Property Database</h1>
@@ -3368,6 +3403,69 @@ function showUsage(j){
   document.body.appendChild(ov);
 }
 
+/* ── What's new ──────────────────────────────────────────────────────
+   Shows once per person. WHATS_NEW_VERSION is bumped ONLY when we
+   deliberately want to re-announce; day-to-day changes must not touch it,
+   or everyone gets the popup again. */
+const WHATS_NEW_VERSION="2026-08-28";
+const WHATS_NEW=[
+  ["Rent-to-SAFMR",
+   "Every property now shows how its gross rent (contract rent plus utility allowance) compares to HUD's Small Area FMR for its ZIP code, unit-weighted across bedroom types. It sits beside the existing Rent-to-FMR column and has its own min/max filter, so you can isolate everything under 90% in one step."],
+  ["Colour the map by what matters",
+   "A \u201cColor by\u201d control on the map shades properties by Rent-to-SAFMR band (red below 50% through dark green above 150%) or by renewal option group. The bands are fixed, so a colour means the same thing on every screen and in every screenshot."],
+  ["Draw an area to filter it",
+   "Draw a polygon, rectangle or radius on the map and the table, stats and exports all follow it. Or type a ZIP code and click the boundary button to pull that ZIP's actual Census boundary onto the map."],
+  ["Shareable links",
+   "The web address now carries your full filter state. Hit \u201cCopy Link\u201d and send someone the exact view you are looking at \u2014 filters, sort, map shape and all."],
+  ["Doc Type filter",
+   "Filter by HAP, PRAC, RAC, PAC or COOP. Useful as a first cut, since filtering to HAP alone isolates conventional Section 8 without picking through 29 program types."],
+  ["Property dashboard",
+   "Click any row to open a full-screen summary: a map of the property and its neighbours, rents and utility allowances by bedroom, contract terms, REAC history, and owner and management contacts."],
+  ["Rent roll builder",
+   "The RR button next to any row builds a Radix-ready rent roll for the whole property \u2014 one row per unit, with a tie-out tab and a utility allowance summary."],
+  ["Update reminder",
+   "If the data is more than two weeks old or a new month has started, you will get a prompt to run the update. It takes up to 10 minutes; if it runs longer than that, let Mason know."],
+];
+function showWhatsNew(){
+  if(document.getElementById("whatsNew"))return;
+  const ov=document.createElement("div");ov.className="modal-overlay";ov.id="whatsNew";
+  ov.innerHTML=`<div class="modal-card wn-card">
+    <div class="modal-head">
+      <div>
+        <div class="mh-title">What&rsquo;s new in the HAP Database</div>
+        <div class="mh-sub">Updated ${escHtml(WHATS_NEW_VERSION)}</div>
+      </div>
+      <button class="modal-close" title="Close">\u2715</button>
+    </div>
+    <div class="modal-body">
+      <div class="wn-intro">These are some new features suggested by Charlie, Evan, and Harrison, but please
+      reach out to Mason Rareshide on RingCentral you want anything added!</div>
+      ${WHATS_NEW.map(([t,b])=>'<div class="wn-item"><div class="wn-t">'+t+'</div><div class="wn-b">'+b+"</div></div>").join("")}
+      <div class="wn-foot">If you want to see this again after you dismiss it, click the
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+      lightbulb button in the top left to see this again.</div>
+      <button type="button" class="wn-ok" id="wnOk">Got it</button>
+    </div>
+  </div>`;
+  const close=()=>{
+    try{localStorage.setItem("hap_whatsnew_seen",WHATS_NEW_VERSION);}catch(e){}
+    ov.remove();document.removeEventListener("keydown",esc);
+  };
+  const esc=e=>{if(e.key==="Escape")close();};
+  ov.addEventListener("click",e=>{if(e.target===ov)close();});
+  ov.querySelector(".modal-close").onclick=close;
+  ov.querySelector("#wnOk").onclick=close;
+  document.addEventListener("keydown",esc);
+  document.body.appendChild(ov);
+}
+function maybeWhatsNew(){
+  let seen=null;
+  try{seen=localStorage.getItem("hap_whatsnew_seen");}catch(e){return;}
+  if(seen===WHATS_NEW_VERSION)return;      /* already dismissed this edition */
+  showWhatsNew();
+}
+document.getElementById("whatsNewBtn").onclick=showWhatsNew;
+
 /* ── Stale-data reminder ─────────────────────────────────────────────
    Nudges the user to refresh when the data is over two weeks old, or when
    a new month has started since the last update. Dismissible so it never
@@ -3542,7 +3640,7 @@ async function loadEverything(){
   if(fromLink&&hashParams().get("view")==="map")setViewMode("map");
   if(PENDING_ZIP){const z=PENDING_ZIP;PENDING_ZIP=null;applyZipBoundary(z,{quiet:true});}
   openFromHash();          /* shareable ...#property=800047477 links */
-  setTimeout(maybeStaleNotice,600);
+  setTimeout(()=>{maybeWhatsNew();setTimeout(maybeStaleNotice,400);},500);
 }
 
 document.getElementById("agBtn").onclick=signIn;
