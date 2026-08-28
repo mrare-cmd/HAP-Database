@@ -713,7 +713,13 @@
     #dashMap { height: 270px; background: var(--row-alt); }
 
     .kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 1px; background: var(--rule); }
-    .kpi { background: var(--white); padding: 12px 14px; }
+    .kpi { background: var(--white); padding: 12px 14px; border-top: 3px solid transparent; }
+    /* the two rent benchmarks share an accent so they are not mistaken for
+       the coverage percentage, which measures something entirely different */
+    .kpi-rent { border-top-color: #3B7F83; }
+    .kpi-rent .k-l::after { content: " \2022 vs market"; color: #3B7F83; letter-spacing: .06em; }
+    .kpi-cov { border-top-color: var(--navy); }
+    .kpi-cov .k-l::after { content: " \2022 of property"; color: var(--navy); letter-spacing: .06em; }
     .kpi .k-l {
       font-size: 9px; font-weight: 800; color: var(--text-light);
       letter-spacing: .14em; text-transform: uppercase;
@@ -1187,7 +1193,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28h · usage report + state names";
+  const BUILD = "2026-08-28j · GPR includes UA";
   console.log("HAP Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1438,6 +1444,7 @@
         <option value="flags">Multi-tier Rents</option>
         <option value="safmr">Rent / SAFMR</option>
         <option value="renewal">Renewal Option</option>
+        <option value="gpr">Total GPR (incl. UA)</option>
       </select>
     </div>
   </div>
@@ -1527,6 +1534,45 @@ function renewColor(v){
   if(!g)return CLR_MISS;
   const b=RENEW_GROUPS.find(x=>x.key===g);
   return b?b.color:RENEW_OTHER;
+}
+
+/* Total monthly GPR on a GROSS rent basis: units x (contract rent + utility
+   allowance), summed. Same basis as the SAFMR comparison, so the two figures
+   are consistent with each other. Note this runs above the rent-roll total,
+   which shows contract rent alone.
+   Uses tier detail where it exists, since the flattened columns pair a
+   first-listed rent with summed units. Fixed dollar bands, so a color
+   means the same thing on every screen. */
+const GPR_BANDS=[
+  {max:20000,  color:"#c0392b", label:"under $20K"},
+  {max:50000,  color:"#e2703a", label:"$20K \u2013 50K"},
+  {max:100000, color:"#e8b93c", label:"$50K \u2013 100K"},
+  {max:200000, color:"#8cbf4a", label:"$100K \u2013 200K"},
+  {max:400000, color:"#3f9e5c", label:"$200K \u2013 400K"},
+  {max:Infinity, color:"#1c6b3a", label:"$400K and up"},
+];
+function gprFor(ri){
+  const row=R[ri];
+  const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
+  const t=cno?TIERS[cno]:null;
+  let tot=0;
+  if(t){
+    for(const x of t){
+      const u=x[1],r=x[2],ua=x[4];
+      if(u&&r!==null&&r!==undefined)tot+=u*(r+(ua||0));
+    }
+  }else{
+    for(const bk of ["0BR","1BR","2BR","3BR","4BR","5BR+"]){
+      const u=row[IDX[bk+" Units"]], r=row[IDX[bk+" Rent"]], ua=row[IDX[bk+" UA"]]||0;
+      if(u&&r!==null&&r!==undefined)tot+=u*(r+ua);
+    }
+  }
+  return tot>0?tot:null;
+}
+function gprColor(v){
+  if(v===null||v===undefined||!isFinite(v))return CLR_MISS;
+  for(const b of GPR_BANDS) if(v<b.max) return b.color;
+  return GPR_BANDS[GPR_BANDS.length-1].color;
 }
 
 function safmrColor(v){
@@ -1783,6 +1829,7 @@ function disp(colIx,v){
     const f=+v;
     if(isNaN(f))return""+v;
     if(c===RATIO||c===SAFMR_RATIO)return (f*100).toFixed(2)+"%";
+    if(c==="Section 8 Coverage")return (f*100).toFixed(0)+"%";
     if(INTC.has(c))return f.toLocaleString("en-US",{maximumFractionDigits:0});
     return f.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
   }
@@ -1970,7 +2017,7 @@ document.getElementById("exportBtn").onclick=async()=>{
     ws.columns=XC.map((c,i)=>({
       key:"c"+i,
       style: i<C.length&&T[i]==="date" ? {numFmt:"m/d/yyyy"}
-           : i<C.length&&T[i]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":"#,##0")}
+           : i<C.length&&T[i]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%":"#,##0")}
            : {}
     }));
 
@@ -2322,6 +2369,7 @@ function popupHtml(ri){
     +kvSafmr
     +kv("Rent-to-FMR",ratio!==null?(ratio*100).toFixed(2)+"%":null)
     +kv("HAP Expires",g("HAP Expiration Date"))
+    +kv("Gross GPR",(()=>{const v=gprFor(ri);return v===null?null:"$"+Math.round(v).toLocaleString();})())
     +kv("Renewal",(()=>{const v=g("Renewal Type");
         if(!v)return null;
         const t=''+v; return t.length>26?t.slice(0,24)+"\u2026":t;})())
@@ -2397,11 +2445,12 @@ function buildMarkers(){
     const flagged=cno&&TIERS[cno];
     const val=(sIx===undefined)?null:R[ri][sIx];
     const rv=(rIx===undefined)?null:R[ri][rIx];
+    const gv=gprFor(ri);
     const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
-    MARKERS.push({m,lat,lon,flagged:!!flagged,rv,
+    MARKERS.push({m,lat,lon,flagged:!!flagged,rv,gv,
                   val:(val===null||val===undefined||!isFinite(val))?null:+val});
   }
   CLUSTER.addLayers(ms);
@@ -2434,6 +2483,11 @@ function recolorMarkers(){
       if(k.val===null)missing++;
       k.m.setStyle({fillColor:safmrColor(k.val)});
     }
+  }else if(COLOR_MODE==="gpr"){
+    for(const k of MARKERS){
+      if(k.gv===null)missing++;
+      k.m.setStyle({fillColor:gprColor(k.gv)});
+    }
   }else if(COLOR_MODE==="renewal"){
     for(const k of MARKERS){
       if(!renewGroup(k.rv))missing++;
@@ -2451,6 +2505,10 @@ function updateMapLegend(mode,missing){
     el.innerHTML='<div class="lg-t">Gross rent to SAFMR</div>'
       +SAFMR_BANDS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
       +none("no SAFMR");
+  }else if(mode==="gpr"){
+    el.innerHTML='<div class="lg-t">Monthly GPR (incl. UA)</div>'
+      +GPR_BANDS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
+      +none("no rent data");
   }else if(mode==="renewal"){
     el.innerHTML='<div class="lg-t">Renewal option</div>'
       +RENEW_GROUPS.map(b=>'<div class="lg"><span class="dot" style="background:'+b.color+'"></span> '+b.label+"</div>").join("")
@@ -2879,10 +2937,19 @@ function openDashboard(ri){
     <div class="kpis">
       <div class="kpi"><div class="k-l">Total HAP Units</div><div class="k-v">${dNum(totUnits)}</div><div class="k-s">across ${rows.length} contract${rows.length>1?"s":""}</div></div>
       <div class="kpi"><div class="k-l">Total Units</div><div class="k-v">${dNum(g("property_total_unit_count"))}</div><div class="k-s">property total (HUD)</div></div>
-      <div class="kpi"><div class="k-l">Gross Rent to SAFMR</div><div class="k-v">${
+      <div class="kpi kpi-cov"><div class="k-l">Section 8 Coverage</div><div class="k-v">${(()=>{
+        const cu=rows.reduce((a,i)=>a+(g("Contract Units",i)!==null?+g("Contract Units",i):0),0);
+        const pu=g("property_total_unit_count");
+        if(!pu||!cu)return "\u2014";
+        return ((cu/pu)*100).toFixed(0)+"%";})()}</div>
+        <div class="k-s">${(()=>{
+        const cu=rows.reduce((a,i)=>a+(g("Contract Units",i)!==null?+g("Contract Units",i):0),0);
+        const pu=g("property_total_unit_count");
+        return (cu&&pu)?dNum(cu)+" of "+dNum(pu)+" units under contract":"units under contract";})()}</div></div>
+      <div class="kpi kpi-rent"><div class="k-l">Gross Rent vs SAFMR</div><div class="k-v">${
         wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</div>
         <div class="k-s">unit-weighted across all contracts</div></div>
-      <div class="kpi"><div class="k-l">Rent to FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">HUD published${ratios.length>1?" \u00B7 avg of "+ratios.length:""}</div></div>
+      <div class="kpi kpi-rent"><div class="k-l">Contract Rent vs FMR</div><div class="k-v">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(2)+"%"}</div><div class="k-s">HUD published${ratios.length>1?" \u00B7 avg of "+ratios.length:""}</div></div>
       <div class="kpi"><div class="k-l">Next HAP Expiration</div><div class="k-v ${expCls}">${soonI===null?"\u2014":dTxt(g("HAP Expiration Date",soonI))}</div><div class="k-s">${soon===null?"\u00A0":(soon<0?Math.abs(soon)+" months ago":soon+" months out")}</div></div>
       <div class="kpi"><div class="k-l">Latest REAC</div><div class="k-v ${reacCls}">${dTxt(reac)}</div><div class="k-s">${dTxt(g("Last REAC Date 1"))}</div></div>
     </div>`;
