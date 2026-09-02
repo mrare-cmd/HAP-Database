@@ -413,7 +413,7 @@
     }
     #mapCanvas { flex: 1 1 auto; min-height: 0; }
     .map-info {
-      position: absolute; top: 48px; right: 10px; z-index: 700;
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 700;
       background: var(--navy); color: rgba(255,255,255,.85);
       font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
       padding: 5px 10px; border-radius: 3px; box-shadow: 0 2px 8px rgba(8,25,55,.3);
@@ -431,6 +431,31 @@
       font-size: 9px; font-weight: 800; color: var(--text-light);
       letter-spacing: .12em; text-transform: uppercase;
     }
+    .overlays {
+      position: absolute; top: 48px; right: 10px; z-index: 750;
+      background: rgba(255,255,255,.95); border: 1px solid var(--rule-dark);
+      border-radius: 3px; padding: 7px 9px; box-shadow: 0 2px 8px rgba(8,25,55,.18);
+      min-width: 148px;
+    }
+    .ov-t {
+      font-size: 9px; font-weight: 800; color: var(--text-light);
+      letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px;
+    }
+    .ov-row {
+      display: flex; align-items: center; gap: 6px; cursor: pointer;
+      font-size: 11px; font-weight: 600; color: var(--text); padding: 2px 0;
+      white-space: nowrap;
+    }
+    .ov-row input { accent-color: var(--navy); cursor: pointer; margin: 0; }
+    .ov-sw { width: 12px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .sw-tract { background: rgba(120,130,150,.25); border: 1px solid #8892a6; }
+    .sw-qct   { background: rgba(47,127,209,.22); border: 1px solid #2f7fd1; }
+    .sw-dda   { background: rgba(144,97,194,.22); border: 1px solid #9061c2; }
+    .ov-hint {
+      margin-top: 5px; font-size: 9.5px; font-weight: 700; color: #c9721f;
+      letter-spacing: .02em;
+    }
+
     .color-by {
       position: absolute; top: 10px; right: 10px; z-index: 750;
       display: flex; align-items: center; gap: 7px;
@@ -1206,7 +1231,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28p · owner + mgmt in popups";
+  const BUILD = "2026-08-28q · tract/QCT/DDA overlays";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1454,6 +1479,13 @@
     <div class="map-legend" id="mapLegend">
       <div class="lg"><span class="dot" style="background:#3B7F83"></span> Property</div>
       <div class="lg"><span class="dot" style="background:#e08a3c"></span> Multi-tier rents</div>
+    </div>
+    <div class="overlays" id="overlayBox">
+      <div class="ov-t">Overlays</div>
+      <label class="ov-row"><input type="checkbox" id="ovTracts"><span class="ov-sw sw-tract"></span>Census tracts</label>
+      <label class="ov-row"><input type="checkbox" id="ovQct"><span class="ov-sw sw-qct"></span>QCT (2026)</label>
+      <label class="ov-row"><input type="checkbox" id="ovDda"><span class="ov-sw sw-dda"></span>DDA (2026)</label>
+      <div class="ov-hint" id="ovHint" style="display:none">Zoom in to show overlays</div>
     </div>
     <div class="color-by">
       <span class="cb-l">Color by</span>
@@ -2306,6 +2338,94 @@ function baseTiles(){
      maxZoom:20, maxNativeZoom:16});
 }
 
+/* ── Map overlays: census tracts, QCT and DDA ────────────────────────
+   Properties de-cluster at zoom 12, so overlays switch on two levels
+   earlier at zoom 10. Below that a national view would try to pull all
+   14,496 QCT polygons, so the layers stay off and the panel says why.
+   Tracts come from the Census as WMS image tiles (nothing to download);
+   QCT and DDA are fetched from HUD per viewport and cached. */
+const OVERLAY_MIN_ZOOM=10;
+const HUD_GIS="https://services.arcgis.com/VTyQ9soqVukalItT/arcgis/rest/services";
+const OV_SRC={
+  qct:{url:HUD_GIS+"/QUALIFIED_CENSUS_TRACTS_2026/FeatureServer/0/query",
+       fields:"GEOID", color:"#2f7fd1", name:"QCT"},
+  dda:{url:HUD_GIS+"/Difficult_Development_Areas_2026/FeatureServer/0/query",
+       fields:"DDA_NAME,DDA_TYPE,ZCTA5", color:"#9061c2", name:"DDA"},
+};
+const OV={tracts:false,qct:false,dda:false};
+let OV_TRACT_LAYER=null, OV_LAYERS={qct:null,dda:null}, _ovTimer=null, _ovKey={qct:"",dda:""};
+
+function ovHint(msg){
+  const el=document.getElementById("ovHint");
+  if(el){el.textContent=msg||"";el.style.display=msg?"block":"none";}
+}
+function bboxKey(b){
+  /* round so small pans reuse the last fetch */
+  const r=v=>Math.round(v*20)/20;
+  return [r(b.getWest()),r(b.getSouth()),r(b.getEast()),r(b.getNorth())].join(",");
+}
+async function loadOvLayer(kind){
+  if(!MAP||!OV[kind])return;
+  const src=OV_SRC[kind], b=MAP.getBounds(), key=bboxKey(b);
+  if(_ovKey[kind]===key&&OV_LAYERS[kind])return;      /* same view, already drawn */
+  _ovKey[kind]=key;
+  const geom=JSON.stringify({xmin:b.getWest(),ymin:b.getSouth(),xmax:b.getEast(),ymax:b.getNorth(),
+                             spatialReference:{wkid:4326}});
+  const q=new URLSearchParams({geometry:geom,geometryType:"esriGeometryEnvelope",
+    spatialRel:"esriSpatialRelIntersects",outFields:src.fields,returnGeometry:"true",
+    outSR:"4326",f:"geojson",maxAllowableOffset:"0.0005",resultRecordCount:"2000"});
+  try{
+    const r=await fetch(src.url+"?"+q.toString(),{cache:"default"});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const gj=await r.json();
+    if(!OV[kind])return;                               /* switched off mid-flight */
+    if(OV_LAYERS[kind]){MAP.removeLayer(OV_LAYERS[kind]);OV_LAYERS[kind]=null;}
+    OV_LAYERS[kind]=L.geoJSON(gj,{
+      style:{color:src.color,weight:1.2,opacity:.85,fillColor:src.color,fillOpacity:.14},
+      onEachFeature:(f,layer)=>{
+        const p=f.properties||{};
+        const label=(kind==="qct")
+          ? "QCT \u00b7 tract "+(p.GEOID||"")
+          : "DDA \u00b7 "+(p.DDA_NAME||"")+(p.ZCTA5?" \u00b7 ZIP "+p.ZCTA5:"");
+        layer.bindTooltip(label,{sticky:true});
+      }
+    }).addTo(MAP);
+    OV_LAYERS[kind].bringToBack();
+    if(OV_TRACT_LAYER)OV_TRACT_LAYER.bringToBack();
+  }catch(e){
+    ovHint(src.name+" layer unavailable right now");
+  }
+}
+function refreshOverlays(){
+  if(!MAP)return;
+  const z=MAP.getZoom();
+  const tooFar=z<OVERLAY_MIN_ZOOM;
+  const anyOn=OV.tracts||OV.qct||OV.dda;
+
+  if(tooFar){
+    if(OV_TRACT_LAYER){MAP.removeLayer(OV_TRACT_LAYER);OV_TRACT_LAYER=null;}
+    for(const k of ["qct","dda"]) if(OV_LAYERS[k]){MAP.removeLayer(OV_LAYERS[k]);OV_LAYERS[k]=null;_ovKey[k]="";}
+    ovHint(anyOn?"Zoom in to show overlays":"");
+    return;
+  }
+  ovHint("");
+
+  if(OV.tracts&&!OV_TRACT_LAYER){
+    OV_TRACT_LAYER=L.tileLayer.wms(
+      "https://tigerweb.geo.census.gov/arcgis/services/TIGERweb/tigerWMS_Current/MapServer/WMSServer",
+      {layers:"8",format:"image/png",transparent:true,version:"1.1.1",opacity:.55,
+       attribution:"Census TIGERweb"}).addTo(MAP);
+    OV_TRACT_LAYER.bringToBack();
+  }else if(!OV.tracts&&OV_TRACT_LAYER){
+    MAP.removeLayer(OV_TRACT_LAYER);OV_TRACT_LAYER=null;
+  }
+  for(const k of ["qct","dda"]){
+    if(OV[k])loadOvLayer(k);
+    else if(OV_LAYERS[k]){MAP.removeLayer(OV_LAYERS[k]);OV_LAYERS[k]=null;_ovKey[k]="";}
+  }
+}
+function scheduleOverlays(){clearTimeout(_ovTimer);_ovTimer=setTimeout(refreshOverlays,250);}
+
 /* ── Map ─────────────────────────────────────────────────────────────
    Lazily initialized on first switch. Shows the CURRENT filtered view
    as clustered markers; rebuilt whenever filters/sort change while the
@@ -2348,6 +2468,8 @@ function ensureMap(){
     const h=document.querySelector(".geo-hint");
     if(h)h.textContent="Draw tools failed to load \u2014 check the connection and refresh";
   }
+
+  MAP.on("moveend zoomend",scheduleOverlays);
 
   CLUSTER=L.markerClusterGroup({
     chunkedLoading:true,
@@ -2674,6 +2796,14 @@ function setViewMode(m){
 }
 document.getElementById("geoChipClear").onclick=()=>clearGeo(true);
 document.getElementById("geoClearBtn").onclick=()=>clearGeo(true);
+[["ovTracts","tracts"],["ovQct","qct"],["ovDda","dda"]].forEach(([id,key])=>{
+  document.getElementById(id).addEventListener("change",function(){
+    OV[key]=this.checked;
+    if(this.checked&&MAP&&MAP.getZoom()<OVERLAY_MIN_ZOOM)
+      ovHint("Zoom in to show overlays");
+    refreshOverlays();
+  });
+});
 document.getElementById("colorBy").addEventListener("change",function(){
   COLOR_MODE=this.value;recolorMarkers();
 });
