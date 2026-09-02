@@ -1248,7 +1248,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-02b · clustering + dot size";
+  const BUILD = "2026-09-02c · z12 declustering, announcement held";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -2492,11 +2492,12 @@ function ensureMap(){
     chunkedLoading:true,
     /* cluster aggressively when zoomed out, back off as you zoom in,
        and stop clustering entirely from zoom 14 - individual dots only */
-    /* clustering fades out as you zoom, off entirely from z14. This is the
-       original behaviour: at z12-13 a dense market would otherwise draw
-       many hundreds of individual dots, which is what made panning heavy. */
-    maxClusterRadius:(z)=>z<8?60:z<11?45:z<13?30:15,
-    disableClusteringAtZoom:14,
+    /* Off entirely from z12, which is where the market views people
+       actually work in sit. The dots are deliberately small and thin
+       (radius 5, weight 1) because a dense market at z12 can draw ~600
+       of them, and that is what makes panning heavy. */
+    maxClusterRadius:(z)=>z<7?60:z<9?45:z<11?28:14,
+    disableClusteringAtZoom:12,
     spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){
       const n=c.getChildCount();
@@ -3797,7 +3798,13 @@ function showWhatsNew(){
   document.addEventListener("keydown",esc);
   document.body.appendChild(ov);
 }
+/* HELD BACK ON PURPOSE. The post-meeting content is written and ready, but
+   it must not pop up for anyone yet. Flip WHATS_NEW_LIVE to true when
+   Mason says to push the announcement; everyone then sees it once.
+   The lightbulb button still opens it manually in the meantime. */
+const WHATS_NEW_LIVE=false;
 function maybeWhatsNew(){
+  if(!WHATS_NEW_LIVE)return;
   let seen=null;
   try{seen=localStorage.getItem("hap_whatsnew_seen");}catch(e){return;}
   if(seen===WHATS_NEW_VERSION)return;      /* already dismissed this edition */
