@@ -794,7 +794,24 @@
     }
     .dtbl tfoot .tot td { border-top: 2px solid var(--navy); font-weight: 800; color: var(--navy); }
 
-    .wn-card { max-width: 620px; }
+    .wn-card { max-width: 560px; border-top-color: #c0392b; }
+    .wn-alert {
+      display: flex; align-items: center; gap: 9px;
+      margin-top: 18px; padding: 11px 13px; border-radius: 3px;
+      background: #fdeaea; border-left: 4px solid #c0392b;
+      color: #a5281c; font-size: 13px; font-weight: 800; line-height: 1.45;
+    }
+    .wn-alert::before {
+      content: "!"; flex: 0 0 auto;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #c0392b; color: #fff;
+      font-size: 12px; font-weight: 800; line-height: 18px; text-align: center;
+    }
+    .wn-closer {
+      margin-top: 16px; font-size: 12.5px; line-height: 1.6; color: var(--text);
+      background: var(--hover-row); border-left: 3px solid var(--navy);
+      padding: 10px 12px; border-radius: 3px;
+    }
     .wn-intro {
       font-size: 12.5px; line-height: 1.6; color: var(--text);
       background: var(--hover-row); border-left: 3px solid var(--navy);
@@ -1231,7 +1248,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28q · tract/QCT/DDA overlays";
+  const BUILD = "2026-09-02b · clustering + dot size";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -2475,10 +2492,11 @@ function ensureMap(){
     chunkedLoading:true,
     /* cluster aggressively when zoomed out, back off as you zoom in,
        and stop clustering entirely from zoom 14 - individual dots only */
-    /* clustering fades out as you zoom: off entirely from z12, which is
-       roughly 12 scroll-steps in from the fully zoomed-out view */
-    maxClusterRadius:(z)=>z<7?60:z<9?45:z<11?28:14,
-    disableClusteringAtZoom:12,
+    /* clustering fades out as you zoom, off entirely from z14. This is the
+       original behaviour: at z12-13 a dense market would otherwise draw
+       many hundreds of individual dots, which is what made panning heavy. */
+    maxClusterRadius:(z)=>z<8?60:z<11?45:z<13?30:15,
+    disableClusteringAtZoom:14,
     spiderfyOnMaxZoom:true,
     iconCreateFunction:function(c){
       const n=c.getChildCount();
@@ -2606,7 +2624,7 @@ function buildMarkers(){
     const val=(sIx===undefined)?null:R[ri][sIx];
     const rv=(rIx===undefined)?null:R[ri][rIx];
     const gv=gprFor(ri);
-    const m=L.circleMarker([lat,lon],{radius:6,weight:1.5,color:"#081937",
+    const m=L.circleMarker([lat,lon],{radius:5,weight:1,color:"#081937",
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
@@ -3256,7 +3274,7 @@ function drawDashMap(pid,name){
     const row=R[n.i];
     const flagged=cix!==undefined&&row[cix]&&TIERS[row[cix]];
     const units=IDX["Total Units"]!==undefined?row[IDX["Total Units"]]:null;
-    L.circleMarker(n.c,{radius:5,weight:1,color:"#7d8ba6",
+    L.circleMarker(n.c,{radius:4,weight:1,color:"#7d8ba6",
       fillColor:flagged?"#e8b98a":"#9fb6c4",fillOpacity:.75})
       .addTo(DASH_MAP)
       .bindTooltip((''+(row[0]||"Property"))+(units!==null?" \u00B7 "+(+units).toLocaleString()+" units":""),{direction:"top"})
@@ -3737,40 +3755,31 @@ function showUsage(j){
    Shows once per person. WHATS_NEW_VERSION is bumped ONLY when we
    deliberately want to re-announce; day-to-day changes must not touch it,
    or everyone gets the popup again. */
-const WHATS_NEW_VERSION="2026-08-28";
+const WHATS_NEW_VERSION="2026-09-02";
+const WHATS_NEW_TITLE="What\u2019s new after the meeting";
 const WHATS_NEW=[
-  ["Rent-to-SAFMR",
-   "Every property now shows how its gross rent (contract rent plus utility allowance) compares to HUD's Small Area FMR for its ZIP code, unit-weighted across bedroom types. It sits beside the existing Rent-to-FMR column and has its own min/max filter, so you can isolate everything under 90% in one step."],
-  ["Color the map by what matters",
-   "A \u201cColor by\u201d control on the map shades properties by Rent-to-SAFMR band (red below 50% through dark green above 150%) or by renewal option group. The bands are fixed, so a color means the same thing on every screen and in every screenshot."],
-  ["Draw an area to filter it",
-   "Draw a polygon, rectangle or radius on the map and the table, stats and exports all follow it. Or type a ZIP code and click the boundary button to pull that ZIP's actual Census boundary onto the map."],
-  ["Shareable links",
-   "The web address now carries your full filter state. Hit \u201cCopy Link\u201d and send someone the exact view you are looking at \u2014 filters, sort, map shape and all."],
-  ["Doc Type filter",
-   "Filter by HAP, PRAC, RAC, PAC or COOP. Useful as a first cut, since filtering to HAP alone isolates conventional Section 8 without picking through 29 program types."],
-  ["Property dashboard",
-   "Click any row to open a full-screen summary: a map of the property and its neighbours, rents and utility allowances by bedroom, contract terms, REAC history, and owner and management contacts."],
-  ["Rent roll builder",
-   "The RR button next to any row builds a Radix-ready rent roll for the whole property \u2014 one row per unit, with a tie-out tab and a utility allowance summary."],
-  ["Update reminder",
-   "If the data is more than two weeks old or a new month has started, you will get a prompt to run the update. It takes up to 10 minutes; if it runs longer than that, let Mason know."],
+  ["Ownership and Management Agent",
+   "Added ownership and management agent information to the property blurbs when clicking on a property in the map."],
+  ["QCT, DDA and Census Tracts",
+   "Added QCT, DDA and Census Tracts as a view within the map."],
 ];
+const WHATS_NEW_ALERT="If you cannot see them, you must zoom in more.";
+const WHATS_NEW_CLOSER="Again, please reach out to me (Mason) to add any more features!";
 function showWhatsNew(){
   if(document.getElementById("whatsNew"))return;
   const ov=document.createElement("div");ov.className="modal-overlay";ov.id="whatsNew";
   ov.innerHTML=`<div class="modal-card wn-card">
     <div class="modal-head">
       <div>
-        <div class="mh-title">What&rsquo;s new in the PBS8 Database</div>
+        <div class="mh-title">${escHtml(WHATS_NEW_TITLE)}</div>
         <div class="mh-sub">Updated ${escHtml(WHATS_NEW_VERSION)}</div>
       </div>
       <button class="modal-close" title="Close">\u2715</button>
     </div>
     <div class="modal-body">
-      <div class="wn-intro">These are some new features suggested by Charlie, Evan, and Harrison, but please
-      reach out to Mason Rareshide on RingCentral you want anything added!</div>
       ${WHATS_NEW.map(([t,b])=>'<div class="wn-item"><div class="wn-t">'+t+'</div><div class="wn-b">'+b+"</div></div>").join("")}
+      <div class="wn-alert">${WHATS_NEW_ALERT}</div>
+      <div class="wn-closer">${WHATS_NEW_CLOSER}</div>
       <div class="wn-foot">If you want to see this again after you dismiss it, click the
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
       lightbulb button in the top left to see this again.</div>
