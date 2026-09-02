@@ -466,7 +466,10 @@
     .pp-sub { font-size: 10px; font-weight: 700; color: var(--text-light); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 8px; }
     .pp-grid { display: grid; grid-template-columns: auto auto; gap: 2px 14px; }
     .pp-grid .k { font-size: 10px; font-weight: 800; color: var(--text-light); letter-spacing: .08em; text-transform: uppercase; }
-    .pp-grid .v { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text); text-align: right; }
+    .pp-grid .v {
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--text);
+      text-align: right; overflow-wrap: anywhere;
+    }
     .pp-chip {
       display: inline-block; padding: 1px 7px; border-radius: 9px;
       font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
@@ -1203,7 +1206,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-08-28o · renewal default";
+  const BUILD = "2026-08-28p · owner + mgmt in popups";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -2364,6 +2367,13 @@ function ensureMap(){
   });
   MAP.addLayer(CLUSTER);
 }
+/* HUD records an organization for ~99.5% of properties and an individual
+   for the handful that have no org, so prefer the org and fall back. */
+function nameOf(org,indiv){
+  const v=(org&&(''+org).trim())||(indiv&&(''+indiv).trim())||"";
+  if(!v)return null;
+  return v.length>30?v.slice(0,28)+"\u2026":v;
+}
 function popupHtml(ri){
   const row=R[ri];
   const g=(c)=>{const i=IDX[c];return i===undefined?null:row[i];};
@@ -2399,6 +2409,8 @@ function popupHtml(ri){
     +kv("Renewal",(()=>{const v=g("Renewal Type");
         if(!v)return null;
         const t=''+v; return t.length>26?t.slice(0,24)+"\u2026":t;})())
+    +kv("Owner",nameOf(g("owner_organization_name"),g("owner_individual_full_name")))
+    +kv("Mgmt Agent",nameOf(g("mgmt_agent_org_name"),g("mgmt_agent_full_name")))
     +'</div>';
   if(cno&&TIERS[cno])
     h+='<button class="pp-tier" onclick="openTiersFromRow('+ri+')">View rent tiers ('+TIERS[cno].length+')</button>';
