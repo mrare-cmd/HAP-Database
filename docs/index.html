@@ -414,6 +414,15 @@
       font-family: inherit; font-size: 8px; line-height: 15px; padding: 0;
     }
     .subj-chip button:hover, .comp-chip button:hover { background: #e5484d; color: #fff; }
+    .only-sel {
+      padding: 4px 11px; border-radius: 12px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.3); background: transparent;
+      color: rgba(255,255,255,.7); font-family: inherit;
+      font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+      transition: all .15s;
+    }
+    .only-sel:hover { border-color: #fff; color: #fff; }
+    .only-sel.on { background: #fff; border-color: #fff; color: var(--navy); }
 
     .chip-field {
       position: relative; height: 34px; padding: 0 6px;
@@ -604,13 +613,6 @@
       color: var(--text); font-family: inherit; font-size: 11px; font-weight: 700;
       padding: 3px 4px; cursor: pointer;
     }
-
-    .subj-label {
-      background: var(--navy); color: #fff; border: none; border-radius: 3px;
-      font-family: 'Libre Franklin', sans-serif; font-size: 10px; font-weight: 800;
-      letter-spacing: .04em; padding: 2px 7px; box-shadow: 0 2px 8px rgba(8,25,55,.35);
-    }
-    .subj-label::before { border-top-color: var(--navy) !important; }
 
     .gc-cluster {
       background: rgba(8,25,55,.88); color: #fff;
@@ -1262,9 +1264,19 @@
     .sel-btn.sel-subject { border-color: var(--navy); background: var(--navy); color: #fff; }
     .sel-btn.sel-comp { border-color: #3B7F83; color: #2c6165; background: #e9f5f1; }
 
-    .data-table tbody tr.is-subject td { background: #e7eefb !important; }
+    .data-table tbody tr.is-subject td,
+    .data-table tbody tr.is-subject td.copy-col,
+    .data-table tbody tr.is-subject td.name-col { background: #e7eefb !important; }
+    .data-table tbody tr.is-subject:hover td,
+    .data-table tbody tr.is-subject:hover td.copy-col,
+    .data-table tbody tr.is-subject:hover td.name-col { background: #d8e4f7 !important; }
+    .data-table tbody tr.is-comp:hover td,
+    .data-table tbody tr.is-comp:hover td.copy-col,
+    .data-table tbody tr.is-comp:hover td.name-col { background: #dcefe6 !important; }
     .data-table tbody tr.is-subject td.name-col { box-shadow: inset 4px 0 0 var(--navy); }
-    .data-table tbody tr.is-comp td { background: #eaf6f2 !important; }
+    .data-table tbody tr.is-comp td,
+    .data-table tbody tr.is-comp td.copy-col,
+    .data-table tbody tr.is-comp td.name-col { background: #eaf6f2 !important; }
     .data-table tbody tr.is-comp td.name-col { box-shadow: inset 4px 0 0 #3B7F83; }
     .sel-pill {
       display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px;
@@ -1419,7 +1431,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03 · subject property + comps";
+  const BUILD = "2026-09-03c · selection fixes + only-selection";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1747,7 +1759,7 @@ let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 let COLOR_MODE="renewal", MARKERS=[], _recolorTimer=null;
 /* Subject / comps. Held by Property ID so every contract at the property
    is marked together, and so a selection survives a data refresh. */
-let SUBJECT=null, COMPS=new Set();
+let SUBJECT=null, COMPS=new Set(), SUBJ_LAYER=null, ONLY_SEL=false;
 const MILES_COL="__miles__";          /* virtual column, only when a subject is set */
 
 function pidOf(ri){
@@ -1773,15 +1785,25 @@ function setSubject(pid){
   if(SUBJECT)COMPS.delete(SUBJECT);       /* cannot be both */
   afterSelectionChange();
 }
+const MAX_COMPS=60;   /* keeps shared links and saved searches under the
+                         Worker's 2,000-character query limit */
 function toggleComp(pid){
   if(!pid)return;
   if(pid===SUBJECT)return;
-  COMPS.has(pid)?COMPS.delete(pid):COMPS.add(pid);
+  if(COMPS.has(pid))COMPS.delete(pid);
+  else{
+    if(COMPS.size>=MAX_COMPS){
+      setStatus("You can mark up to "+MAX_COMPS+" comps at once. Remove one before adding another.");
+      return;
+    }
+    COMPS.add(pid);
+  }
   afterSelectionChange();
 }
-function clearSelection(){SUBJECT=null;COMPS.clear();afterSelectionChange();}
+function clearSelection(){SUBJECT=null;COMPS.clear();ONLY_SEL=false;afterSelectionChange();}
 function afterSelectionChange(){
   if(!SUBJECT&&sortCol===MILES_COL){sortCol=0;sortAsc=true;}
+  if(!SUBJECT&&!COMPS.size)ONLY_SEL=false;
   renderChips();                 /* the strip carries the subject chip */
   page=0;recompute();
   if(MAP&&VIEW_MODE==="map")buildMarkers();
@@ -1964,15 +1986,22 @@ function renderChips(){
   strip.classList.toggle("on",groups.length>0||!!SUBJECT||COMPS.size>0);
   let sel="";
   if(SUBJECT){
+    const known=subjectName()!==SUBJECT;      /* false = no such property in the data */
     const hidden=!subjectVisible();
     sel+='<span class="fs-group"><span class="subj-chip'+(hidden?" is-hidden":"")+'">'
       +'<span class="sc-l">Subject</span> '+escHtml(subjectName())
-      +(hidden?' <span class="sc-warn">does not meet the current filters</span>':"")
+      +(!known?' <span class="sc-warn">not found in the current data</span>'
+        :hidden?' <span class="sc-warn">does not meet the current filters</span>':"")
       +'<button type="button" id="subjClear" title="Clear subject">\u2715</button></span></span>';
   }
   if(COMPS.size){
     sel+='<span class="fs-group"><span class="comp-chip">'+COMPS.size+' comp'+(COMPS.size>1?"s":"")
       +'<button type="button" id="compClear" title="Clear comps">\u2715</button></span></span>';
+  }
+  if(SUBJECT||COMPS.size){
+    sel+='<span class="fs-group"><button type="button" id="onlySelBtn" class="only-sel'
+      +(ONLY_SEL?" on":"")+'" title="Show only the subject and its comps">'
+      +(ONLY_SEL?"\u2713 ":"")+'Only selection</button></span>';
   }
   strip.innerHTML=sel+groups.map(fid=>
     '<span class="fs-group"><span class="fs-lbl">'+CHIP_LABELS[fid]
@@ -1988,6 +2017,9 @@ function renderChips(){
     renderChips();page=0;recompute();
     if(fid==="searchZip")syncZipBoundary();
   });
+  const os=strip.querySelector("#onlySelBtn");
+  if(os)os.onclick=(e)=>{e.stopPropagation();ONLY_SEL=!ONLY_SEL;renderChips();page=0;recompute();
+    if(MAP&&VIEW_MODE==="map")buildMarkers();};
   const sc=strip.querySelector("#subjClear");
   if(sc)sc.onclick=(e)=>{e.stopPropagation();setSubject(null);};
   const cc=strip.querySelector("#compClear");
@@ -2122,7 +2154,8 @@ function readFilters(){
     uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     sMin: (()=>{const v=document.getElementById("safmrMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     sMax: (()=>{const v=document.getElementById("safmrMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
-    pSet: MSEL.Program, rSet: MSEL.Renewal, dSet: MSEL.Doc
+    pSet: MSEL.Program, rSet: MSEL.Renewal, dSet: MSEL.Doc,
+    onlySel: ONLY_SEL&&(!!SUBJECT||COMPS.size>0)
   };
 }
 function matchSel(set,ix,row){
@@ -2135,6 +2168,13 @@ function matchSel(set,ix,row){
    own options stay selectable while reflecting every other filter. */
 function rowPasses(r,F,skip){
   const row=R[r];
+  /* "Only selection" narrows everything to the subject and its comps, so a
+     marked comp set becomes a working list you can sort, map and export. */
+  if(F.onlySel){
+    const pix=IDX["Property ID"];
+    const p=(pix===undefined)?null:''+row[pix];
+    if(!p||(p!==SUBJECT&&!COMPS.has(p)))return false;
+  }
   if(GEO){
     const pix=IDX["Property ID"];
     if(!geoContains(pix===undefined?null:row[pix]))return false;
@@ -2239,7 +2279,7 @@ function finishRecompute(F,active,gq,uMin,uMax){
   /* Clear button goes red whenever any filter is doing something */
   const anyFilter = active.length>0 || CHIP_FIELDS.some(f=>CHIPS[f].length) || !!gq
     || uMin!==null || uMax!==null || F.sMin!==null || F.sMax!==null
-    || MSEL.Program.size>0 || MSEL.Renewal.size>0 || MSEL.Doc.size>0 || !!GEO;
+    || MSEL.Program.size>0 || MSEL.Renewal.size>0 || MSEL.Doc.size>0 || !!GEO || ONLY_SEL;
   const rb=document.getElementById("resetBtn");
   if(rb)rb.classList.toggle("active",anyFilter);
 
@@ -2467,16 +2507,19 @@ document.getElementById("exportBtn").onclick=async()=>{
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet("HAP",{views:[{state:"frozen",xSplit:1,ySplit:1}]});
-    /* selection columns ride along only when a subject is set */
-    const XC=SUBJECT?[...C,"Rent Tier","Selection","Miles from Subject"]
-                    :[...C,"Rent Tier"];
+    /* selection columns ride along only when something is selected, and they
+       sit right after the property name where they will actually be noticed */
+    const anySel=!!SUBJECT||COMPS.size>0;
+    const XC=anySel?[C[0],"Selection","Miles from Subject",...C.slice(1),"Rent Tier"]
+                   :[...C,"Rent Tier"];
 
     /* typed column definitions (number formats) must precede the data */
+    const TByName={};C.forEach((c,i)=>TByName[c]=T[i]);
     ws.columns=XC.map((c,i)=>({
       key:"c"+i,
-      style: i<C.length&&T[i]==="date" ? {numFmt:"m/d/yyyy"}
-           : c==="Miles from Subject" ? {numFmt:"0.0"}
-           : i<C.length&&T[i]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%":"#,##0")}
+      style: c==="Miles from Subject" ? {numFmt:"0.0"}
+           : TByName[c]==="date" ? {numFmt:"m/d/yyyy"}
+           : TByName[c]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%":"#,##0")}
            : {}
     }));
 
@@ -2497,10 +2540,12 @@ document.getElementById("exportBtn").onclick=async()=>{
       const base=C.map((c,i)=>typed(i,R[ri][i]));
       const cno=cnoIx!==undefined?R[ri][cnoIx]:null;
       const tiers=cno?TIERS[cno]:null;
-      const selTag=SUBJECT?(selStateOf(ri)==="subject"?"Subject":selStateOf(ri)==="comp"?"Comp":null):null;
+      const st2=selStateOf(ri);
+      const selTag=anySel?(st2==="subject"?"Subject":st2==="comp"?"Comp":null):null;
       const selMi=SUBJECT?milesFromSubject(ri):null;
-      const tail=SUBJECT?[selTag,(selMi===null?null:Math.round(selMi*10)/10)]:[];
-      if(!tiers){rows.push([...base,null,...tail]);continue;}
+      const lead=anySel?[selTag,(selMi===null?null:Math.round(selMi*10)/10)]:[];
+      const compose=(tier)=>anySel?[base[0],...lead,...base.slice(1),tier]:[...base,tier];
+      if(!tiers){rows.push(compose(null));continue;}
       /* group tier rows by bedroom size, preserving source order */
       const byBed={};
       for(const t of tiers){
@@ -2509,9 +2554,10 @@ document.getElementById("exportBtn").onclick=async()=>{
       }
       const n=Math.max(1,...Object.values(byBed).map(a=>a.length));
       for(let k=0;k<n;k++){
-        const r=[...base,(k+1)+" of "+n,...tail];
+        const r=compose((k+1)+" of "+n);
+        const XI={};XC.forEach((c,i2)=>XI[c]=i2);
         for(const bk in byBed){
-          const ri2=IDX[bk+" Rent"],ui2=IDX[bk+" UA"],qi2=IDX[bk+" Units"];
+          const ri2=XI[bk+" Rent"],ui2=XI[bk+" UA"],qi2=XI[bk+" Units"];
           const t=byBed[bk][k];
           if(t){ if(ri2!==undefined)r[ri2]=t[2]; if(ui2!==undefined)r[ui2]=t[4]; if(qi2!==undefined)r[qi2]=t[1]; }
           else { if(ri2!==undefined)r[ri2]=null; if(ui2!==undefined)r[ui2]=null; if(qi2!==undefined)r[qi2]=null; }
@@ -2910,6 +2956,7 @@ function ensureMap(){
     }
   });
   MAP.addLayer(CLUSTER);
+  SUBJ_LAYER=L.layerGroup().addTo(MAP);   /* rings only, kept out of the cluster */
 }
 /* HUD records an organization for ~99.5% of properties and an individual
    for the handful that have no org, so prefer the org and fall back. */
@@ -3027,6 +3074,7 @@ function openTiersFromRow(ri){
 function buildMarkers(){
   if(!MAP)return;
   CLUSTER.clearLayers();
+  if(SUBJ_LAYER)SUBJ_LAYER.clearLayers();
   MARKERS=[];
   const sIx=IDX[SAFMR_RATIO], rIx=IDX["Renewal Type"];
   const ms=[],pts=[];let mapped=0;
@@ -3061,13 +3109,14 @@ function buildMarkers(){
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
-    if(sel==="subject"){
-      /* navy ring around the white halo, plus a standing name label */
-      const ring=L.circleMarker([lat,lon],{radius:12,weight:2,color:"#081937",
-        fill:false,interactive:false});
-      ms.push(ring);
-      m.bindTooltip(''+(R[ri][0]||"Subject"),{permanent:true,direction:"top",
-        className:"subj-label",offset:[0,-10]});
+    if(sel==="subject"&&SUBJ_LAYER){
+      /* A quiet double ring drawn on its own layer. It must NOT go into the
+         cluster group: a non-interactive layer in there breaks the cluster's
+         event handling and every popup stops opening. */
+      SUBJ_LAYER.addLayer(L.circleMarker([lat,lon],
+        {radius:11,weight:2,color:"#081937",opacity:.9,fill:false,interactive:false}));
+      SUBJ_LAYER.addLayer(L.circleMarker([lat,lon],
+        {radius:14,weight:1,color:"#081937",opacity:.35,fill:false,interactive:false}));
     }
     MARKERS.push({m,lat,lon,flagged:!!flagged,rv,gv,
                   val:(val===null||val===undefined||!isFinite(val))?null:+val});
@@ -3997,6 +4046,7 @@ function serializeFilters(){
     }
   }
   if(SUBJECT)q.set("subj",SUBJECT);
+  if(ONLY_SEL)q.set("onlysel","1");
   for(const c of COMPS)q.append("comp",c);
   if(sortCol===MILES_COL)q.set("sort","__miles__");
   else if(C[sortCol]&&sortCol!==0)q.set("sort",C[sortCol]);
@@ -4057,7 +4107,8 @@ function applyFilterHash(){
       if(ring.length>=3)GEO={kind:"poly",ring,rings:[ring],bbox:bboxOfRing(ring)};
     }
     SUBJECT=q.get("subj")||null;
-    COMPS=new Set(q.getAll("comp").filter(Boolean));
+    ONLY_SEL=q.get("onlysel")==="1";
+    COMPS=new Set(q.getAll("comp").filter(Boolean).slice(0,MAX_COMPS));
     if(SUBJECT)COMPS.delete(SUBJECT);
     const sc=q.get("sort");
     if(sc==="__miles__"){ if(SUBJECT)sortCol=MILES_COL; }
