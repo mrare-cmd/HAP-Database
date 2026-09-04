@@ -732,6 +732,10 @@
       letter-spacing: .04em; white-space: nowrap;
     }
     .sl-flag { color: #e08a3c; flex-shrink: 0; }
+    .sl-swatch.multi {
+      display: inline-block; width: 14px; height: 11px; border-radius: 2px;
+      background: #f4f7fc; border: 1px solid #cdd8ea; vertical-align: -1px;
+    }
     .sl-badge {
       display: inline-flex; align-items: center; justify-content: center;
       padding: 1px 5px; border: 1px solid var(--rule-dark); border-radius: 8px;
@@ -1289,7 +1293,17 @@
     /* Flagged rows are marked by the flag icon and the xN badge only;
        the amber row wash was removed as too noisy. */
 
-    /* Selection outranks the amber flag rows. Equal specificity plus
+    /* Multiple contracts at one property: a faint cool tint so the rows read
+       as a group. Deliberately lighter than the selection colours, which are
+       defined after this and therefore win on a selected row. */
+    .data-table tbody tr.multi-row td,
+    .data-table tbody tr.multi-row td.copy-col,
+    .data-table tbody tr.multi-row td.name-col { background: #f4f7fc; }
+    .data-table tbody tr.multi-row:hover td,
+    .data-table tbody tr.multi-row:hover td.copy-col,
+    .data-table tbody tr.multi-row:hover td.name-col { background: #e9eff9; }
+
+    /* Selection outranks the multi-contract tint. Equal specificity plus
        !important means source order decides, so these must come LAST. */
     .data-table tbody tr.is-subject td,
     .data-table tbody tr.is-subject td.copy-col,
@@ -1437,7 +1451,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03j · popup fixes";
+  const BUILD = "2026-09-03k · multi-contract tint";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1643,6 +1657,10 @@
     <span class="sl-item" title="This Property ID appears on more than one contract. Click the badge to see them all.">
       <span class="sl-badge">&times;2</span>
       Multiple contracts at one property
+    </span>
+    <span class="sl-item">
+      <span class="sl-swatch multi"></span>
+      Shaded rows share one property
     </span>
   </div>
 </div>
@@ -2416,6 +2434,7 @@ function render(){
     const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
     const pid=IDX["Property ID"]!==undefined?row[IDX["Property ID"]]:null;
     const nContracts=pid!==null&&pid!==undefined?(PROP_N[pid]||0):0;
+    if(nContracts>1)tr.classList.add("multi-row");
     const selSt=selStateOf(ri);
     if(selSt)tr.classList.add(selSt==="subject"?"is-subject":"is-comp");
     for(let cix=0;cix<C.length;cix++){
