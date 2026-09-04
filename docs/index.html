@@ -414,6 +414,7 @@
       font-family: inherit; font-size: 8px; line-height: 15px; padding: 0;
     }
     .subj-chip button:hover, .comp-chip button:hover { background: #e5484d; color: #fff; }
+    .only-right { margin-left: auto; }
     .only-sel {
       padding: 4px 11px; border-radius: 12px; cursor: pointer;
       border: 1px solid rgba(255,255,255,.3); background: transparent;
@@ -1264,20 +1265,6 @@
     .sel-btn.sel-subject { border-color: var(--navy); background: var(--navy); color: #fff; }
     .sel-btn.sel-comp { border-color: #3B7F83; color: #2c6165; background: #e9f5f1; }
 
-    .data-table tbody tr.is-subject td,
-    .data-table tbody tr.is-subject td.copy-col,
-    .data-table tbody tr.is-subject td.name-col { background: #e7eefb !important; }
-    .data-table tbody tr.is-subject:hover td,
-    .data-table tbody tr.is-subject:hover td.copy-col,
-    .data-table tbody tr.is-subject:hover td.name-col { background: #d8e4f7 !important; }
-    .data-table tbody tr.is-comp:hover td,
-    .data-table tbody tr.is-comp:hover td.copy-col,
-    .data-table tbody tr.is-comp:hover td.name-col { background: #dcefe6 !important; }
-    .data-table tbody tr.is-subject td.name-col { box-shadow: inset 4px 0 0 var(--navy); }
-    .data-table tbody tr.is-comp td,
-    .data-table tbody tr.is-comp td.copy-col,
-    .data-table tbody tr.is-comp td.name-col { background: #eaf6f2 !important; }
-    .data-table tbody tr.is-comp td.name-col { box-shadow: inset 4px 0 0 #3B7F83; }
     .sel-pill {
       display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px;
       font-size: 8.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
@@ -1299,6 +1286,23 @@
     .data-table tbody tr.hl-row:hover,
     .data-table tbody tr.hl-row:hover td.copy-col,
     .data-table tbody tr.hl-row:hover td.name-col { background: #f2e7d0 !important; }
+
+    /* Selection outranks the amber flag rows. Equal specificity plus
+       !important means source order decides, so these must come LAST. */
+    .data-table tbody tr.is-subject td,
+    .data-table tbody tr.is-subject td.copy-col,
+    .data-table tbody tr.is-subject td.name-col { background: #e7eefb !important; }
+    .data-table tbody tr.is-subject:hover td,
+    .data-table tbody tr.is-subject:hover td.copy-col,
+    .data-table tbody tr.is-subject:hover td.name-col { background: #d8e4f7 !important; }
+    .data-table tbody tr.is-subject td.name-col { box-shadow: inset 4px 0 0 var(--navy); }
+    .data-table tbody tr.is-comp td,
+    .data-table tbody tr.is-comp td.copy-col,
+    .data-table tbody tr.is-comp td.name-col { background: #eaf6f2 !important; }
+    .data-table tbody tr.is-comp:hover td,
+    .data-table tbody tr.is-comp:hover td.copy-col,
+    .data-table tbody tr.is-comp:hover td.name-col { background: #dcefe6 !important; }
+    .data-table tbody tr.is-comp td.name-col { box-shadow: inset 4px 0 0 #3B7F83; }
 
     .copy-btn {
       width: 28px; height: 28px; border-radius: 3px;
@@ -1431,7 +1435,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03c · selection fixes + only-selection";
+  const BUILD = "2026-09-03e · hover + toggle placement";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1999,17 +2003,17 @@ function renderChips(){
       +'<button type="button" id="compClear" title="Clear comps">\u2715</button></span></span>';
   }
   if(SUBJECT||COMPS.size){
-    sel+='<span class="fs-group"><button type="button" id="onlySelBtn" class="only-sel'
-      +(ONLY_SEL?" on":"")+'" title="Show only the subject and its comps">'
-      +(ONLY_SEL?"\u2713 ":"")+'Only selection</button></span>';
+    sel+='<span class="fs-group only-right"><button type="button" id="onlySelBtn" class="only-sel'
+      +(ONLY_SEL?" on":"")+'" title="Narrow the table, map and exports to the subject and its comps">'
+      +(ONLY_SEL?"\u2713 ":"")+'Show Only Subject/Comps</button></span>';
   }
-  strip.innerHTML=sel+groups.map(fid=>
+  strip.innerHTML=groups.map(fid=>
     '<span class="fs-group"><span class="fs-lbl">'+CHIP_LABELS[fid]
     +' <button type="button" data-clear="'+fid+'" title="Clear all '+CHIP_LABELS[fid]+' filters">\u2715</button></span>'
     +CHIPS[fid].map((v,i)=>
         '<span class="chip"><span title="'+escHtml(v)+'">'+escHtml(v)+'</span>'
         +'<button type="button" data-f="'+fid+'" data-i="'+i+'" title="Remove">\u2715</button></span>').join("")
-    +'</span>').join("");
+    +'</span>').join("")+sel;
   strip.querySelectorAll("button[data-i]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
     const fid=b.getAttribute("data-f");
@@ -4505,6 +4509,10 @@ function applyData(d){
   document.getElementById("asofVal").textContent=ASOF||"\u2014";
   page=0;
   recompute();
+  /* The filter strip may have been drawn from a URL before the rows existed
+     (boot applies the hash first), so a subject would have shown as a bare
+     ID marked "not found". Redraw it now that the data is here. */
+  renderChips();
   document.getElementById("loading").style.display="none";
   document.getElementById("mainTable").style.display="table";
 }
