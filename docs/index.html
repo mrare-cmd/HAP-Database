@@ -215,7 +215,7 @@
     .range-inner { display: flex; align-items: center; gap: 5px; }
     .range-dash { color: rgba(255,255,255,.3); font-size: 12px; }
     .num-in {
-      width: 66px; height: 34px; padding: 0 4px;
+      width: 58px; height: 34px; padding: 0 4px;
       text-align: center; line-height: 32px;
       border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
       font-family: 'IBM Plex Mono', monospace; font-size: 12px;
@@ -375,9 +375,31 @@
     }
     .sv-empty { padding: 12px 10px; font-size: 11.5px; color: var(--text-light); }
 
+    /* Active filters live in their own strip below the bar, so adding chips
+       never changes the height of a field or pushes the buttons onto a
+       second row. */
+    .filter-strip {
+      display: none; flex-wrap: wrap; align-items: center; gap: 6px 14px;
+      padding: 8px 28px; background: var(--navy-mid);
+      border-bottom: 1px solid var(--navy-faint);
+    }
+    .filter-strip.on { display: flex; }
+    .fs-group { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .fs-lbl {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 9px; font-weight: 800; color: rgba(255,255,255,.45);
+      letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
+    }
+    .fs-lbl button {
+      border: none; background: rgba(255,255,255,.12); color: rgba(255,255,255,.6);
+      width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
+      font-family: inherit; font-size: 8px; line-height: 14px; padding: 0;
+    }
+    .fs-lbl button:hover { background: #e5484d; color: #fff; }
+
     .chip-field {
-      position: relative; min-height: 34px; padding: 3px 4px 3px 6px;
-      display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      position: relative; height: 34px; padding: 0 6px;
+      display: flex; align-items: center; gap: 4px;
       border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
       background: rgba(255,255,255,.07); cursor: text;
       transition: border-color .15s, background .15s;
@@ -387,8 +409,8 @@
       box-shadow: 0 0 0 3px rgba(255,255,255,.06);
     }
     .chip-field input {
-      flex: 1 1 44px; min-width: 44px; width: auto;
-      height: 26px; padding: 0 2px; border: none; background: transparent;
+      flex: 1 1 auto; min-width: 0; width: 100%;
+      height: 32px; padding: 0 2px; border: none; background: transparent;
       color: var(--white); font-family: inherit; font-size: 13px;
     }
     .chip-field input:focus { outline: none; box-shadow: none; border: none; background: transparent; }
@@ -1341,7 +1363,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-02e · multi-value chip filters";
+  const BUILD = "2026-09-02h · multi-ZIP boundaries";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1408,36 +1430,28 @@
   <div class="field">
     <label>Property Name</label>
     <div class="field-inner">
-      <input type="text" id="searchName" placeholder="Search..." style="width:158px" />
+      <input type="text" id="searchName" placeholder="Search..." style="width:140px" />
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
   <div class="field">
     <label>City</label>
-    <div class="chip-field" id="cf_searchCity" style="width:150px">
-      <span class="chips" id="ch_searchCity"></span>
-      <input type="text" id="searchCity" placeholder="City..." autocomplete="off" />
+    <div class="chip-field" id="cf_searchCity" style="width:120px"><input type="text" id="searchCity" placeholder="City..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
     <label>State</label>
-    <div class="chip-field" id="cf_searchState" style="width:150px">
-      <span class="chips" id="ch_searchState"></span>
-      <input type="text" id="searchState" placeholder="MD or Maryland" autocomplete="off" />
+    <div class="chip-field" id="cf_searchState" style="width:124px"><input type="text" id="searchState" placeholder="MD or Maryland" autocomplete="off" />
     </div>
   </div>
   <div class="field">
     <label>County</label>
-    <div class="chip-field" id="cf_searchCounty" style="width:150px">
-      <span class="chips" id="ch_searchCounty"></span>
-      <input type="text" id="searchCounty" placeholder="County..." autocomplete="off" />
+    <div class="chip-field" id="cf_searchCounty" style="width:120px"><input type="text" id="searchCounty" placeholder="County..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
     <label>Zip...</label>
-    <div class="chip-field" id="cf_searchZip" style="width:150px">
-      <span class="chips" id="ch_searchZip"></span>
-      <input type="text" id="searchZip" placeholder="Zip..." autocomplete="off" />
+    <div class="chip-field" id="cf_searchZip" style="width:118px"><input type="text" id="searchZip" placeholder="Zip..." autocomplete="off" />
       <button type="button" id="zipShape" title="Draw this ZIP's boundary on the map and filter to it">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
       </button>
@@ -1445,9 +1459,7 @@
   </div>
   <div class="field">
     <label>MSA</label>
-    <div class="chip-field" id="cf_searchMsa" style="width:165px">
-      <span class="chips" id="ch_searchMsa"></span>
-      <input type="text" id="searchMsa" placeholder="MSA name..." autocomplete="off" />
+    <div class="chip-field" id="cf_searchMsa" style="width:138px"><input type="text" id="searchMsa" placeholder="MSA name..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
@@ -1468,7 +1480,7 @@
   </div>
   <div class="field">
     <label>Program Type</label>
-    <div class="ms" id="msProgram" style="width:146px">
+    <div class="ms" id="msProgram" style="width:130px">
       <button type="button" class="ms-btn" data-for="Program">All <span class="ms-car">&#9662;</span></button>
       <div class="ms-panel">
         <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
@@ -1488,7 +1500,7 @@
   </div>
   <div class="field">
     <label>Renewal Type</label>
-    <div class="ms" id="msRenewal" style="width:158px">
+    <div class="ms" id="msRenewal" style="width:138px">
       <button type="button" class="ms-btn" data-for="Renewal">All <span class="ms-car">&#9662;</span></button>
       <div class="ms-panel">
         <div class="ms-tools"><button type="button" class="ms-mini ms-toggle">Select all</button></div>
@@ -1510,6 +1522,8 @@
   <button class="btn-reset" id="copyLinkBtn" title="Copy a link that reopens this exact view">Copy Link</button>
   <button class="btn-reset" id="resetBtn">Clear</button>
 </div>
+
+<div class="filter-strip" id="filterStrip"></div>
 
 <div class="result-line">
   <span style="display:flex;align-items:center">
@@ -1826,38 +1840,59 @@ function stateCodesFor(q){
 const CHIP_FIELDS=["searchState","searchCity","searchCounty","searchZip","searchMsa"];
 const CHIPS={};CHIP_FIELDS.forEach(f=>CHIPS[f]=[]);
 
-function renderChips(fid){
-  const box=document.getElementById("ch_"+fid);if(!box)return;
-  box.innerHTML=CHIPS[fid].map((v,i)=>
-    '<span class="chip"><span title="'+escHtml(v)+'">'+escHtml(v)+'</span>'
-    +'<button type="button" data-i="'+i+'" title="Remove">\u2715</button></span>').join("");
-  box.querySelectorAll("button").forEach(b=>b.onclick=(e)=>{
+const CHIP_LABELS={searchState:"State",searchCity:"City",searchCounty:"County",
+                   searchZip:"ZIP",searchMsa:"MSA"};
+/* One strip below the filter bar holds every committed chip, grouped by
+   field. Keeps the inputs a fixed height and gives one place to see
+   everything that is currently filtering. */
+function renderChips(){
+  const strip=document.getElementById("filterStrip");if(!strip)return;
+  const groups=CHIP_FIELDS.filter(f=>CHIPS[f].length);
+  strip.classList.toggle("on",groups.length>0);
+  strip.innerHTML=groups.map(fid=>
+    '<span class="fs-group"><span class="fs-lbl">'+CHIP_LABELS[fid]
+    +' <button type="button" data-clear="'+fid+'" title="Clear all '+CHIP_LABELS[fid]+' filters">\u2715</button></span>'
+    +CHIPS[fid].map((v,i)=>
+        '<span class="chip"><span title="'+escHtml(v)+'">'+escHtml(v)+'</span>'
+        +'<button type="button" data-f="'+fid+'" data-i="'+i+'" title="Remove">\u2715</button></span>').join("")
+    +'</span>').join("");
+  strip.querySelectorAll("button[data-i]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
-    CHIPS[fid].splice(+b.getAttribute("data-i"),1);
-    renderChips(fid);page=0;recompute();
+    CHIPS[b.getAttribute("data-f")].splice(+b.getAttribute("data-i"),1);
+    renderChips();page=0;recompute();
+  });
+  strip.querySelectorAll("button[data-clear]").forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    CHIPS[b.getAttribute("data-clear")]=[];
+    renderChips();page=0;recompute();
   });
 }
 function addChip(fid,val){
   const v=(val||"").trim();
   if(!v)return false;
   if(!CHIPS[fid].some(x=>x.toLowerCase()===v.toLowerCase()))CHIPS[fid].push(v);
-  renderChips(fid);
+  renderChips();
   return true;
 }
-function clearChips(){CHIP_FIELDS.forEach(f=>{CHIPS[f]=[];renderChips(f);});}
+function clearChips(){CHIP_FIELDS.forEach(f=>CHIPS[f]=[]);renderChips();}
 
 CHIP_FIELDS.forEach(fid=>{
   const inp=document.getElementById(fid);
   const wrap=document.getElementById("cf_"+fid);
   if(!inp||!wrap)return;
-  wrap.addEventListener("click",(e)=>{ if(e.target===wrap||e.target.className==="chips")inp.focus(); });
+  wrap.addEventListener("click",(e)=>{ if(e.target===wrap)inp.focus(); });
   inp.addEventListener("keydown",(e)=>{
     e.stopPropagation();                       /* never feed the konami buffer */
     if(e.key==="Enter"){
       e.preventDefault();
-      if(addChip(fid,inp.value)){inp.value="";page=0;recompute();}
+      if(addChip(fid,inp.value)){
+        inp.value="";page=0;recompute();
+        /* if ZIP boundaries are already on the map, include the new one */
+        if(fid==="searchZip"&&GEO&&GEO.zips&&GEO.zips.length)
+          applyZipBoundary(CHIPS.searchZip,{quiet:true});
+      }
     }else if(e.key==="Backspace"&&inp.value===""&&CHIPS[fid].length){
-      CHIPS[fid].pop();renderChips(fid);page=0;recompute();
+      CHIPS[fid].pop();renderChips();page=0;recompute();
     }
   });
 });
@@ -2352,9 +2387,10 @@ FILTER_MAP.forEach(f=>{
   const zb=document.getElementById("zipShape"), zi=document.getElementById("searchZip");
   async function go(){
     zb.disabled=true;
-    /* use what is typed, else the last ZIP chip */
-    const z=zi.value.trim()||(CHIPS.searchZip.length?CHIPS.searchZip[CHIPS.searchZip.length-1]:"");
-    try{ await applyZipBoundary(z); } finally { zb.disabled=false; }
+    /* every committed ZIP chip, plus anything half-typed */
+    const typed=zi.value.trim();
+    const list=CHIPS.searchZip.concat(typed?[typed]:[]);
+    try{ await applyZipBoundary(list.length?list:typed); } finally { zb.disabled=false; }
   }
   zb.addEventListener("click",go);
   zi.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){e.preventDefault();go();} });
@@ -2878,32 +2914,46 @@ let _geoClearing=false;
 /* ZIP boundary from the Census TIGERweb service (public, no key).
    Layer 2 = 2020 ZIP Code Tabulation Areas. */
 const ZCTA_URL="https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/2/query";
-async function applyZipBoundary(zip,opts){
-  zip=String(zip||"").trim().slice(0,5);
-  if(!/^\d{5}$/.test(zip)){setStatus("Enter a full 5-digit ZIP code to draw its boundary.");return false;}
+async function applyZipBoundary(zips,opts){
+  /* Accepts one ZIP or a list. Every ZCTA comes back as its own ring set
+     and they are unioned into a single shape, so filtering to three ZIPs
+     draws all three boundaries rather than only the last one. */
+  const list=[...new Set((Array.isArray(zips)?zips:[zips])
+    .map(z=>String(z||"").trim().slice(0,5))
+    .filter(z=>/^\d{5}$/.test(z)))];
+  if(!list.length){setStatus("Enter a full 5-digit ZIP code to draw its boundary.");return false;}
   const quiet=opts&&opts.quiet;
-  if(!quiet)setStatus("Fetching the boundary for ZIP "+zip+"\u2026");
+  const label=list.length===1?("ZIP "+list[0]):(list.length+" ZIP codes");
+  if(!quiet)setStatus("Fetching the boundary for "+label+"\u2026");
   try{
-    const u=ZCTA_URL+"?where="+encodeURIComponent("ZCTA5='"+zip+"'")
+    const where="ZCTA5 IN ("+list.map(z=>"'"+z+"'").join(",")+")";
+    const u=ZCTA_URL+"?where="+encodeURIComponent(where)
            +"&outFields=ZCTA5&returnGeometry=true&outSR=4326&f=json";
     const r=await fetch(u,{cache:"no-store"});
     if(!r.ok)throw new Error("HTTP "+r.status);
     const j=await r.json();
     if(j.error)throw new Error(j.error.message||"census error");
-    const f=(j.features||[])[0];
-    if(!f||!f.geometry||!f.geometry.rings){setStatus("No boundary published for ZIP "+zip+".");return false;}
-    /* Esri rings are [lng,lat]; Leaflet wants [lat,lng] */
-    const rings=f.geometry.rings.map(r2=>r2.map(pt=>[pt[1],pt[0]])).filter(r2=>r2.length>=3);
-    if(!rings.length){setStatus("No usable boundary for ZIP "+zip+".");return false;}
+    const feats=j.features||[];
+    if(!feats.length){setStatus("No boundary published for "+label+".");return false;}
+    /* Esri rings are [lng,lat]; Leaflet wants [lat,lng]. ZCTAs never
+       overlap, so the even-odd test across all rings behaves as a union. */
+    let rings=[];const found=new Set();
+    for(const f of feats){
+      if(f.attributes&&f.attributes.ZCTA5)found.add(String(f.attributes.ZCTA5));
+      if(!f.geometry||!f.geometry.rings)continue;
+      rings=rings.concat(f.geometry.rings.map(r2=>r2.map(pt=>[pt[1],pt[0]])).filter(r2=>r2.length>=3));
+    }
+    if(!rings.length){setStatus("No usable boundary for "+label+".");return false;}
+    const missing=list.filter(z=>!found.has(z));
     const main=rings.slice().sort((a,b)=>b.length-a.length)[0];
-    GEO={kind:"poly",zip,ring:main,rings,bbox:bboxOfRings(rings)};
+    GEO={kind:"poly",zips:[...found],ring:main,rings,bbox:bboxOfRings(rings)};
     drawGeoLayer();
     page=0;recompute();
     if(VIEW_MODE!=="map")setViewMode("map");
-    setStatus("");
+    setStatus(missing.length?("No boundary published for ZIP "+missing.join(", ")+"."):"" ,missing.length>0);
     return true;
   }catch(e){
-    setStatus("Could not load the boundary for ZIP "+zip+" ("+e.message+").");
+    setStatus("Could not load the boundary for "+label+" ("+e.message+").");
     return false;
   }
 }
@@ -2952,7 +3002,9 @@ function syncGeoChip(){
   const lbl=document.getElementById("geoChipLabel");
   lbl.textContent=(GEO.kind==="circle"
       ? GEO.radMi.toFixed(GEO.radMi<10?2:1)+" mi radius"
-      : GEO.zip ? ("ZIP "+GEO.zip+" boundary")
+      : (GEO.zips&&GEO.zips.length) ? (GEO.zips.length===1
+            ? ("ZIP "+GEO.zips[0]+" boundary")
+            : (GEO.zips.length+" ZIP boundaries"))
       : "Drawn area ("+(GEO.ring?GEO.ring.length:0)+" points)")
     +" \u00B7 "+view.length.toLocaleString()+" propert"+(view.length===1?"y":"ies");
 }
@@ -3669,7 +3721,7 @@ function serializeFilters(){
   if(GEO){
     if(GEO.kind==="circle")
       q.set("geo","c:"+GEO.lat.toFixed(5)+","+GEO.lng.toFixed(5)+","+GEO.radMi.toFixed(3));
-    else if(GEO.zip) q.set("geo","z:"+GEO.zip);   /* tiny, and exact on reload */
+    else if(GEO.zips&&GEO.zips.length) q.set("geo","z:"+GEO.zips.join(","));  /* tiny, exact on reload */
     else{
       /* keep URLs sane: at most 60 vertices, 5dp (~1m) */
       let ring=GEO.ring;
@@ -3709,7 +3761,6 @@ function applyFilterHash(){
       if(CHIP_FIELDS.includes(id)){
         CHIPS[id]=q.getAll(k).map(v=>(''+v).trim()).filter(Boolean);
         el.value="";
-        renderChips(id);
         continue;
       }
       el.value=q.get(k)||"";
@@ -3729,7 +3780,7 @@ function applyFilterHash(){
       }
     }else if(g&&g.startsWith("z:")){
       /* fetched after the first render so the page paints immediately */
-      PENDING_ZIP=g.slice(2);
+      PENDING_ZIP=g.slice(2).split(",").map(z=>z.trim()).filter(Boolean);
     }else if(g&&g.startsWith("p:")){
       const ring=g.slice(2).split(";").map(pair=>pair.split(",").map(Number))
                   .filter(pt=>pt.length===2&&pt.every(n=>isFinite(n)));
@@ -3738,6 +3789,7 @@ function applyFilterHash(){
     const sc=q.get("sort");
     if(sc){const i=C.indexOf(sc);if(i>=0)sortCol=i;}
     sortAsc=(q.get("dir")!=="d");
+    renderChips();
     const sz=parseInt(q.get("size")||"",10);
     if([50,100,200,500].includes(sz)){
       PAGE_SIZE=sz;
