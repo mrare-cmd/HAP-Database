@@ -375,6 +375,40 @@
     }
     .sv-empty { padding: 12px 10px; font-size: 11.5px; color: var(--text-light); }
 
+    .chip-field {
+      position: relative; min-height: 34px; padding: 3px 4px 3px 6px;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
+      background: rgba(255,255,255,.07); cursor: text;
+      transition: border-color .15s, background .15s;
+    }
+    .chip-field:focus-within {
+      border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.12);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+    }
+    .chip-field input {
+      flex: 1 1 44px; min-width: 44px; width: auto;
+      height: 26px; padding: 0 2px; border: none; background: transparent;
+      color: var(--white); font-family: inherit; font-size: 13px;
+    }
+    .chip-field input:focus { outline: none; box-shadow: none; border: none; background: transparent; }
+    .chip-field input::placeholder { color: rgba(255,255,255,.25); }
+    .chips { display: contents; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+      padding: 2px 4px 2px 8px; border-radius: 11px;
+      background: rgba(84,198,184,.18); border: 1px solid rgba(84,198,184,.55);
+      color: #cdf3ec; font-size: 11px; font-weight: 700; white-space: nowrap;
+    }
+    .chip span { overflow: hidden; text-overflow: ellipsis; max-width: 128px; }
+    .chip button {
+      flex: 0 0 auto; width: 14px; height: 14px; border-radius: 50%; padding: 0;
+      border: none; background: rgba(255,255,255,.16); color: inherit;
+      cursor: pointer; font-family: inherit; font-size: 8px; line-height: 14px;
+    }
+    .chip button:hover { background: #e5484d; color: #fff; }
+    #cf_searchZip { padding-right: 32px; }
+
     .btn-reset {
       height: 34px; padding: 0 14px; border-radius: 3px;
       border: 1px solid rgba(255,255,255,.15);
@@ -1307,7 +1341,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-02d · saved searches";
+  const BUILD = "2026-09-02e · multi-value chip filters";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1380,40 +1414,40 @@
   </div>
   <div class="field">
     <label>City</label>
-    <div class="field-inner">
-      <input type="text" id="searchCity" placeholder="City..." style="width:116px" />
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div class="chip-field" id="cf_searchCity" style="width:150px">
+      <span class="chips" id="ch_searchCity"></span>
+      <input type="text" id="searchCity" placeholder="City..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
     <label>State</label>
-    <div class="field-inner">
-      <input type="text" id="searchState" placeholder="MD or Maryland" style="width:120px" />
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div class="chip-field" id="cf_searchState" style="width:150px">
+      <span class="chips" id="ch_searchState"></span>
+      <input type="text" id="searchState" placeholder="MD or Maryland" autocomplete="off" />
     </div>
   </div>
   <div class="field">
     <label>County</label>
-    <div class="field-inner">
-      <input type="text" id="searchCounty" placeholder="County..." style="width:116px" />
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div class="chip-field" id="cf_searchCounty" style="width:150px">
+      <span class="chips" id="ch_searchCounty"></span>
+      <input type="text" id="searchCounty" placeholder="County..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
-    <label>ZIP</label>
-    <div class="field-inner">
-      <input type="text" id="searchZip" placeholder="Zip..." style="width:118px;padding-right:30px" />
+    <label>Zip...</label>
+    <div class="chip-field" id="cf_searchZip" style="width:150px">
+      <span class="chips" id="ch_searchZip"></span>
+      <input type="text" id="searchZip" placeholder="Zip..." autocomplete="off" />
       <button type="button" id="zipShape" title="Draw this ZIP's boundary on the map and filter to it">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
       </button>
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
   </div>
   <div class="field">
     <label>MSA</label>
-    <div class="field-inner">
-      <input type="text" id="searchMsa" placeholder="MSA name..." style="width:138px" />
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div class="chip-field" id="cf_searchMsa" style="width:165px">
+      <span class="chips" id="ch_searchMsa"></span>
+      <input type="text" id="searchMsa" placeholder="MSA name..." autocomplete="off" />
     </div>
   </div>
   <div class="field">
@@ -1784,6 +1818,50 @@ function stateCodesFor(q){
   return codes.size?codes:null;
 }
 
+/* Fields that hold a list of values instead of one string. Each chip is a
+   substring match ("Dall" finds Dallas); chips inside one field are ORed,
+   and the fields are ANDed together, so
+        State: Texas   City: Dallas, Houston
+   means Texas AND (Dallas OR Houston). */
+const CHIP_FIELDS=["searchState","searchCity","searchCounty","searchZip","searchMsa"];
+const CHIPS={};CHIP_FIELDS.forEach(f=>CHIPS[f]=[]);
+
+function renderChips(fid){
+  const box=document.getElementById("ch_"+fid);if(!box)return;
+  box.innerHTML=CHIPS[fid].map((v,i)=>
+    '<span class="chip"><span title="'+escHtml(v)+'">'+escHtml(v)+'</span>'
+    +'<button type="button" data-i="'+i+'" title="Remove">\u2715</button></span>').join("");
+  box.querySelectorAll("button").forEach(b=>b.onclick=(e)=>{
+    e.stopPropagation();
+    CHIPS[fid].splice(+b.getAttribute("data-i"),1);
+    renderChips(fid);page=0;recompute();
+  });
+}
+function addChip(fid,val){
+  const v=(val||"").trim();
+  if(!v)return false;
+  if(!CHIPS[fid].some(x=>x.toLowerCase()===v.toLowerCase()))CHIPS[fid].push(v);
+  renderChips(fid);
+  return true;
+}
+function clearChips(){CHIP_FIELDS.forEach(f=>{CHIPS[f]=[];renderChips(f);});}
+
+CHIP_FIELDS.forEach(fid=>{
+  const inp=document.getElementById(fid);
+  const wrap=document.getElementById("cf_"+fid);
+  if(!inp||!wrap)return;
+  wrap.addEventListener("click",(e)=>{ if(e.target===wrap||e.target.className==="chips")inp.focus(); });
+  inp.addEventListener("keydown",(e)=>{
+    e.stopPropagation();                       /* never feed the konami buffer */
+    if(e.key==="Enter"){
+      e.preventDefault();
+      if(addChip(fid,inp.value)){inp.value="";page=0;recompute();}
+    }else if(e.key==="Backspace"&&inp.value===""&&CHIPS[fid].length){
+      CHIPS[fid].pop();renderChips(fid);page=0;recompute();
+    }
+  });
+});
+
 const FILTER_MAP=[
   {input:"searchName",  cols:["Property Name"]},
   {input:"searchCity",  cols:["City"]},
@@ -1842,11 +1920,16 @@ function buildHead(){
 function readFilters(){
   return {
     active: FILTER_MAP.map(f=>{
-      const q=document.getElementById(f.input).value.trim().toLowerCase();
-      const o={q,ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)};
-      if(f.input==="searchState")o.codes=stateCodesFor(q);   /* "texas" -> TX */
-      return o;
-    }).filter(f=>f.q),
+      const typed=document.getElementById(f.input).value.trim();
+      /* committed chips plus whatever is half-typed, so the table narrows
+         as you type and Enter simply pins the term */
+      const raw=(CHIPS[f.input]||[]).concat(typed?[typed]:[]);
+      const terms=raw.map(t=>({
+        q:t.toLowerCase(),
+        codes:(f.input==="searchState")?stateCodesFor(t.toLowerCase()):null
+      }));
+      return {terms,ix:f.cols.map(c=>IDX[c]).filter(i=>i!==undefined)};
+    }).filter(f=>f.terms.length),
     gq: document.getElementById("gsearch").value.trim().toLowerCase(),
     uMin: (()=>{const v=document.getElementById("unitsMin").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
     uMax: (()=>{const v=document.getElementById("unitsMax").value.replace(/[^0-9.]/g,"");return v===""?null:+v;})(),
@@ -1889,14 +1972,17 @@ function rowPasses(r,F,skip){
   if(skip!=="Doc"&&!matchSel(F.dSet,IDX["Doc Type"],row))return false;
   for(const f of F.active){
     let hit=false;
-    for(const i of f.ix){
-      const v=row[i];
-      if(v===null||v===undefined)continue;
-      const sv=(''+v).toLowerCase();
-      if(sv.includes(f.q)){hit=true;break;}
-      if(f.codes&&f.codes.has((''+v).trim().toUpperCase())){hit=true;break;}
+    outer:
+    for(const t of f.terms){                 /* OR within the field */
+      for(const i of f.ix){
+        const v=row[i];
+        if(v===null||v===undefined)continue;
+        const sv=(''+v).toLowerCase();
+        if(sv.includes(t.q)){hit=true;break outer;}
+        if(t.codes&&t.codes.has((''+v).trim().toUpperCase())){hit=true;break outer;}
+      }
     }
-    if(!hit)return false;
+    if(!hit)return false;                    /* AND across fields */
   }
   if(F.gq){
     let hit=false;
@@ -1946,7 +2032,7 @@ function recompute(){
   document.getElementById("statUnits").textContent=units.toLocaleString();
 
   /* Clear button goes red whenever any filter is doing something */
-  const anyFilter = active.length>0 || !!gq
+  const anyFilter = active.length>0 || CHIP_FIELDS.some(f=>CHIPS[f].length) || !!gq
     || uMin!==null || uMax!==null || F.sMin!==null || F.sMax!==null
     || MSEL.Program.size>0 || MSEL.Renewal.size>0 || MSEL.Doc.size>0 || !!GEO;
   const rb=document.getElementById("resetBtn");
@@ -2266,7 +2352,9 @@ FILTER_MAP.forEach(f=>{
   const zb=document.getElementById("zipShape"), zi=document.getElementById("searchZip");
   async function go(){
     zb.disabled=true;
-    try{ await applyZipBoundary(zi.value); } finally { zb.disabled=false; }
+    /* use what is typed, else the last ZIP chip */
+    const z=zi.value.trim()||(CHIPS.searchZip.length?CHIPS.searchZip[CHIPS.searchZip.length-1]:"");
+    try{ await applyZipBoundary(z); } finally { zb.disabled=false; }
   }
   zb.addEventListener("click",go);
   zi.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){e.preventDefault();go();} });
@@ -2291,6 +2379,7 @@ document.getElementById("gsearch").addEventListener("input",()=>debounce(()=>{pa
 
 document.getElementById("resetBtn").onclick=()=>{
   FILTER_MAP.forEach(f=>document.getElementById(f.input).value="");
+  clearChips();
   document.getElementById("gsearch").value="";
   document.getElementById("unitsMin").value="";
   document.getElementById("unitsMax").value="";
@@ -3565,6 +3654,12 @@ function hashParams(){
 function serializeFilters(){
   const q=new URLSearchParams();
   for(const [k,id] of Object.entries(URL_TEXT)){
+    if(CHIP_FIELDS.includes(id)){
+      for(const v of CHIPS[id])q.append(k,v);          /* one param per chip */
+      const typed=document.getElementById(id).value.trim();
+      if(typed)q.append(k,typed);                      /* keep half-typed text */
+      continue;
+    }
     const el=document.getElementById(id);
     const v=el&&el.value?el.value.trim():"";
     if(v)q.set(k,v);
@@ -3610,7 +3705,14 @@ function applyFilterHash(){
   try{
     for(const [k,id] of Object.entries(URL_TEXT)){
       const el=document.getElementById(id);
-      if(el)el.value=q.get(k)||"";
+      if(!el)continue;
+      if(CHIP_FIELDS.includes(id)){
+        CHIPS[id]=q.getAll(k).map(v=>(''+v).trim()).filter(Boolean);
+        el.value="";
+        renderChips(id);
+        continue;
+      }
+      el.value=q.get(k)||"";
     }
     for(const [k,key] of Object.entries(URL_SETS)){
       MSEL[key].clear();
