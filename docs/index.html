@@ -959,7 +959,7 @@
     }
     .dtbl tfoot .tot td { border-top: 2px solid var(--navy); font-weight: 800; color: var(--navy); }
 
-    .wn-card { max-width: 560px; border-top-color: #c0392b; }
+    .wn-card { max-width: 600px; border-top-color: #3B7F83; }
     .wn-alert {
       display: flex; align-items: center; gap: 9px;
       margin-top: 18px; padding: 11px 13px; border-radius: 3px;
@@ -982,7 +982,15 @@
       background: var(--hover-row); border-left: 3px solid var(--navy);
       padding: 10px 12px; border-radius: 3px; margin-top: 14px;
     }
-    .wn-item { margin-top: 15px; }
+    .wn-item {
+      margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--rule);
+    }
+    .wn-item:first-of-type { border-top: none; padding-top: 0; }
+    .wn-art { margin-top: 9px; }
+    .wn-svg {
+      display: block; width: 100%; max-width: 340px; height: auto;
+      border-radius: 3px; box-shadow: 0 1px 4px rgba(8,25,55,.12);
+    }
     .wn-t {
       font-size: 12.5px; font-weight: 800; color: var(--navy); letter-spacing: -.01em;
     }
@@ -1451,7 +1459,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03k · multi-contract tint";
+  const BUILD = "2026-09-04 · what’s new, illustrated";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -3284,7 +3292,9 @@ async function applyZipBoundary(zips,opts){
     GEO={kind:"poly",zips:[...found],ring:main,rings,bbox:bboxOfRings(rings)};
     drawGeoLayer();
     page=0;recompute();
-    if(VIEW_MODE!=="map")setViewMode("map");
+    if(!quiet&&VIEW_MODE!=="map")setViewMode("map");   /* only an explicit
+        click on the boundary button switches views; a quiet refresh (adding
+        or removing a ZIP chip) leaves you where you are */
     setStatus(missing.length?("No boundary published for ZIP "+missing.join(", ")+"."):"" ,missing.length>0);
     return true;
   }catch(e){
@@ -4444,15 +4454,88 @@ function showUsage(j){
    Shows once per person. WHATS_NEW_VERSION is bumped ONLY when we
    deliberately want to re-announce; day-to-day changes must not touch it,
    or everyone gets the popup again. */
-const WHATS_NEW_VERSION="2026-09-02";
+const WHATS_NEW_VERSION="2026-09-04";
+const WHATS_NEW_LIVE=true;
 const WHATS_NEW_TITLE="What\u2019s new after the meeting";
+
+/* Small inline mockups of the real controls. Drawn as SVG so they stay
+   sharp, need no hosting, and cannot break a shared link. */
+const WN_ART={
+  owner:`<svg viewBox="0 0 260 96" class="wn-svg">
+    <rect x="1" y="1" width="258" height="94" rx="4" fill="#fff" stroke="#d5dbe6"/>
+    <text x="14" y="22" font-size="11" font-weight="800" fill="#081937">CARMEL PLAZA NORTH</text>
+    <text x="14" y="35" font-size="8.5" fill="#7b8aa3">WASHINGTON, DC \u00B7 DC39H001004</text>
+    <line x1="14" y1="43" x2="246" y2="43" stroke="#eef1f6"/>
+    <text x="14" y="58" font-size="8" font-weight="800" fill="#7b8aa3">OWNER</text>
+    <text x="246" y="58" font-size="9" text-anchor="end" fill="#0d1e3a">Carmel Plaza LP</text>
+    <text x="14" y="74" font-size="8" font-weight="800" fill="#7b8aa3">MGMT AGENT</text>
+    <text x="246" y="74" font-size="9" text-anchor="end" fill="#0d1e3a">Edgewood Management</text>
+    <rect x="13" y="82" width="234" height="7" rx="3" fill="#eef3fb"/>
+  </svg>`,
+  overlays:`<svg viewBox="0 0 260 96" class="wn-svg">
+    <rect x="1" y="1" width="258" height="94" rx="4" fill="#eef1f5" stroke="#d5dbe6"/>
+    <path d="M20 74 L70 30 L120 58 L170 22 L240 52" fill="none" stroke="#dfe4ec" stroke-width="2"/>
+    <rect x="34" y="26" width="86" height="44" fill="#2f7fd1" fill-opacity=".16" stroke="#2f7fd1"/>
+    <rect x="132" y="40" width="74" height="38" fill="#9061c2" fill-opacity=".16" stroke="#9061c2"/>
+    <circle cx="66" cy="52" r="4" fill="#3f9e5c" stroke="#081937"/>
+    <circle cx="104" cy="40" r="4" fill="#e8b93c" stroke="#081937"/>
+    <circle cx="166" cy="62" r="4" fill="#c0392b" stroke="#081937"/>
+    <rect x="150" y="8" width="102" height="52" rx="3" fill="#fff" stroke="#c9d2e0"/>
+    <text x="158" y="20" font-size="6.5" font-weight="800" fill="#7b8aa3">OVERLAYS</text>
+    <rect x="158" y="25" width="7" height="7" rx="1.5" fill="#fff" stroke="#8a97ad"/>
+    <text x="170" y="31" font-size="7.5" fill="#0d1e3a">Census tracts</text>
+    <rect x="158" y="36" width="7" height="7" rx="1.5" fill="#2f7fd1"/>
+    <text x="170" y="42" font-size="7.5" fill="#0d1e3a">QCT (2026)</text>
+    <rect x="158" y="47" width="7" height="7" rx="1.5" fill="#9061c2"/>
+    <text x="170" y="53" font-size="7.5" fill="#0d1e3a">DDA (2026)</text>
+  </svg>`,
+  subject:`<svg viewBox="0 0 260 96" class="wn-svg">
+    <rect x="1" y="1" width="258" height="94" rx="4" fill="#fff" stroke="#d5dbe6"/>
+    <rect x="1" y="14" width="258" height="26" fill="#e7eefb"/>
+    <rect x="1" y="14" width="4" height="26" fill="#081937"/>
+    <rect x="10" y="21" width="40" height="12" rx="2" fill="#081937"/>
+    <text x="30" y="30" font-size="7" font-weight="800" fill="#fff" text-anchor="middle">SUBJECT</text>
+    <rect x="54" y="21" width="30" height="12" rx="2" fill="#fff" stroke="#c9d2e0"/>
+    <text x="69" y="30" font-size="7" font-weight="800" fill="#7b8aa3" text-anchor="middle">COMP</text>
+    <text x="95" y="30" font-size="9" font-weight="700" fill="#0d1e3a">CARMEL PLAZA NORTH</text>
+    <rect x="196" y="21" width="40" height="12" rx="6" fill="#081937"/>
+    <text x="216" y="30" font-size="6.5" font-weight="800" fill="#fff" text-anchor="middle">SUBJECT</text>
+    <rect x="1" y="44" width="258" height="24" fill="#eaf6f2"/>
+    <rect x="1" y="44" width="4" height="24" fill="#3B7F83"/>
+    <rect x="10" y="50" width="40" height="12" rx="2" fill="#fff" stroke="#c9d2e0"/>
+    <text x="30" y="59" font-size="7" font-weight="800" fill="#7b8aa3" text-anchor="middle">SUBJECT</text>
+    <rect x="54" y="50" width="30" height="12" rx="2" fill="#3B7F83"/>
+    <text x="69" y="59" font-size="7" font-weight="800" fill="#fff" text-anchor="middle">COMP</text>
+    <text x="95" y="59" font-size="9" fill="#0d1e3a">GIBSON PLAZA</text>
+    <text x="236" y="59" font-size="8" text-anchor="end" fill="#7b8aa3" font-family="monospace">0.6 mi</text>
+    <text x="10" y="84" font-size="7.5" fill="#7b8aa3">Miles column appears once a subject is set</text>
+  </svg>`,
+  onlysel:`<svg viewBox="0 0 260 60" class="wn-svg">
+    <rect x="1" y="1" width="258" height="58" rx="4" fill="#0d2347" stroke="#1b3866"/>
+    <rect x="12" y="18" width="58" height="16" rx="8" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-opacity=".4"/>
+    <text x="41" y="29" font-size="7.5" font-weight="700" fill="#fff" text-anchor="middle">Subject \u2715</text>
+    <rect x="76" y="18" width="48" height="16" rx="8" fill="#3B7F83" fill-opacity=".3" stroke="#54c6b8"/>
+    <text x="100" y="29" font-size="7.5" font-weight="700" fill="#cdf3ec" text-anchor="middle">2 comps \u2715</text>
+    <rect x="132" y="17" width="116" height="18" rx="9" fill="#54c6b8"/>
+    <text x="190" y="29" font-size="7.5" font-weight="800" fill="#06231f" text-anchor="middle">\u2713 SHOW ONLY SUBJECT/COMPS</text>
+  </svg>`,
+};
+
 const WHATS_NEW=[
   ["Ownership and Management Agent",
-   "Added ownership and management agent information to the property blurbs when clicking on a property in the map."],
-  ["QCT, DDA and Census Tracts",
-   "Added QCT, DDA and Census Tracts as a view within the map."],
+   "Click any property on the map and the blurb now lists the owner and the management agent, alongside units, coverage, Rent/SAFMR and expiration.",
+   WN_ART.owner],
+  ["QCT, DDA and Census Tracts on the map",
+   "Switch to MAP and use the Overlays box at the top right to lay Qualified Census Tracts, Difficult Development Areas and Census tract boundaries over the properties.",
+   WN_ART.overlays],
+  ["Pick a subject property and comps",
+   "Every row has SUBJECT and COMP buttons. Setting a subject adds a sortable Miles column, marks it on the map, and shows how each property compares in the blurb and dashboard.",
+   WN_ART.subject],
+  ["Work your selection, then export it",
+   "Show Only Subject/Comps narrows the table, map and exports to what you picked. In Excel the subject exports green and comps yellow.",
+   WN_ART.onlysel],
 ];
-const WHATS_NEW_ALERT="If you cannot see them, you must zoom in more.";
+const WHATS_NEW_ALERT="Overlays only draw once you zoom in far enough. If you cannot see them, zoom in more.";
 const WHATS_NEW_CLOSER="Again, please reach out to me (Mason) to add any more features!";
 function showWhatsNew(){
   if(document.getElementById("whatsNew"))return;
@@ -4466,7 +4549,11 @@ function showWhatsNew(){
       <button class="modal-close" title="Close">\u2715</button>
     </div>
     <div class="modal-body">
-      ${WHATS_NEW.map(([t,b])=>'<div class="wn-item"><div class="wn-t">'+t+'</div><div class="wn-b">'+b+"</div></div>").join("")}
+      ${WHATS_NEW.map(([t,b,art])=>'<div class="wn-item">'
+          +'<div class="wn-t">'+t+'</div>'
+          +'<div class="wn-b">'+b+"</div>"
+          +(art?'<div class="wn-art">'+art+"</div>":"")
+          +"</div>").join("")}
       <div class="wn-alert">${WHATS_NEW_ALERT}</div>
       <div class="wn-closer">${WHATS_NEW_CLOSER}</div>
       <div class="wn-foot">If you want to see this again after you dismiss it, click the
@@ -4486,11 +4573,8 @@ function showWhatsNew(){
   document.addEventListener("keydown",esc);
   document.body.appendChild(ov);
 }
-/* HELD BACK ON PURPOSE. The post-meeting content is written and ready, but
-   it must not pop up for anyone yet. Flip WHATS_NEW_LIVE to true when
-   Mason says to push the announcement; everyone then sees it once.
-   The lightbulb button still opens it manually in the meantime. */
-const WHATS_NEW_LIVE=false;
+/* Live: everyone sees this edition once. Bump WHATS_NEW_VERSION only when
+   Mason asks for a new blast; routine changes must not touch it. */
 function maybeWhatsNew(){
   if(!WHATS_NEW_LIVE)return;
   let seen=null;
