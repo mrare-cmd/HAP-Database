@@ -1437,7 +1437,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03h · popup fix, copy row, no amber";
+  const BUILD = "2026-09-03j · popup fixes";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1643,10 +1643,6 @@
     <span class="sl-item" title="This Property ID appears on more than one contract. Click the badge to see them all.">
       <span class="sl-badge">&times;2</span>
       Multiple contracts at one property
-    </span>
-    <span class="sl-item">
-      <span class="sl-swatch"></span>
-      Highlighted row = either of the above
     </span>
   </div>
 </div>
@@ -2990,14 +2986,8 @@ function popupHtml(ri){
   const g=(c)=>{const i=IDX[c];return i===undefined?null:row[i];};
   const cno=g("Contract Number");
   const kv=(k,v)=>v===null||v===undefined||v===""?"":'<span class="k">'+k+'</span><span class="v">'+escHtml(''+v)+'</span>';
-  const ratio=g("Rent-to-FMR Ratio");
-  const sratio=g(SAFMR_RATIO);
-  const sHas=(sratio!==null&&sratio!==undefined&&isFinite(sratio));
-  const sColor=safmrColor(sHas?+sratio:null);
-  const kvSafmr='<span class="k">Rent / SAFMR</span>'
-    +'<span class="v"><span class="pp-chip" style="background:'+sColor+'">'
-    +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span>'
-    +(sHas?dlt(sratio,SAFMR_RATIO,x=>(x*100).toFixed(1)+" pts"):"")+'</span>';
+  /* same, but the value is already-safe HTML (used where a delta span rides along) */
+  const kvHtml=(k,v)=>v===null||v===undefined||v===""?"":'<span class="k">'+k+'</span><span class="v">'+v+'</span>';
   /* deltas against the subject, shown only where there is room */
   const dlt=(val,scol,fmt)=>{
     if(!SUBJECT||selStateOf(ri)==="subject")return "";
@@ -3010,11 +3000,20 @@ function popupHtml(ri){
     if(Math.abs(d)<1e-9)return ' <span class="pp-d">same as subject</span>';
     return ' <span class="pp-d">'+(d>0?"+":"\u2212")+fmt(Math.abs(d))+" vs subj</span>";
   };
+  const ratio=g("Rent-to-FMR Ratio");
+  const sratio=g(SAFMR_RATIO);
+  const sHas=(sratio!==null&&sratio!==undefined&&isFinite(sratio));
+  const sColor=safmrColor(sHas?+sratio:null);
+  const kvSafmr='<span class="k">Rent / SAFMR</span>'
+    +'<span class="v"><span class="pp-chip" style="background:'+sColor+'">'
+    +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span>'
+    +(sHas?dlt(sratio,SAFMR_RATIO,x=>(x*100).toFixed(1)+" pts"):"")+'</span>';
   let h='<div class="pp-name">'+escHtml(''+(row[0]||"Property"))+'</div>'
     +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
     +'<div class="pp-grid">'
-    +kv("Total Units",g("Total Units")!==null?
-        ((+g("Total Units")).toLocaleString()+dlt(g("Total Units"),"Total Units",x=>Math.round(x).toLocaleString())):null)
+    +kvHtml("Total Units",g("Total Units")!==null?
+        (escHtml((+g("Total Units")).toLocaleString())
+         +dlt(g("Total Units"),"Total Units",x=>Math.round(x).toLocaleString())):null)
     +(SUBJECT&&selStateOf(ri)!=="subject"&&milesFromSubject(ri)!==null
         ?kv("From subject",milesFromSubject(ri).toFixed(1)+" mi"):"")
     +kv("S8 Coverage",(()=>{
