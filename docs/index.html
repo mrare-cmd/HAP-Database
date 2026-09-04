@@ -396,6 +396,24 @@
       font-family: inherit; font-size: 8px; line-height: 14px; padding: 0;
     }
     .fs-lbl button:hover { background: #e5484d; color: #fff; }
+    .subj-chip, .comp-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 5px 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700;
+      background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.4); color: #fff;
+    }
+    .subj-chip .sc-l {
+      font-size: 8.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+      color: rgba(255,255,255,.55);
+    }
+    .subj-chip.is-hidden { background: rgba(224,138,60,.2); border-color: #e08a3c; color: #f6d3ab; }
+    .sc-warn { font-size: 10px; font-weight: 700; color: #f0b878; }
+    .comp-chip { background: rgba(59,127,131,.22); border-color: rgba(84,198,184,.5); color: #cdf3ec; }
+    .subj-chip button, .comp-chip button {
+      border: none; background: rgba(255,255,255,.16); color: inherit;
+      width: 15px; height: 15px; border-radius: 50%; cursor: pointer;
+      font-family: inherit; font-size: 8px; line-height: 15px; padding: 0;
+    }
+    .subj-chip button:hover, .comp-chip button:hover { background: #e5484d; color: #fff; }
 
     .chip-field {
       position: relative; height: 34px; padding: 0 6px;
@@ -587,6 +605,13 @@
       padding: 3px 4px; cursor: pointer;
     }
 
+    .subj-label {
+      background: var(--navy); color: #fff; border: none; border-radius: 3px;
+      font-family: 'Libre Franklin', sans-serif; font-size: 10px; font-weight: 800;
+      letter-spacing: .04em; padding: 2px 7px; box-shadow: 0 2px 8px rgba(8,25,55,.35);
+    }
+    .subj-label::before { border-top-color: var(--navy) !important; }
+
     .gc-cluster {
       background: rgba(8,25,55,.88); color: #fff;
       border: 2px solid rgba(255,255,255,.85); border-radius: 50%;
@@ -631,6 +656,15 @@
       transition: all .15s;
     }
     .pp-rents:hover { background: #e9f5f1; }
+
+    .pp-d { font-family: 'Libre Franklin', sans-serif; font-size: 9.5px; color: var(--text-light); }
+    .pp-subj {
+      margin-top: 9px; width: 100%; padding: 6px 0; border-radius: 3px;
+      border: 1px solid var(--navy); background: var(--navy); color: #fff;
+      font-family: inherit; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; cursor: pointer; transition: all .15s;
+    }
+    .pp-subj:hover { background: #0d2347; }
 
     .pp-table {
       margin-top: 6px; width: 100%; padding: 6px 0; border-radius: 3px;
@@ -1218,6 +1252,28 @@
     .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
 
+    .sel-btn {
+      width: 22px; height: 28px; border-radius: 3px; padding: 0;
+      border: 1px solid var(--rule-dark); background: transparent;
+      color: var(--text-light); cursor: pointer; font-size: 11px; line-height: 1;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .sel-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+    .sel-btn.sel-subject { border-color: var(--navy); background: var(--navy); color: #fff; }
+    .sel-btn.sel-comp { border-color: #3B7F83; color: #2c6165; background: #e9f5f1; }
+
+    .data-table tbody tr.is-subject td { background: #e7eefb !important; }
+    .data-table tbody tr.is-subject td.name-col { box-shadow: inset 4px 0 0 var(--navy); }
+    .data-table tbody tr.is-comp td { background: #eaf6f2 !important; }
+    .data-table tbody tr.is-comp td.name-col { box-shadow: inset 4px 0 0 #3B7F83; }
+    .sel-pill {
+      display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px;
+      font-size: 8.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+      vertical-align: 1px; white-space: nowrap;
+    }
+    .sel-pill.p-subject { background: var(--navy); color: #fff; }
+    .sel-pill.p-comp { background: #dff0e9; color: #2c6165; border: 1px solid #a9d6c8; }
+
     /* ── Highlight for flagged rows (multi-tier rents OR multi-contract
          property). Pale amber wash; placed AFTER the striping and sticky
          column rules so it takes precedence, with matching tints on the
@@ -1363,7 +1419,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-02i · ZIP chips and boundary in sync";
+  const BUILD = "2026-09-03 · subject property + comps";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1589,6 +1645,10 @@
       <div class="dt-sub" id="dashSub">&nbsp;</div>
     </div>
     <div class="dt-actions">
+      <button class="hdr-btn" id="dashSubj">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+        <span id="dashSubjLbl">Set as subject</span>
+      </button>
       <button class="hdr-btn" id="dashRR">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Create Rent Roll
@@ -1685,6 +1745,47 @@ let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* map dot coloring: "flags" (multi-tier amber) or "safmr" (stoplight ramp) */
 let COLOR_MODE="renewal", MARKERS=[], _recolorTimer=null;
+/* Subject / comps. Held by Property ID so every contract at the property
+   is marked together, and so a selection survives a data refresh. */
+let SUBJECT=null, COMPS=new Set();
+const MILES_COL="__miles__";          /* virtual column, only when a subject is set */
+
+function pidOf(ri){
+  const i=IDX["Property ID"];
+  const v=(i===undefined)?null:R[ri][i];
+  return (v===null||v===undefined)?null:''+v;
+}
+function selStateOf(ri){
+  const p=pidOf(ri);
+  if(!p)return "";
+  if(SUBJECT&&p===SUBJECT)return "subject";
+  if(COMPS.has(p))return "comp";
+  return "";
+}
+function milesFromSubject(ri){
+  if(!SUBJECT)return null;
+  const a=COORDS[SUBJECT], p=pidOf(ri), b=p?COORDS[p]:null;
+  if(!a||!b)return null;
+  return milesBetween(a[0],a[1],b[0],b[1]);
+}
+function setSubject(pid){
+  SUBJECT=pid||null;
+  if(SUBJECT)COMPS.delete(SUBJECT);       /* cannot be both */
+  afterSelectionChange();
+}
+function toggleComp(pid){
+  if(!pid)return;
+  if(pid===SUBJECT)return;
+  COMPS.has(pid)?COMPS.delete(pid):COMPS.add(pid);
+  afterSelectionChange();
+}
+function clearSelection(){SUBJECT=null;COMPS.clear();afterSelectionChange();}
+function afterSelectionChange(){
+  if(!SUBJECT&&sortCol===MILES_COL){sortCol=0;sortAsc=true;}
+  renderChips();                 /* the strip carries the subject chip */
+  page=0;recompute();
+  if(MAP&&VIEW_MODE==="map")buildMarkers();
+}
 const CLR_MISS="#b9c2cf";
 /* Fixed rent-to-SAFMR bands: the same ratio is always the same color, on
    every screen and in every view, so colors can be compared across
@@ -1845,11 +1946,35 @@ const CHIP_LABELS={searchState:"State",searchCity:"City",searchCounty:"County",
 /* One strip below the filter bar holds every committed chip, grouped by
    field. Keeps the inputs a fixed height and gives one place to see
    everything that is currently filtering. */
+function subjectName(){
+  if(!SUBJECT)return "";
+  const pix=IDX["Property ID"];
+  for(let i=0;i<R.length;i++)if(pix!==undefined&&''+R[i][pix]===SUBJECT)return ''+(R[i][0]||SUBJECT);
+  return SUBJECT;
+}
+function subjectVisible(){
+  if(!SUBJECT)return true;
+  const pix=IDX["Property ID"];
+  for(const ri of view)if(pix!==undefined&&''+R[ri][pix]===SUBJECT)return true;
+  return false;
+}
 function renderChips(){
   const strip=document.getElementById("filterStrip");if(!strip)return;
   const groups=CHIP_FIELDS.filter(f=>CHIPS[f].length);
-  strip.classList.toggle("on",groups.length>0);
-  strip.innerHTML=groups.map(fid=>
+  strip.classList.toggle("on",groups.length>0||!!SUBJECT||COMPS.size>0);
+  let sel="";
+  if(SUBJECT){
+    const hidden=!subjectVisible();
+    sel+='<span class="fs-group"><span class="subj-chip'+(hidden?" is-hidden":"")+'">'
+      +'<span class="sc-l">Subject</span> '+escHtml(subjectName())
+      +(hidden?' <span class="sc-warn">does not meet the current filters</span>':"")
+      +'<button type="button" id="subjClear" title="Clear subject">\u2715</button></span></span>';
+  }
+  if(COMPS.size){
+    sel+='<span class="fs-group"><span class="comp-chip">'+COMPS.size+' comp'+(COMPS.size>1?"s":"")
+      +'<button type="button" id="compClear" title="Clear comps">\u2715</button></span></span>';
+  }
+  strip.innerHTML=sel+groups.map(fid=>
     '<span class="fs-group"><span class="fs-lbl">'+CHIP_LABELS[fid]
     +' <button type="button" data-clear="'+fid+'" title="Clear all '+CHIP_LABELS[fid]+' filters">\u2715</button></span>'
     +CHIPS[fid].map((v,i)=>
@@ -1863,6 +1988,10 @@ function renderChips(){
     renderChips();page=0;recompute();
     if(fid==="searchZip")syncZipBoundary();
   });
+  const sc=strip.querySelector("#subjClear");
+  if(sc)sc.onclick=(e)=>{e.stopPropagation();setSubject(null);};
+  const cc=strip.querySelector("#compClear");
+  if(cc)cc.onclick=(e)=>{e.stopPropagation();COMPS.clear();afterSelectionChange();};
   strip.querySelectorAll("button[data-clear]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
     const fid=b.getAttribute("data-clear");
@@ -1940,6 +2069,17 @@ function escHtml(s){return (''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function buildHead(){
   const tr=document.createElement("tr");
   const th0=document.createElement("th");th0.className="copy-col";tr.appendChild(th0);
+  if(SUBJECT){
+    const thm=document.createElement("th");
+    thm.className="r"+(sortCol===MILES_COL?" sorted":"");
+    thm.innerHTML="Miles"+(sortCol===MILES_COL?('<span class="ar">'+(sortAsc?"\u25B2":"\u25BC")+"</span>"):"");
+    thm.title="Straight-line distance from the subject property";
+    thm.addEventListener("click",()=>{
+      sortAsc=(sortCol===MILES_COL)?!sortAsc:true;
+      sortCol=MILES_COL;page=0;recompute();
+    });
+    tr.appendChild(thm);
+  }
   C.forEach((c,i)=>{
     const th=document.createElement("th");
     if(i===0)th.classList.add("name-col");
@@ -2050,6 +2190,21 @@ function recompute(){
   for(let r=0;r<R.length;r++)if(rowPasses(r,F,null))view.push(r);
   updateFacetCounts(F);
 
+  if(sortCol===MILES_COL){
+    const dirM=sortAsc?1:-1;
+    view.sort((a,b)=>{
+      const ka=milesFromSubject(a), kb=milesFromSubject(b);
+      if(ka===null&&kb===null)return 0;
+      if(ka===null)return 1;
+      if(kb===null)return -1;
+      return ka<kb?-dirM:(ka>kb?dirM:0);
+    });
+    buildHead();render();autofitNameCol();paginate();
+    document.getElementById("resultCount").innerHTML=`<strong>${view.length.toLocaleString()}</strong> properties`;
+    document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(view.length/PAGE_SIZE)||1}`;
+    finishRecompute(F,active,gq,uMin,uMax);
+    return;
+  }
   const t=T[sortCol], ci=sortCol, dir=sortAsc?1:-1;
   const key = t==="num"
     ? (r)=>{const v=R[r][ci];return v===null?null:+v;}
@@ -2071,6 +2226,9 @@ function recompute(){
   document.getElementById("resultCount").innerHTML=`<strong>${view.length.toLocaleString()}</strong> properties`;
   document.getElementById("pageInfo").textContent=`Page ${page+1} of ${Math.ceil(view.length/PAGE_SIZE)||1}`;
 
+  finishRecompute(F,active,gq,uMin,uMax);
+}
+function finishRecompute(F,active,gq,uMin,uMax){
   /* stat strip: live totals for the current filtered view */
   const uix=IDX["Total Units"];
   let units=0;
@@ -2160,7 +2318,7 @@ function render(){
   const start=page*PAGE_SIZE, slice=view.slice(start,start+PAGE_SIZE);
   if(!slice.length){
     const tr=document.createElement("tr"),td=document.createElement("td");
-    td.colSpan=C.length+1;
+    td.colSpan=C.length+(SUBJECT?2:1);
     td.innerHTML=`<div class="empty-state">
       <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>
@@ -2193,11 +2351,34 @@ function render(){
     const rrb=document.createElement("button");rrb.className="rr-btn";rrb.textContent="RR";
     rrb.title="Create rent roll (RedIQ/Radix-ready) for this property";
     rrb.onclick=()=>createRentRoll(ri);aw.appendChild(rrb);
+    const st=selStateOf(ri), selPid=pidOf(ri);
+    const sb=document.createElement("button");
+    sb.className="sel-btn"+(st?" sel-"+st:"");
+    sb.innerHTML=st==="subject"?"\u25c9":(st==="comp"?"\u2713":"\u25cb");
+    sb.title=st==="subject"?"This is the subject \u2014 click to unset"
+            :st==="comp"?"Marked as a comp \u2014 click to remove"
+            :(SUBJECT?"Add as a comp":"Set as the subject property");
+    sb.onclick=(e)=>{
+      e.stopPropagation();
+      if(st==="subject")setSubject(null);
+      else if(st==="comp")toggleComp(selPid);
+      else if(SUBJECT)toggleComp(selPid);
+      else setSubject(selPid);
+    };
+    aw.appendChild(sb);
     ct.appendChild(aw);tr.appendChild(ct);
+    if(SUBJECT){
+      const td=document.createElement("td");td.className="n r";
+      const mi=milesFromSubject(ri);
+      td.textContent=(mi===null)?"\u2014":(mi<10?mi.toFixed(1):Math.round(mi).toLocaleString());
+      tr.appendChild(td);
+    }
     const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
     const pid=IDX["Property ID"]!==undefined?row[IDX["Property ID"]]:null;
     const nContracts=pid!==null&&pid!==undefined?(PROP_N[pid]||0):0;
     if((cno&&TIERS[cno])||nContracts>1)tr.classList.add("hl-row");
+    const selSt=selStateOf(ri);
+    if(selSt)tr.classList.add(selSt==="subject"?"is-subject":"is-comp");
     for(let cix=0;cix<C.length;cix++){
       const td=document.createElement("td");
       const v=disp(cix,row[cix]);
@@ -2208,6 +2389,12 @@ function render(){
         const wrap=document.createElement("div");wrap.className="pn-wrap";
         const tx=document.createElement("span");tx.className="pn-text";tx.textContent=v;
         wrap.appendChild(tx);
+        if(selSt){
+          const pill=document.createElement("span");
+          pill.className="sel-pill "+(selSt==="subject"?"p-subject":"p-comp");
+          pill.textContent=selSt==="subject"?"Subject":"Comp";
+          wrap.appendChild(pill);
+        }
         if(cno&&TIERS[cno]){
           const fb=document.createElement("button");
           fb.className="tier-flag";
@@ -2280,12 +2467,15 @@ document.getElementById("exportBtn").onclick=async()=>{
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet("HAP",{views:[{state:"frozen",xSplit:1,ySplit:1}]});
-    const XC=[...C,"Rent Tier"];   /* export columns = table columns + tier label */
+    /* selection columns ride along only when a subject is set */
+    const XC=SUBJECT?[...C,"Rent Tier","Selection","Miles from Subject"]
+                    :[...C,"Rent Tier"];
 
     /* typed column definitions (number formats) must precede the data */
     ws.columns=XC.map((c,i)=>({
       key:"c"+i,
       style: i<C.length&&T[i]==="date" ? {numFmt:"m/d/yyyy"}
+           : c==="Miles from Subject" ? {numFmt:"0.0"}
            : i<C.length&&T[i]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%":"#,##0")}
            : {}
     }));
@@ -2307,7 +2497,10 @@ document.getElementById("exportBtn").onclick=async()=>{
       const base=C.map((c,i)=>typed(i,R[ri][i]));
       const cno=cnoIx!==undefined?R[ri][cnoIx]:null;
       const tiers=cno?TIERS[cno]:null;
-      if(!tiers){rows.push([...base,null]);continue;}
+      const selTag=SUBJECT?(selStateOf(ri)==="subject"?"Subject":selStateOf(ri)==="comp"?"Comp":null):null;
+      const selMi=SUBJECT?milesFromSubject(ri):null;
+      const tail=SUBJECT?[selTag,(selMi===null?null:Math.round(selMi*10)/10)]:[];
+      if(!tiers){rows.push([...base,null,...tail]);continue;}
       /* group tier rows by bedroom size, preserving source order */
       const byBed={};
       for(const t of tiers){
@@ -2316,7 +2509,7 @@ document.getElementById("exportBtn").onclick=async()=>{
       }
       const n=Math.max(1,...Object.values(byBed).map(a=>a.length));
       for(let k=0;k<n;k++){
-        const r=[...base,(k+1)+" of "+n];
+        const r=[...base,(k+1)+" of "+n,...tail];
         for(const bk in byBed){
           const ri2=IDX[bk+" Rent"],ui2=IDX[bk+" UA"],qi2=IDX[bk+" Units"];
           const t=byBed[bk][k];
@@ -2437,6 +2630,9 @@ document.getElementById("resetBtn").onclick=()=>{
   document.querySelectorAll(".ms-list input").forEach(cb=>cb.checked=false);
   syncMsLabel("Program");syncMsLabel("Renewal");syncMsLabel("Doc");
   clearGeo(false);   /* the reset below recomputes once for everything */
+  /* selection is deliberately NOT cleared here: Clear resets filters, and
+     losing the subject you are working on would be a nasty surprise. Use
+     the Subject chip's own x for that. */
   page=0;recompute();
 };
 document.getElementById("pageSizeSel").addEventListener("change",function(){
@@ -2733,11 +2929,27 @@ function popupHtml(ri){
   const sColor=safmrColor(sHas?+sratio:null);
   const kvSafmr='<span class="k">Rent / SAFMR</span>'
     +'<span class="v"><span class="pp-chip" style="background:'+sColor+'">'
-    +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span></span>';
+    +(sHas?(+sratio*100).toFixed(1)+"%":"n/a")+'</span>'
+    +(sHas?dlt(sratio,SAFMR_RATIO,x=>(x*100).toFixed(1)+" pts"):"")+'</span>';
+  /* deltas against the subject, shown only where there is room */
+  const dlt=(val,scol,fmt)=>{
+    if(!SUBJECT||selStateOf(ri)==="subject")return "";
+    const pix=IDX["Property ID"];let sr=-1;
+    for(let i=0;i<R.length;i++)if(''+R[i][pix]===SUBJECT){sr=i;break;}
+    if(sr<0)return "";
+    const sv=R[sr][IDX[scol]], v=val;
+    if(sv===null||sv===undefined||v===null||v===undefined||!isFinite(sv)||!isFinite(v))return "";
+    const d=(+v)-(+sv);
+    if(Math.abs(d)<1e-9)return ' <span class="pp-d">same as subject</span>';
+    return ' <span class="pp-d">'+(d>0?"+":"\u2212")+fmt(Math.abs(d))+" vs subj</span>";
+  };
   let h='<div class="pp-name">'+escHtml(''+(row[0]||"Property"))+'</div>'
     +'<div class="pp-sub">'+escHtml([g("City"),g("State")].filter(Boolean).join(", "))+' \u00B7 '+escHtml(''+(cno||""))+'</div>'
     +'<div class="pp-grid">'
-    +kv("Total Units",g("Total Units")!==null?(+g("Total Units")).toLocaleString():null)
+    +kv("Total Units",g("Total Units")!==null?
+        ((+g("Total Units")).toLocaleString()+dlt(g("Total Units"),"Total Units",x=>Math.round(x).toLocaleString())):null)
+    +(SUBJECT&&selStateOf(ri)!=="subject"&&milesFromSubject(ri)!==null
+        ?kv("From subject",milesFromSubject(ri).toFixed(1)+" mi"):"")
     +kv("S8 Coverage",(()=>{
         /* prefer the pipeline column; fall back to the arithmetic so the row
            works before the next update run populates it */
@@ -2766,6 +2978,12 @@ function popupHtml(ri){
     const n=rentLinesForRow(ri).lines.length;
     if(n)h+='<button class="pp-rents" onclick="openRentsFromRow('+ri+')">View rents ('+n+' unit type'+(n>1?"s":"")+')</button>';
   }
+  const psel=selStateOf(ri), ppid=pidOf(ri);
+  h+='<button class="pp-subj" onclick="'+(psel==="subject"?"setSubject(null)"
+        :psel==="comp"?("toggleComp('"+ppid+"')")
+        :(SUBJECT?("toggleComp('"+ppid+"')"):("setSubject('"+ppid+"')")))+'">'
+    +(psel==="subject"?"Unset subject":psel==="comp"?"Remove comp":(SUBJECT?"Add as comp":"Set as subject"))
+    +"</button>";
   h+='<button class="pp-table" onclick="openDashboard('+ri+')">Open property dashboard</button>';
   h+='<button class="pp-table" onclick="showInTable('+ri+')">Show in table</button>';
   return h;
@@ -2832,10 +3050,25 @@ function buildMarkers(){
     const val=(sIx===undefined)?null:R[ri][sIx];
     const rv=(rIx===undefined)?null:R[ri][rIx];
     const gv=gprFor(ri);
-    const m=L.circleMarker([lat,lon],{radius:5,weight:1,color:"#081937",
+    const sel=selStateOf(ri);
+    const m=L.circleMarker([lat,lon],{
+      radius:sel==="subject"?8:(sel==="comp"?6:5),
+      weight:sel==="subject"?3:(sel==="comp"?2:1),
+      /* the stroke carries the selection so the FILL stays free for the
+         colour-by modes */
+      color:sel==="subject"?"#ffffff":"#081937",
+      dashArray:sel==="comp"?"3,3":null,
       fillColor:flagged?"#e08a3c":"#3B7F83",fillOpacity:.85});
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
+    if(sel==="subject"){
+      /* navy ring around the white halo, plus a standing name label */
+      const ring=L.circleMarker([lat,lon],{radius:12,weight:2,color:"#081937",
+        fill:false,interactive:false});
+      ms.push(ring);
+      m.bindTooltip(''+(R[ri][0]||"Subject"),{permanent:true,direction:"top",
+        className:"subj-label",offset:[0,-10]});
+    }
     MARKERS.push({m,lat,lon,flagged:!!flagged,rv,gv,
                   val:(val===null||val===undefined||!isFinite(val))?null:+val});
   }
@@ -3471,6 +3704,7 @@ function openDashboard(ri){
     if(pid!==null&&pid!==undefined)q.set("property",pid);
     history.replaceState(null,"",location.pathname+location.search+"#"+q.toString());
   }catch(e){}
+  syncDashSubjBtn();
   setTimeout(()=>drawDashMap(pid,''+(row[0]||"")),40);
 }
 
@@ -3534,6 +3768,22 @@ function closeDashboard(){
 }
 document.getElementById("dashBack").onclick=closeDashboard;
 document.getElementById("dashRR").onclick=()=>{if(DASH_ROW!==null)createRentRoll(DASH_ROW);};
+document.getElementById("dashSubj").onclick=()=>{
+  if(DASH_ROW===null)return;
+  const st=selStateOf(DASH_ROW), pid=pidOf(DASH_ROW);
+  if(st==="subject")setSubject(null);
+  else if(st==="comp")toggleComp(pid);
+  else if(SUBJECT)toggleComp(pid);
+  else setSubject(pid);
+  syncDashSubjBtn();
+};
+function syncDashSubjBtn(){
+  if(DASH_ROW===null)return;
+  const st=selStateOf(DASH_ROW);
+  const el=document.getElementById("dashSubjLbl");
+  if(el)el.textContent=st==="subject"?"Unset subject":st==="comp"?"Remove comp"
+        :(SUBJECT?"Add as comp":"Set as subject");
+}
 document.addEventListener("keydown",(e)=>{
   if(e.key==="Escape"&&document.getElementById("dashWrap").classList.contains("open"))closeDashboard();
 });
@@ -3746,7 +3996,10 @@ function serializeFilters(){
       q.set("geo","p:"+ring.map(pt=>pt[0].toFixed(5)+","+pt[1].toFixed(5)).join(";"));
     }
   }
-  if(C[sortCol]&&sortCol!==0)q.set("sort",C[sortCol]);
+  if(SUBJECT)q.set("subj",SUBJECT);
+  for(const c of COMPS)q.append("comp",c);
+  if(sortCol===MILES_COL)q.set("sort","__miles__");
+  else if(C[sortCol]&&sortCol!==0)q.set("sort",C[sortCol]);
   else if(sortCol===0&&!sortAsc)q.set("sort",C[0]);
   if(!sortAsc)q.set("dir","d");
   if(PAGE_SIZE!==50)q.set("size",String(PAGE_SIZE));
@@ -3803,8 +4056,12 @@ function applyFilterHash(){
                   .filter(pt=>pt.length===2&&pt.every(n=>isFinite(n)));
       if(ring.length>=3)GEO={kind:"poly",ring,rings:[ring],bbox:bboxOfRing(ring)};
     }
+    SUBJECT=q.get("subj")||null;
+    COMPS=new Set(q.getAll("comp").filter(Boolean));
+    if(SUBJECT)COMPS.delete(SUBJECT);
     const sc=q.get("sort");
-    if(sc){const i=C.indexOf(sc);if(i>=0)sortCol=i;}
+    if(sc==="__miles__"){ if(SUBJECT)sortCol=MILES_COL; }
+    else if(sc){const i=C.indexOf(sc);if(i>=0)sortCol=i;}
     sortAsc=(q.get("dir")!=="d");
     renderChips();
     const sz=parseInt(q.get("size")||"",10);
