@@ -414,16 +414,21 @@
       font-family: inherit; font-size: 8px; line-height: 15px; padding: 0;
     }
     .subj-chip button:hover, .comp-chip button:hover { background: #e5484d; color: #fff; }
-    .only-right { margin-left: auto; }
+    .sel-cluster { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    /* Mirrors the Clear button's "I am live" treatment, in seafoam rather
+       than red since this narrows rather than destroys. */
     .only-sel {
-      padding: 4px 11px; border-radius: 12px; cursor: pointer;
-      border: 1px solid rgba(255,255,255,.3); background: transparent;
-      color: rgba(255,255,255,.7); font-family: inherit;
-      font-size: 9.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
-      transition: all .15s;
+      padding: 5px 13px; border-radius: 12px; cursor: pointer;
+      border: 1px solid #54c6b8; background: rgba(84,198,184,.16); color: #bff0e7;
+      font-family: inherit; font-size: 9.5px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; transition: all .15s; white-space: nowrap;
     }
-    .only-sel:hover { border-color: #fff; color: #fff; }
-    .only-sel.on { background: #fff; border-color: #fff; color: var(--navy); }
+    .only-sel:hover { background: rgba(84,198,184,.3); color: #fff; border-color: #7fdccf; }
+    .only-sel.on {
+      background: #54c6b8; border-color: #54c6b8; color: #06231f;
+      box-shadow: 0 0 0 3px rgba(84,198,184,.25);
+    }
+    .only-sel.on:hover { background: #6ad3c6; }
 
     .chip-field {
       position: relative; height: 34px; padding: 0 6px;
@@ -1435,7 +1440,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03e · hover + toggle placement";
+  const BUILD = "2026-09-03f · excel fills + strip layout";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1992,28 +1997,28 @@ function renderChips(){
   if(SUBJECT){
     const known=subjectName()!==SUBJECT;      /* false = no such property in the data */
     const hidden=!subjectVisible();
-    sel+='<span class="fs-group"><span class="subj-chip'+(hidden?" is-hidden":"")+'">'
+    sel+='<span class="subj-chip'+(hidden?" is-hidden":"")+'">'
       +'<span class="sc-l">Subject</span> '+escHtml(subjectName())
       +(!known?' <span class="sc-warn">not found in the current data</span>'
         :hidden?' <span class="sc-warn">does not meet the current filters</span>':"")
-      +'<button type="button" id="subjClear" title="Clear subject">\u2715</button></span></span>';
+      +'<button type="button" id="subjClear" title="Clear subject">\u2715</button></span>';
   }
   if(COMPS.size){
-    sel+='<span class="fs-group"><span class="comp-chip">'+COMPS.size+' comp'+(COMPS.size>1?"s":"")
-      +'<button type="button" id="compClear" title="Clear comps">\u2715</button></span></span>';
+    sel+='<span class="comp-chip">'+COMPS.size+' comp'+(COMPS.size>1?"s":"")
+      +'<button type="button" id="compClear" title="Clear comps">\u2715</button></span>';
   }
   if(SUBJECT||COMPS.size){
-    sel+='<span class="fs-group only-right"><button type="button" id="onlySelBtn" class="only-sel'
+    sel+='<button type="button" id="onlySelBtn" class="only-sel'
       +(ONLY_SEL?" on":"")+'" title="Narrow the table, map and exports to the subject and its comps">'
-      +(ONLY_SEL?"\u2713 ":"")+'Show Only Subject/Comps</button></span>';
+      +(ONLY_SEL?"\u2713 ":"")+'Show Only Subject/Comps</button>';
   }
-  strip.innerHTML=groups.map(fid=>
+  strip.innerHTML=(sel?'':'')+groups.map(fid=>
     '<span class="fs-group"><span class="fs-lbl">'+CHIP_LABELS[fid]
     +' <button type="button" data-clear="'+fid+'" title="Clear all '+CHIP_LABELS[fid]+' filters">\u2715</button></span>'
     +CHIPS[fid].map((v,i)=>
         '<span class="chip"><span title="'+escHtml(v)+'">'+escHtml(v)+'</span>'
         +'<button type="button" data-f="'+fid+'" data-i="'+i+'" title="Remove">\u2715</button></span>').join("")
-    +'</span>').join("")+sel;
+    +'</span>').join("")+(sel?'<span class="sel-cluster">'+sel+"</span>":"");
   strip.querySelectorAll("button[data-i]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
     const fid=b.getAttribute("data-f");
@@ -2578,6 +2583,22 @@ document.getElementById("exportBtn").onclick=async()=>{
       columns:XC.map(c=>({name:c,filterButton:true})),
       rows
     });
+
+    /* Highlight the selection. Done after addTable so the banded table style
+       cannot overwrite it, and driven off the source rows rather than the
+       written cells. Subject #92D050, comps #FFFF00. */
+    if(anySel){
+      const selIx=XC.indexOf("Selection");
+      if(selIx>=0){
+        rows.forEach((r,i)=>{
+          const argb=r[selIx]==="Subject"?"FF92D050":(r[selIx]==="Comp"?"FFFFFF00":null);
+          if(!argb)return;
+          const xr=ws.getRow(i+2);           /* +1 header, +1 one-based */
+          for(let cn=1;cn<=XC.length;cn++)
+            xr.getCell(cn).fill={type:"pattern",pattern:"solid",fgColor:{argb}};
+        });
+      }
+    }
 
     /* auto-fit widths (sampled for speed on huge exports) */
     const sample=Math.min(rows.length,1500);
