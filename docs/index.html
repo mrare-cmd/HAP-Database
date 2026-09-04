@@ -1175,7 +1175,7 @@
     .data-table thead th:hover { color: var(--white); background: var(--navy-mid); }
     .data-table thead th.sorted { color: var(--white); }
     .data-table thead th .ar { font-size: 8px; opacity: .8; margin-left: 4px; }
-    .data-table thead th.copy-col { cursor: default; width: 36px; min-width: 36px; }
+    .data-table thead th.copy-col { cursor: default; width: 128px; min-width: 128px; }
     .data-table thead th.copy-col:hover { background: var(--navy); }
 
     .data-table tbody tr { transition: background .1s; }
@@ -1225,7 +1225,7 @@
       background: var(--white);
       border-right: 1px solid var(--rule);
       padding: 0 5px;
-      width: 72px; min-width: 72px; max-width: 72px;
+      width: 128px; min-width: 128px; max-width: 128px;
     }
     .act-wrap { display: flex; align-items: center; gap: 4px; justify-content: center; }
     .data-table thead th.copy-col { background: var(--navy); z-index: 6; border-right: 1px solid var(--navy-faint); }
@@ -1237,7 +1237,7 @@
        drag the header's right edge to adjust, double-click it to re-fit. */
     .data-table td.name-col,
     .data-table thead th.name-col {
-      position: sticky; left: 72px; z-index: 2;
+      position: sticky; left: 128px; z-index: 2;
       background: var(--white);
       border-right: 1px solid var(--rule-dark);
       box-shadow: 4px 0 6px -4px rgba(8,25,55,.14);
@@ -1260,15 +1260,19 @@
     .data-table tbody tr:nth-child(even) td.name-col { background: var(--row-alt); }
     .data-table tbody tr:hover td.name-col { background: var(--hover-row); }
 
-    .sel-btn {
-      width: 22px; height: 28px; border-radius: 3px; padding: 0;
+    .pick-btn {
+      height: 22px; padding: 0 8px; border-radius: 3px;
       border: 1px solid var(--rule-dark); background: transparent;
-      color: var(--text-light); cursor: pointer; font-size: 11px; line-height: 1;
-      display: flex; align-items: center; justify-content: center; transition: all .15s;
+      color: var(--text-light); cursor: pointer;
+      font-family: 'Libre Franklin', sans-serif; font-size: 9px; font-weight: 800;
+      letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+      transition: all .12s;
     }
-    .sel-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
-    .sel-btn.sel-subject { border-color: var(--navy); background: var(--navy); color: #fff; }
-    .sel-btn.sel-comp { border-color: #3B7F83; color: #2c6165; background: #e9f5f1; }
+    .pick-btn:hover { border-color: var(--navy); color: var(--navy); background: var(--hover-row); }
+    .pick-subj.on { border-color: var(--navy); background: var(--navy); color: #fff; }
+    .pick-subj.on:hover { background: #0d2347; color: #fff; }
+    .pick-comp.on { border-color: #3B7F83; background: #3B7F83; color: #fff; }
+    .pick-comp.on:hover { background: #2c6165; color: #fff; }
 
     .sel-pill {
       display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px;
@@ -1440,7 +1444,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03f · excel fills + strip layout";
+  const BUILD = "2026-09-03g · subject/comp row buttons";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -2395,26 +2399,20 @@ function render(){
     });
     const ct=document.createElement("td");ct.className="copy-col";
     const aw=document.createElement("div");aw.className="act-wrap";
-    const btn=document.createElement("button");btn.className="copy-btn";btn.innerHTML=CI;btn.title="Copy row";
-    btn.onclick=()=>copyRow(ri,btn,tr);aw.appendChild(btn);
-    const rrb=document.createElement("button");rrb.className="rr-btn";rrb.textContent="RR";
-    rrb.title="Create rent roll (RedIQ/Radix-ready) for this property";
-    rrb.onclick=()=>createRentRoll(ri);aw.appendChild(rrb);
     const st=selStateOf(ri), selPid=pidOf(ri);
-    const sb=document.createElement("button");
-    sb.className="sel-btn"+(st?" sel-"+st:"");
-    sb.innerHTML=st==="subject"?"\u25c9":(st==="comp"?"\u2713":"\u25cb");
-    sb.title=st==="subject"?"This is the subject \u2014 click to unset"
-            :st==="comp"?"Marked as a comp \u2014 click to remove"
-            :(SUBJECT?"Add as a comp":"Set as the subject property");
-    sb.onclick=(e)=>{
-      e.stopPropagation();
-      if(st==="subject")setSubject(null);
-      else if(st==="comp")toggleComp(selPid);
-      else if(SUBJECT)toggleComp(selPid);
-      else setSubject(selPid);
+    const mk=(cls,label,active,title,fn)=>{
+      const b=document.createElement("button");
+      b.className="pick-btn "+cls+(active?" on":"");
+      b.textContent=label;b.title=title;
+      b.onclick=(e)=>{e.stopPropagation();fn();};
+      return b;
     };
-    aw.appendChild(sb);
+    aw.appendChild(mk("pick-subj","Subject",st==="subject",
+      st==="subject"?"Unset the subject":"Make this the subject property",
+      ()=>st==="subject"?setSubject(null):setSubject(selPid)));
+    aw.appendChild(mk("pick-comp","Comp",st==="comp",
+      st==="comp"?"Remove this comp":(st==="subject"?"This is the subject":"Mark as a comp"),
+      ()=>{ if(st==="subject")return; toggleComp(selPid); }));
     ct.appendChild(aw);tr.appendChild(ct);
     if(SUBJECT){
       const td=document.createElement("td");td.className="n r";
