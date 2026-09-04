@@ -396,6 +396,10 @@
       font-family: inherit; font-size: 8px; line-height: 14px; padding: 0;
     }
     .fs-lbl button:hover { background: #e5484d; color: #fff; }
+    /* the subject ring overlay must never intercept clicks meant for markers */
+    .leaflet-overlay-pane svg { pointer-events: none; }
+    .leaflet-overlay-pane svg path.leaflet-interactive { pointer-events: auto; }
+
     .subj-chip, .comp-chip {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 3px 5px 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 700;
@@ -1282,19 +1286,8 @@
     .sel-pill.p-subject { background: var(--navy); color: #fff; }
     .sel-pill.p-comp { background: #dff0e9; color: #2c6165; border: 1px solid #a9d6c8; }
 
-    /* ── Highlight for flagged rows (multi-tier rents OR multi-contract
-         property). Pale amber wash; placed AFTER the striping and sticky
-         column rules so it takes precedence, with matching tints on the
-         frozen columns so the color runs edge to edge. ── */
-    .data-table tbody tr.hl-row,
-    .data-table tbody tr.hl-row td.copy-col,
-    .data-table tbody tr.hl-row td.name-col { background: #fcf5e9; }
-    .data-table tbody tr.hl-row:nth-child(even),
-    .data-table tbody tr.hl-row:nth-child(even) td.copy-col,
-    .data-table tbody tr.hl-row:nth-child(even) td.name-col { background: #f8efdf; }
-    .data-table tbody tr.hl-row:hover,
-    .data-table tbody tr.hl-row:hover td.copy-col,
-    .data-table tbody tr.hl-row:hover td.name-col { background: #f2e7d0 !important; }
+    /* Flagged rows are marked by the flag icon and the xN badge only;
+       the amber row wash was removed as too noisy. */
 
     /* Selection outranks the amber flag rows. Equal specificity plus
        !important means source order decides, so these must come LAST. */
@@ -1444,7 +1437,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-03g · subject/comp row buttons";
+  const BUILD = "2026-09-03h · popup fix, copy row, no amber";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1670,6 +1663,10 @@
       <div class="dt-sub" id="dashSub">&nbsp;</div>
     </div>
     <div class="dt-actions">
+      <button class="hdr-btn" id="dashCopy" title="Copy this row to the clipboard">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <span id="dashCopyLbl">Copy Row</span>
+      </button>
       <button class="hdr-btn" id="dashSubj">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
         <span id="dashSubjLbl">Set as subject</span>
@@ -1772,7 +1769,7 @@ let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 let COLOR_MODE="renewal", MARKERS=[], _recolorTimer=null;
 /* Subject / comps. Held by Property ID so every contract at the property
    is marked together, and so a selection survives a data refresh. */
-let SUBJECT=null, COMPS=new Set(), SUBJ_LAYER=null, ONLY_SEL=false;
+let SUBJECT=null, COMPS=new Set(), SUBJ_LAYER=null, SUBJ_RENDERER=null, ONLY_SEL=false;
 const MILES_COL="__miles__";          /* virtual column, only when a subject is set */
 
 function pidOf(ri){
@@ -2423,7 +2420,6 @@ function render(){
     const cno=IDX["Contract Number"]!==undefined?row[IDX["Contract Number"]]:null;
     const pid=IDX["Property ID"]!==undefined?row[IDX["Property ID"]]:null;
     const nContracts=pid!==null&&pid!==undefined?(PROP_N[pid]||0):0;
-    if((cno&&TIERS[cno])||nContracts>1)tr.classList.add("hl-row");
     const selSt=selStateOf(ri);
     if(selSt)tr.classList.add(selSt==="subject"?"is-subject":"is-comp");
     for(let cix=0;cix<C.length;cix++){
@@ -2979,6 +2975,7 @@ function ensureMap(){
     }
   });
   MAP.addLayer(CLUSTER);
+  SUBJ_RENDERER=L.svg({padding:0.5});     /* SVG so clicks pass through */
   SUBJ_LAYER=L.layerGroup().addTo(MAP);   /* rings only, kept out of the cluster */
 }
 /* HUD records an organization for ~99.5% of properties and an individual
@@ -3133,13 +3130,16 @@ function buildMarkers(){
     m.bindPopup(()=>popupHtml(ri),{maxWidth:300});
     ms.push(m);pts.push([lat,lon]);
     if(sel==="subject"&&SUBJ_LAYER){
-      /* A quiet double ring drawn on its own layer. It must NOT go into the
-         cluster group: a non-interactive layer in there breaks the cluster's
-         event handling and every popup stops opening. */
+      /* A quiet double ring on its own layer. Two hard-won rules here:
+         it must NOT go into the cluster group (that breaks the cluster's
+         event handling), and it must render as SVG rather than canvas -
+         the map runs preferCanvas, and a second canvas renderer covers the
+         whole map and swallows clicks even for non-interactive shapes. */
+      const rOpts={fill:false,interactive:false,renderer:SUBJ_RENDERER};
       SUBJ_LAYER.addLayer(L.circleMarker([lat,lon],
-        {radius:11,weight:2,color:"#081937",opacity:.9,fill:false,interactive:false}));
+        Object.assign({radius:11,weight:2,color:"#081937",opacity:.9},rOpts)));
       SUBJ_LAYER.addLayer(L.circleMarker([lat,lon],
-        {radius:14,weight:1,color:"#081937",opacity:.35,fill:false,interactive:false}));
+        Object.assign({radius:14,weight:1,color:"#081937",opacity:.35},rOpts)));
     }
     MARKERS.push({m,lat,lon,flagged:!!flagged,rv,gv,
                   val:(val===null||val===undefined||!isFinite(val))?null:+val});
@@ -3840,6 +3840,14 @@ function closeDashboard(){
 }
 document.getElementById("dashBack").onclick=closeDashboard;
 document.getElementById("dashRR").onclick=()=>{if(DASH_ROW!==null)createRentRoll(DASH_ROW);};
+document.getElementById("dashCopy").onclick=function(){
+  if(DASH_ROW===null)return;
+  const lbl=document.getElementById("dashCopyLbl"), old=lbl.textContent;
+  const line=C.map((c,i)=>{const v=R[DASH_ROW][i];return v===null||v===undefined?"":(''+v);}).join("\t");
+  navigator.clipboard.writeText(C.join("\t")+"\n"+line).then(()=>{
+    lbl.textContent="Copied";setTimeout(()=>lbl.textContent=old,1400);
+  }).catch(()=>{lbl.textContent="Copy failed";setTimeout(()=>lbl.textContent=old,1400);});
+};
 document.getElementById("dashSubj").onclick=()=>{
   if(DASH_ROW===null)return;
   const st=selStateOf(DASH_ROW), pid=pidOf(DASH_ROW);
