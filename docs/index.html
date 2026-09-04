@@ -1363,7 +1363,7 @@
      instead opens the GitHub "Run workflow" page (login required).
      OWNER_REPO: "user/repo" - leave "" to auto-detect from the URL.
   ──────────────────────────────────────────────────────────────── */
-  const BUILD = "2026-09-02h · multi-ZIP boundaries";
+  const BUILD = "2026-09-02i · ZIP chips and boundary in sync";
   console.log("PBS8 Database build:", BUILD);
   const API = "https://hap-update.mrareshide.workers.dev";   /* auth + data gateway */
   /* CARTO basemap key (free, from carto.com/basemaps/apikey). Leave "" and
@@ -1858,13 +1858,17 @@ function renderChips(){
     +'</span>').join("");
   strip.querySelectorAll("button[data-i]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
-    CHIPS[b.getAttribute("data-f")].splice(+b.getAttribute("data-i"),1);
+    const fid=b.getAttribute("data-f");
+    CHIPS[fid].splice(+b.getAttribute("data-i"),1);
     renderChips();page=0;recompute();
+    if(fid==="searchZip")syncZipBoundary();
   });
   strip.querySelectorAll("button[data-clear]").forEach(b=>b.onclick=(e)=>{
     e.stopPropagation();
-    CHIPS[b.getAttribute("data-clear")]=[];
+    const fid=b.getAttribute("data-clear");
+    CHIPS[fid]=[];
     renderChips();page=0;recompute();
+    if(fid==="searchZip")syncZipBoundary();
   });
 }
 function addChip(fid,val){
@@ -1875,6 +1879,13 @@ function addChip(fid,val){
   return true;
 }
 function clearChips(){CHIP_FIELDS.forEach(f=>CHIPS[f]=[]);renderChips();}
+/* If ZIP boundaries are drawn, keep them matched to the ZIP chips: removing
+   a chip redraws without it, and removing the last one clears the shape. */
+function syncZipBoundary(){
+  if(!GEO||!GEO.zips||!GEO.zips.length)return;
+  if(CHIPS.searchZip.length)applyZipBoundary(CHIPS.searchZip,{quiet:true});
+  else clearGeo(true,true);
+}
 
 CHIP_FIELDS.forEach(fid=>{
   const inp=document.getElementById(fid);
@@ -1893,6 +1904,7 @@ CHIP_FIELDS.forEach(fid=>{
       }
     }else if(e.key==="Backspace"&&inp.value===""&&CHIPS[fid].length){
       CHIPS[fid].pop();renderChips();page=0;recompute();
+      if(fid==="searchZip")syncZipBoundary();
     }
   });
 });
@@ -2975,8 +2987,13 @@ function drawGeoLayer(){
   }catch(e){}
 }
 
-function clearGeo(refresh){
+function clearGeo(refresh,keepChips){
   if(_geoClearing)return;
+  /* clearing a ZIP-derived shape also drops those ZIP chips, so the strip
+     never advertises a filter that is no longer on the map */
+  if(!keepChips&&GEO&&GEO.zips&&GEO.zips.length&&CHIPS.searchZip.length){
+    CHIPS.searchZip=[];renderChips();
+  }
   const had=!!GEO||(GEO_LAYERS&&GEO_LAYERS.getLayers().length>0);
   _geoClearing=true;
   GEO=null;
