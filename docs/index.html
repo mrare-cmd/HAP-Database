@@ -2527,7 +2527,7 @@ document.getElementById("exportBtn").onclick=async()=>{
      view limit (max 500 rows). Full-database downloads live in the vault. */
   const pageRows=view.slice(page*PAGE_SIZE,page*PAGE_SIZE+PAGE_SIZE);
   if(!pageRows.length)return;
-  track("export_page");
+  track("pbs8:export_page");
   setStatus("Building formatted export ("+pageRows.length.toLocaleString()+" rows)\u2026");
   await new Promise(r=>setTimeout(r,50));
   try{
@@ -3236,7 +3236,7 @@ function updateMapLegend(mode,missing){
   }
 }
 function captureGeo(layer){
-  track("map_draw");
+  track("pbs8:map_draw");
   try{
     if(layer instanceof L.Circle){
       const c=layer.getLatLng(), radMi=layer.getRadius()/1609.344;
@@ -3397,7 +3397,7 @@ document.getElementById("modeMap").onclick=()=>setViewMode("map");
    Lease Type | Occupancy | Market Rent | Contractual Rent + UA / Gross /
    FMR / Contract. Lease Type = Subsidized (HAP). Second tab = tie-out. */
 async function createRentRoll(ri){
-  track("rent_roll");
+  track("pbs8:rent_roll");
   const pix=IDX["Property ID"],cix=IDX["Contract Number"];
   const pid=pix!==undefined?R[ri][pix]:null;
   if(pid===null||pid===undefined){setStatus("This row has no Property ID - cannot build a rent roll.");return;}
@@ -3549,7 +3549,7 @@ function dMonthsOut(dstr){
 function bedLabelN(b){const n=+b;if(n===0)return"Studio";if(n>=5)return"5+ BR";return n+" BR";}
 
 function openDashboard(ri){
-  track("dashboard");
+  track("pbs8:dashboard");
   const row=R[ri];
   const pix=IDX["Property ID"];
   const pid=pix!==undefined?row[pix]:null;
@@ -3906,7 +3906,7 @@ function bedLabel(b){
 }
 const money=v=>v===null||v===undefined?"\u2014":"$"+(+v).toLocaleString("en-US");
 function openTiers(contract,propName,overrideRows,isTiered){
-  track("rent_tiers");
+  track("pbs8:rent_tiers");
   /* display copy sorted by bedroom; the underlying array stays in HUD
      source order (the export logic depends on it) */
   const src=overrideRows||TIERS[contract]||[];
@@ -4220,7 +4220,7 @@ function applySaved(q){
     if(want!==VIEW_MODE)setViewMode(want);
     if(GEO&&MAP)drawGeoLayer();
     if(PENDING_ZIP){const z=PENDING_ZIP;PENDING_ZIP=null;applyZipBoundary(z,{quiet:true});}
-    track("search_apply");
+    track("pbs8:search_apply");
     document.getElementById("savedBtn").parentNode.classList.remove("open");
   }catch(e){ setStatus("Could not open that saved search: "+e.message); }
 }
@@ -4776,7 +4776,7 @@ document.getElementById("signOut").onclick=signOut;
 
   document.getElementById("whoName").textContent=AUTH.name||AUTH.email||"";
   loadSearches();
-  track("signin");
+  track("pbs8:signin");
   hideGate();
   try{
     await loadEverything();
