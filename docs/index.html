@@ -881,6 +881,12 @@
       font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5);
       margin-top: 3px; letter-spacing: .02em;
     }
+    .dt-sub a.dt-addr {
+      color: inherit; text-decoration: none;
+      border-bottom: 1px dotted rgba(255,255,255,.35); transition: color .15s, border-color .15s;
+    }
+    .dt-sub a.dt-addr:hover { color: #fff; border-bottom-color: #fff; }
+    .dt-addr-ic { margin-left: 4px; font-size: 10px; opacity: .7; }
     .dt-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
     .dash-back {
       display: flex; align-items: center; gap: 7px;
@@ -3562,8 +3568,20 @@ function openDashboard(ri){
   /* header */
   document.getElementById("dashName").textContent=''+(row[0]||"Property");
   const addr=[g("address_line1_text"),[g("City"),g("State")].filter(Boolean).join(", "),g("zip_code")].filter(Boolean).join(" \u00B7 ");
+  /* The address opens Google Maps. The search uses street, city and state
+     but leaves out the ZIP, because a few percent of HUD's ZIPs are wrong
+     and a bad ZIP can send Google to another city. With no street address,
+     it falls back to the property's map coordinates. */
+  const mapQ=[g("address_line1_text"),g("City"),g("State")].filter(Boolean).join(", ");
+  const ll=(pid!==null&&pid!==undefined&&typeof COORDS==="object"&&COORDS)?COORDS[''+pid]:null;
+  const mapTarget=g("address_line1_text")?mapQ:(ll?ll[0]+","+ll[1]:mapQ);
+  const addrHtml=mapTarget
+    ? '<a class="dt-addr" href="https://www.google.com/maps/search/?api=1&amp;query='
+      +encodeURIComponent(mapTarget)+'" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">'
+      +dEsc(addr||"View on map")+'<span class="dt-addr-ic">\u2197</span></a>'
+    : dEsc(addr);
   document.getElementById("dashSub").innerHTML=
-    dEsc(addr)+' &nbsp;|&nbsp; Property ID '+dEsc(pid??"\u2014")+' &nbsp;|&nbsp; '
+    addrHtml+' &nbsp;|&nbsp; Property ID '+dEsc(pid??"\u2014")+' &nbsp;|&nbsp; '
     +(rows.length>1
       ? '<span class="sub-badge">'+rows.length+' CONTRACTS</span>'
       : '1 contract');
