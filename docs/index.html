@@ -942,19 +942,20 @@
     .dash-right > * { grid-column: 1 / -1; min-width: 0; }
     .dash-right > .dr-snap { grid-column: 1; grid-row: 1; }
     .dash-right > .dr-ban { grid-column: 1; grid-row: 2; margin-top: 16px; }
-    .dash-right > .dz-card { grid-column: 2; grid-row: 1 / span 2; }
+    .dash-right > .dz-stack { grid-column: 2; grid-row: 1 / span 2; }
+    .dz-stack > .card + .card { margin-top: 16px; }
     .dash-right > .dr-rent { grid-row: 3; margin-top: 16px; }
     .dr-ban .dnote:last-child { margin-bottom: 0; }
     /* Wide screens: the dashboard stops at 1,500px, so the card moves out
        into the open space on the right and Snapshot keeps its full row. */
     @media (min-width: 1760px) {
       .dash-right { grid-template-columns: minmax(0,1fr); position: relative; }
-      .dash-right > .dz-card { position: absolute; top: 0; left: calc(100% + 16px); width: 220px; }
+      .dash-right > .dz-stack { position: absolute; top: 0; left: calc(100% + 16px); width: 220px; }
     }
     @media (max-width: 1100px) {
       .dash-right { grid-template-columns: 1fr; }
       .dash-right > * { grid-column: 1 !important; grid-row: auto !important; }
-      .dash-right > .dz-card { margin-top: 16px; }
+      .dash-right > .dz-stack { margin-top: 16px; }
     }
     .dz-card .card-b { padding: 4px 14px 6px; }
     .dz-row {
@@ -1875,6 +1876,8 @@ let COORDS={};     // property id -> [lat, lon] (HUD GIS layer)
 /* QCT / DDA membership and state OCAFs, refreshed on every update by
    refresh_extras.py and carried in property_coords.json */
 let QCT_SET=new Set(), DDA_SET=new Set(), OCAF=null, EXTRAS=null;
+/* contract -> {bedrooms: [FMR, increase at the last rent change]}, from rent_history.py */
+let RENTBED={};
 let VIEW_MODE="table", MAP=null, CLUSTER=null, mapStale=true, MAP_FITTED=false;
 /* map dot coloring: "flags" (multi-tier amber) or "safmr" (stoplight ramp) */
 let COLOR_MODE="renewal", MARKERS=[], _recolorTimer=null;
@@ -3518,7 +3521,7 @@ async function createRentRoll(ri){
         for(const [bk,bn] of bks){
           const u=R[mi][IDX[bk+" Units"]];
           if(u===null||u===undefined||+u<=0)continue;
-          sched.push({bed:bn,bedLabel:bk,count:Math.round(+u),rent:R[mi][IDX[bk+" Rent"]],ua:R[mi][IDX[bk+" UA"]],fmr:null,cno:cno,tier:1});
+          sched.push({bed:bn,bedLabel:bk,count:Math.round(+u),rent:R[mi][IDX[bk+" Rent"]],ua:R[mi][IDX[bk+" UA"]],fmr:((RENTBED[''+cno]||{})[''+bn]||[null])[0],cno:cno,tier:1});
         }
       }
     }
@@ -3706,8 +3709,10 @@ function renderDashFlags(pid,state,rent){
       +(v===undefined||v===null?"n/a":(+v).toFixed(1)+"%")+'</span></div>'
     : "";
   el.innerHTML=have
-    ? row("QCT","qct",QCT_SET,"Qualified Census Tract")+row("DDA","dda",DDA_SET,"Difficult Development Area")+ocaf+rentChangeRows(rent)
+    ? row("QCT","qct",QCT_SET,"Qualified Census Tract")+row("DDA","dda",DDA_SET,"Difficult Development Area")
     : '<div class="muted-note" style="padding:0">Designations not loaded.</div>';
+  const oc=document.getElementById("dashOcaf");
+  if(oc)oc.innerHTML=(ocaf+rentChangeRows(rent))||'<div class="muted-note" style="padding:0">OCAF not loaded.</div>';
 }
 function openDashboard(ri){
   track("pbs8:dashboard");
@@ -3752,6 +3757,7 @@ function openDashboard(ri){
   /* rent & UA matrix - one combined table, Contract column */
   const bks=[["0BR",0],["1BR",1],["2BR",2],["3BR",3],["4BR",4],["5BR+",5]];
   const lines=[];
+  const rbv=(c,b,k)=>{const e=RENTBED[''+c],v=e&&e[''+b];return (v&&v[k]!==null&&v[k]!==undefined)?v[k]:null;};
   for(const i of rows){
     const cno=g("Contract Number",i);
     const t=cno?TIERS[cno]:null;
@@ -3760,14 +3766,14 @@ function openDashboard(ri){
       for(const tr of t){
         if(tr[0]===null||tr[0]===undefined)continue;
         const b=+tr[0];seen[b]=(seen[b]||0)+1;
-        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3],ua:tr[4],
+        lines.push({cno,bed:b,tier:seen[b],units:tr[1],rent:tr[2],fmr:tr[3]||rbv(cno,b,0),ua:tr[4],inc:rbv(cno,b,1),
                   safmr:(b<=4?g(b+"BR SAFMR",i):null)});
       }
     }else{
       for(const [bk,bn] of bks){
         const u=g(bk+" Units",i), rt=g(bk+" Rent",i);
         if((u===null||+u===0)&&(rt===null))continue;
-        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:null,ua:g(bk+" UA",i),
+        lines.push({cno,bed:bn,tier:1,units:u,rent:rt,fmr:rbv(cno,bn,0),ua:g(bk+" UA",i),inc:rbv(cno,bn,1),
                     safmr:(bn<=4?g(bn+"BR SAFMR",i):null)});
       }
     }
@@ -3778,7 +3784,8 @@ function openDashboard(ri){
   const cnos=[...new Set(lines.map(l=>''+l.cno))];
   const cIdx={};cnos.forEach((c,i)=>cIdx[c]=(i%6)+1);
   const wt={u:0,rent:0,ua:0,gross:0,uRent:0,uUa:0,uGross:0,
-            safNum:0,safDen:0,fmr:0,uFmr:0,fmrNum:0,fmrDen:0,safmr:0,uSafmr:0};
+            safNum:0,safDen:0,fmr:0,uFmr:0,fmrNum:0,fmrDen:0,safmr:0,uSafmr:0,incNum:0,incDen:0};
+  const incTxt=v=>(v===null||v===undefined||isNaN(v))?"\u2014":(v>=0?"+":"\u2212")+Math.abs(v*100).toFixed(1)+"%";
   const body=lines.map((l,li)=>{
     const gross=(l.rent!==null&&l.ua!==null)?(+l.rent)+(+l.ua):(l.rent!==null?+l.rent:null);
     const r2f=(l.rent!==null&&l.fmr)?((+l.rent)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
@@ -3793,6 +3800,7 @@ function openDashboard(ri){
     if(u&&l.fmr){wt.fmr+=u*(+l.fmr);wt.uFmr+=u;}
     if(u&&l.rent!==null&&l.fmr){wt.fmrNum+=u*(+l.rent);wt.fmrDen+=u*(+l.fmr);}
     if(u&&l.safmr){wt.safmr+=u*(+l.safmr);wt.uSafmr+=u;}
+    if(u&&l.rent!==null&&l.inc!==null&&l.inc!==undefined){wt.incNum+=u*(+l.rent);wt.incDen+=u*(+l.rent)/(1+l.inc);}
     const isMulti=multiTier[l.cno+"|"+l.bed]>1;
     const newContract=rows.length>1&&(li===0||''+lines[li-1].cno!==''+l.cno||lines[li-1].bed!==l.bed);
     return `<tr class="${isMulti?"tier-row":""}">
@@ -3800,6 +3808,7 @@ function openDashboard(ri){
       ${rows.length>1?'<td><span class="cn-tag c'+cIdx[''+l.cno]+'">'+dEsc(l.cno)+'</span></td>':""}
       <td class="n r">${dNum(l.units)}</td>
       <td class="n r">${dMoney(l.rent)}</td>
+      <td class="n r">${incTxt(l.inc)}</td>
       <td class="n r">${dMoney(l.ua)}</td>
       <td class="n r">${dMoney(gross)}</td>
       <td class="n r">${dMoney(l.fmr)}</td>
@@ -3826,11 +3835,12 @@ function openDashboard(ri){
   const rentCard=`
     <div class="card">
       <div class="card-h">Rents &amp; Utility Allowances</div>
-      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is calculated from the rent schedule; the total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP.</div>
+      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is calculated from the rent schedule; the total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP. Incr Over Last Rent compares each contract rent to the rent before its last adjustment.</div>
       <table class="dtbl">
         <thead><tr>
           <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
-          <th class="r">Units</th><th class="r">Contract Rent</th><th class="r">Utility Allow.</th>
+          <th class="r">Units</th><th class="r">Contract Rent</th>
+          <th class="r" title="Change in contract rent at the last rent adjustment">Incr Over Last Rent</th><th class="r">Utility Allow.</th>
           <th class="r">Gross Rent</th><th class="r">FMR</th><th class="r">Rent/FMR</th>
           <th class="r">SAFMR</th><th class="r">Gross/SAFMR</th>
         </tr></thead>
@@ -3839,6 +3849,7 @@ function openDashboard(ri){
             <td>TOTAL / WTD. AVG.</td>${rows.length>1?"<td></td>":""}
             <td class="n r">${dNum(wt.u)}</td>
             <td class="n r">${dMoney(wAvg(wt.rent,wt.uRent))}</td>
+            <td class="n r">${wt.incDen>0?incTxt(wt.incNum/wt.incDen-1):"\u2014"}</td>
             <td class="n r">${dMoney(wAvg(wt.ua,wt.uUa))}</td>
             <td class="n r">${dMoney(wAvg(wt.gross,wt.uGross))}</td>
             <td class="n r">${dMoney(wAvg(wt.fmr,wt.uFmr))}</td>
@@ -3972,7 +3983,10 @@ function openDashboard(ri){
       <div class="dash-right">
         <div class="card dr-snap"><div class="card-h">Snapshot</div>${kpis}</div>
         ${banners?'<div class="dr-ban">'+banners+'</div>':''}
-        <div class="card dz-card"><div class="card-h">Designations</div><div class="card-b" id="dashFlags"></div></div>
+        <div class="dz-stack">
+          <div class="card dz-card"><div class="card-h">Designations</div><div class="card-b" id="dashFlags"></div></div>
+          <div class="card dz-card"><div class="card-h">OCAF &amp; Last Rent Increase</div><div class="card-b" id="dashOcaf"></div></div>
+        </div>
         <div class="dr-rent">${rentCard}</div>
         ${cterms}
       </div>
@@ -4965,7 +4979,7 @@ async function loadCoords(){
     const r=await authFetch("/data/property_coords.json");
     if(r.ok){const d=await r.json();COORDS=d.coords||{};
       QCT_SET=new Set((d.qct||[]).map(String));DDA_SET=new Set((d.dda||[]).map(String));
-      OCAF=d.ocaf||null;EXTRAS=d.extras||null;}
+      OCAF=d.ocaf||null;EXTRAS=d.extras||null;RENTBED=d.rentbed||{};}
   }catch(e){COORDS={};}
 }
 function openFromHash(){
