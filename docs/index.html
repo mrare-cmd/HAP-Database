@@ -1452,6 +1452,13 @@
       text-transform: uppercase; letter-spacing: .15em;
       white-space: nowrap; margin: 0 10px;
     }
+    /* HUD data notice: shown only while the site serves the restored snapshot */
+    .data-notice {
+      flex: 0 0 auto; padding: 7px 18px; text-align: center;
+      background: #fff4e0; color: #7a4a00; border-bottom: 1px solid #f0c987;
+      font-size: 12px; font-weight: 600; letter-spacing: .01em;
+    }
+    .data-notice[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -1527,6 +1534,7 @@
 
   </div>
 </header>
+<div id="dataNotice" class="data-notice" hidden></div>
 
 <div class="search-bar">
   <div class="field">
@@ -4606,8 +4614,24 @@ document.getElementById("whatsNewBtn").onclick=showWhatsNew;
    Nudges the user to refresh when the data is over two weeks old, or when
    a new month has started since the last update. Dismissible so it never
    blocks work, but it returns on every load until the data is updated. */
+/* HUD posted incorrect contract renewal and rent files on October 8, 2026,
+   so the site serves the October 7 snapshot. The banner shows only while
+   ASOF matches that snapshot. Once an update publishes newer data that
+   passes the completeness check, ASOF changes and the banner disappears.
+   To retire it for good, set DATA_NOTICE to null. */
+const DATA_NOTICE={asof:"2026-10-07",
+  text:"HUD published incorrect contract renewal and rent files on October 8, 2026. Until HUD corrects them, this database shows data as of October 7, 2026."};
+function dataNoticeOn(){return !!(DATA_NOTICE&&ASOF===DATA_NOTICE.asof);}
+function showDataNotice(){
+  const el=document.getElementById("dataNotice");if(!el)return;
+  const on=dataNoticeOn();
+  el.hidden=!on;
+  if(on)el.textContent=DATA_NOTICE.text;
+}
 function maybeStaleNotice(){
   if(!ASOF)return;
+  /* the data is deliberately held at the snapshot, so do not prompt an update */
+  if(dataNoticeOn())return;
   if(document.getElementById("staleNotice"))return;
   const asof=new Date(ASOF+"T00:00:00");
   if(isNaN(asof))return;
@@ -4654,6 +4678,7 @@ function applyData(d){
   const pix=IDX["Property ID"];
   if(pix!==undefined)for(const r of R){const pid=r[pix];if(pid!==null&&pid!==undefined)PROP_N[pid]=(PROP_N[pid]||0)+1;}
   document.getElementById("asofVal").textContent=ASOF||"\u2014";
+  showDataNotice();
   page=0;
   recompute();
   /* The filter strip may have been drawn from a URL before the rows existed
