@@ -969,6 +969,13 @@
     .dz-pill.no { background: #e9edf3; color: #6b7fa0; }
     .dz-pill.na { border: 1px dashed var(--rule-dark); color: var(--text-light); }
     .dz-v { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 700; color: var(--navy); white-space: nowrap; }
+    .dz-rent { align-items: flex-start; }
+    .dz-sub {
+      display: block; margin-top: 3px; font-size: 9.5px; font-weight: 600; letter-spacing: .01em;
+      text-transform: none; color: var(--text-light); line-height: 1.35;
+    }
+    .dz-v.dz-above { color: #c9721f; }
+    .dz-v.dz-below { color: #5b6f8f; }
     .ml-addr { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
     .ml-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .ml-btn {
@@ -2411,6 +2418,8 @@ function disp(colIx,v){
     if(isNaN(f))return""+v;
     if(c===RATIO||c===SAFMR_RATIO)return (f*100).toFixed(2)+"%";
     if(c==="Section 8 Coverage")return (f*100).toFixed(0)+"%";
+    if(c==="Last Rent Incr"||c==="OCAF at Change")return (f*100).toFixed(1)+"%";
+    if(c==="Incr vs OCAF")return (f>=0?"+":"\u2212")+Math.abs(f*100).toFixed(1)+" pts";
     if(INTC.has(c))return f.toLocaleString("en-US",{maximumFractionDigits:0});
     return f.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
   }
@@ -2627,7 +2636,8 @@ document.getElementById("exportBtn").onclick=async()=>{
       key:"c"+i,
       style: c==="Miles from Subject" ? {numFmt:"0.0"}
            : TByName[c]==="date" ? {numFmt:"m/d/yyyy"}
-           : TByName[c]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%":"#,##0")}
+           : TByName[c]==="num"  ? {numFmt:((c===RATIO||c===SAFMR_RATIO)?"0.00%":c==="Section 8 Coverage"?"0%"
+               :(c==="Last Rent Incr"||c==="OCAF at Change")?"0.0%":c==="Incr vs OCAF"?"+0.0%;-0.0%;0.0%":"#,##0")}
            : {}
     }));
 
@@ -3643,7 +3653,37 @@ const STATE_FULL={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"Califo
   GU:"Guam",AS:"American Samoa",MP:"Northern Mariana Islands"};
 /* QCT / DDA / OCAF card, to the right of Snapshot. The data comes from
    property_coords.json, which refresh_extras.py rebuilds on every update. */
-function renderDashFlags(pid,state){
+/* Last contract rent increase per contract, from rent_history.py, set
+   against the OCAF in effect on the contract's anniversary. */
+function rentChangeRows(rent){
+  if(!rent||!rent.length)return "";
+  const from=EXTRAS&&EXTRAS.rent_from;
+  if(!from&&!rent.some(r=>r.p!==null&&r.p!==undefined))return "";
+  const M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const md=s=>{const q=(''+(s||"")).split(/[\/-]/);
+    if(q.length!==3)return s||"";
+    return q[0].length===4?M[+q[1]-1]+" "+(+q[2])+", "+q[0]:M[+q[0]-1]+" "+(+q[1])+", "+q[2];};
+  const fy=s=>{const q=(''+s).split("/");return q.length===3?((+q[0]>2||(+q[0]===2&&+q[1]>=11))?+q[2]:+q[2]-1):"";};
+  return rent.map(r=>{
+    const tag=rent.length>1?dEsc(r.cn||"")+" \u00b7 ":"";
+    if(r.p===null||r.p===undefined)
+      return '<div class="dz-row dz-rent"><span class="dz-k">Last rent increase<span class="dz-sub">'+tag
+        +(from?"No change seen since "+md(from):"No change found")+'</span></span><span class="dz-v">\u2014</span></div>';
+    const pct=(r.p>=0?"+":"\u2212")+Math.abs(r.p*100).toFixed(1)+"%";
+    let cmp="OCAF not available",cls="";
+    if(r.o!==null&&r.o!==undefined){
+      const pts=(r.x||0)*100;
+      cmp=Math.abs(pts)<0.25?"in line with OCAF"
+         :Math.abs(pts).toFixed(1)+" pts "+(pts>0?"above":"below")+" OCAF";
+      cls=Math.abs(pts)<0.25?" dz-match":(pts>0?" dz-above":" dz-below");
+      cmp="OCAF FY "+fy(r.d)+" "+(r.o*100).toFixed(1)+"% \u00b7 "+cmp;
+    }
+    return '<div class="dz-row dz-rent" title="Contract rent change, unit-weighted across bedroom sizes">'
+      +'<span class="dz-k">Last rent increase<span class="dz-sub">'+tag+md(r.d)+' \u00b7 '+cmp+'</span></span>'
+      +'<span class="dz-v'+cls+'">'+pct+'</span></div>';
+  }).join("");
+}
+function renderDashFlags(pid,state,rent){
   const el=document.getElementById("dashFlags");if(!el)return;
   const have=!!EXTRAS;
   const located=pid!==null&&pid!==undefined&&COORDS&&COORDS[''+pid];
@@ -3666,7 +3706,7 @@ function renderDashFlags(pid,state){
       +(v===undefined||v===null?"n/a":(+v).toFixed(1)+"%")+'</span></div>'
     : "";
   el.innerHTML=have
-    ? row("QCT","qct",QCT_SET,"Qualified Census Tract")+row("DDA","dda",DDA_SET,"Difficult Development Area")+ocaf
+    ? row("QCT","qct",QCT_SET,"Qualified Census Tract")+row("DDA","dda",DDA_SET,"Difficult Development Area")+ocaf+rentChangeRows(rent)
     : '<div class="muted-note" style="padding:0">Designations not loaded.</div>';
 }
 function openDashboard(ri){
@@ -3942,7 +3982,8 @@ function openDashboard(ri){
       ${contactCard("Management Agent",g("mgmt_agent_org_name"),g("mgmt_agent_main_phone_number"),g("mgmt_contact_email_text"),g("mgmt_agent_city_name"),g("mgmt_agent_state_code"),null,null)}
     </div>
     <div class="row-2">${propCard}<div></div></div>`;
-  renderDashFlags(pid,g("State"));
+  renderDashFlags(pid,g("State"),rows.map(i=>({cn:g("Contract Number",i),d:g("Last Rent Change",i),
+    p:g("Last Rent Incr",i),o:g("OCAF at Change",i),x:g("Incr vs OCAF",i)})));
 
   document.getElementById("dashWrap").classList.add("open");
   document.body.style.overflow="hidden";
