@@ -935,6 +935,16 @@
       letter-spacing: .14em; text-transform: uppercase;
     }
     .card-b { padding: 14px; }
+    .ml-addr { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    .ml-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ml-btn {
+      display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
+      border: 1px solid var(--navy); border-radius: 3px; color: var(--navy);
+      background: #fff; text-decoration: none; font-size: 10px; font-weight: 800;
+      letter-spacing: .1em; text-transform: uppercase; transition: all .15s;
+    }
+    .ml-btn:hover { background: var(--navy); color: #fff; }
+    .ml-ic { font-size: 11px; opacity: .75; }
     #dashMap { height: 270px; background: var(--row-alt); }
 
     .kpis { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 1px; background: var(--rule); }
@@ -3622,20 +3632,17 @@ function openDashboard(ri){
   /* header */
   document.getElementById("dashName").textContent=''+(row[0]||"Property");
   const addr=[g("address_line1_text"),[g("City"),g("State")].filter(Boolean).join(", "),g("zip_code")].filter(Boolean).join(" \u00B7 ");
-  /* The address opens Google Maps. The search uses street, city and state
-     but leaves out the ZIP, because a few percent of HUD's ZIPs are wrong
-     and a bad ZIP can send Google to another city. With no street address,
-     it falls back to the property's map coordinates. */
+  /* Google Maps links (shown in their own card below REAC history). The
+     search uses street, city and state but leaves out the ZIP, because a few
+     percent of HUD's ZIPs are wrong and a bad ZIP can send Google to another
+     city. With no street address, it falls back to the map coordinates. */
   const mapQ=[g("address_line1_text"),g("City"),g("State")].filter(Boolean).join(", ");
   const ll=(pid!==null&&pid!==undefined&&typeof COORDS==="object"&&COORDS)?COORDS[''+pid]:null;
   const mapTarget=g("address_line1_text")?mapQ:(ll?ll[0]+","+ll[1]:mapQ);
-  const addrHtml=mapTarget
-    ? '<a class="dt-addr" href="https://www.google.com/maps/search/?api=1&amp;query='
-      +encodeURIComponent(mapTarget)+'" target="_blank" rel="noopener noreferrer" title="Open in Google Maps">'
-      +dEsc(addr||"View on map")+'<span class="dt-addr-ic">\u2197</span></a>'
-    : dEsc(addr);
+  const mapsUrl=mapTarget?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(mapTarget):null;
+  const streetUrl=ll?"https://www.google.com/maps/@?api=1&map_action=pano&viewpoint="+ll[0]+","+ll[1]:null;
   document.getElementById("dashSub").innerHTML=
-    addrHtml+' &nbsp;|&nbsp; Property ID '+dEsc(pid??"\u2014")+' &nbsp;|&nbsp; '
+    dEsc(addr)+' &nbsp;|&nbsp; Property ID '+dEsc(pid??"\u2014")+' &nbsp;|&nbsp; '
     +(rows.length>1
       ? '<span class="sub-badge">'+rows.length+' CONTRACTS</span>'
       : '1 contract');
@@ -3827,6 +3834,21 @@ function openDashboard(ri){
       </div></div>
     </div>`;
 
+  /* Google Maps card, placed under REAC history */
+  const mapBtn=(url,label)=>'<a class="ml-btn" href="'+dEsc(url)+'" target="_blank" rel="noopener noreferrer">'
+    +label+'<span class="ml-ic">\u2197</span></a>';
+  const mapCard=mapsUrl?`
+    <div class="card mt16">
+      <div class="card-h">Google Maps</div>
+      <div class="card-b">
+        ${addr?'<div class="ml-addr">'+dEsc(addr)+'</div>':""}
+        <div class="ml-row">
+          ${mapBtn(mapsUrl,"Open in Google Maps")}
+          ${streetUrl?mapBtn(streetUrl,"Street View"):""}
+        </div>
+      </div>
+    </div>`:"";
+
   /* property flags + details */
   const FL=[["is_202_811_ind","202/811"],["is_insured_ind","FHA Insured"],["is_236_ind","Section 236"],
             ["is_opportunity_zone_ind","Opportunity Zone"],["is_bmir_ind","BMIR"],["is_hud_held_ind","HUD Held"],
@@ -3857,6 +3879,7 @@ function openDashboard(ri){
         <div class="card"><div class="card-h">Location</div><div id="dashMap"></div>
           <div class="map-cap" id="dashMapInfo">&nbsp;</div></div>
         ${reacCard.replace('<div class="card">','<div class="card mt16">')}
+        ${mapCard}
       </div>
       <div>
         <div class="card"><div class="card-h">Snapshot</div>${kpis}</div>
