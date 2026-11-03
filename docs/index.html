@@ -935,6 +935,21 @@
       letter-spacing: .14em; text-transform: uppercase;
     }
     .card-b { padding: 14px; }
+    .snap-row { display: grid; grid-template-columns: minmax(0,1fr) 220px; gap: 16px; align-items: start; }
+    @media (max-width: 1100px) { .snap-row { grid-template-columns: 1fr; } }
+    .dz-card .card-b { padding: 4px 14px 6px; }
+    .dz-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--rule);
+    }
+    .dz-row:last-child { border-bottom: none; }
+    .dz-k { flex: 1; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-light); }
+    .dz-yr { font-weight: 600; letter-spacing: .04em; opacity: .75; }
+    .dz-pill { min-width: 46px; text-align: center; padding: 3px 10px; border-radius: 11px; font-size: 11px; font-weight: 800; }
+    .dz-pill.yes { background: #2e9e5b; color: #fff; }
+    .dz-pill.no { background: #e9edf3; color: #6b7fa0; }
+    .dz-pill.na { border: 1px dashed var(--rule-dark); color: var(--text-light); }
+    .dz-v { font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 700; color: var(--navy); white-space: nowrap; }
     .ml-addr { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 10px; }
     .ml-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .ml-btn {
@@ -1743,7 +1758,6 @@
         Back to Database
       </button>
     </div>
-    <div class="dt-flags" id="dashFlags"></div>
     </div>
   </div>
   <div class="dash-body" id="dashBody"></div>
@@ -3596,27 +3610,42 @@ function bedLabelN(b){const n=+b;if(n===0)return"Studio";if(n>=5)return"5+ BR";r
 
 /* QCT and DDA chips (green yes, gray no) and the state's latest OCAF.
    Membership is by the property's map location, matching the map overlays. */
+const STATE_FULL={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",
+  CT:"Connecticut",DE:"Delaware",DC:"District of Columbia",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",
+  IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",
+  MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",
+  NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",
+  ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",
+  SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",
+  WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico",VI:"Virgin Islands",
+  GU:"Guam",AS:"American Samoa",MP:"Northern Mariana Islands"};
+/* QCT / DDA / OCAF card, to the right of Snapshot. The data comes from
+   property_coords.json, which refresh_extras.py rebuilds on every update. */
 function renderDashFlags(pid,state){
   const el=document.getElementById("dashFlags");if(!el)return;
   const have=!!EXTRAS;
   const located=pid!==null&&pid!==undefined&&COORDS&&COORDS[''+pid];
   const yr=k=>((EXTRAS&&EXTRAS[k+"_layer"])||"").replace(/\D/g,"")||"";
-  const chip=(label,key,set,full)=>{
-    if(!have||!located)
-      return '<span class="dt-chip na" title="'+(have?"No map location for this property":"Not loaded yet")+'">'+label+' \u2014</span>';
-    const yes=set.has(''+pid);
-    return '<span class="dt-chip '+(yes?"yes":"no")+'" title="'+(yes?"Inside":"Not inside")+' a '+yr(key)+' '+full+' (HUD)">'
-      +'<span class="dt-chip-dot"></span>'+label+' '+(yes?"Yes":"No")+'</span>';
+  const row=(label,key,set,full)=>{
+    let cls="na",txt="\u2014",tip=have?"No map location for this property":"Not loaded yet";
+    if(have&&located){
+      const yes=set.has(''+pid);
+      cls=yes?"yes":"no";txt=yes?"Yes":"No";
+      tip=(yes?"Inside":"Not inside")+" a "+yr(key)+" "+full+" (HUD)";
+    }
+    return '<div class="dz-row" title="'+dEsc(tip)+'"><span class="dz-k">'+label
+      +(yr(key)?' <span class="dz-yr">'+yr(key)+'</span>':'')+'</span><span class="dz-pill '+cls+'">'+txt+'</span></div>';
   };
   const st=(''+(state||"")).trim().toUpperCase();
   const v=OCAF&&OCAF.by_state?OCAF.by_state[st]:undefined;
   const ocaf=OCAF
-    ? '<div class="dt-ocaf" title="HUD Operating Cost Adjustment Factor, '+dEsc(OCAF.fy||"")+'">OCAF '+dEsc(OCAF.fy||"")
-      +' \u00b7 '+dEsc(st||"\u2014")+' <b>'+(v===undefined||v===null?"n/a":(+v).toFixed(1)+"%")+'</b></div>'
+    ? '<div class="dz-row" title="HUD Operating Cost Adjustment Factor"><span class="dz-k">OCAF '+dEsc(OCAF.fy||"")
+      +' \u00b7 '+dEsc(STATE_FULL[st]||st||"\u2014")+'</span><span class="dz-v">'
+      +(v===undefined||v===null?"n/a":(+v).toFixed(1)+"%")+'</span></div>'
     : "";
   el.innerHTML=have
-    ? '<div class="dt-chips">'+chip("QCT","qct",QCT_SET,"Qualified Census Tract")+chip("DDA","dda",DDA_SET,"Difficult Development Area")+'</div>'+ocaf
-    : "";
+    ? row("QCT","qct",QCT_SET,"Qualified Census Tract")+row("DDA","dda",DDA_SET,"Difficult Development Area")+ocaf
+    : '<div class="muted-note" style="padding:0">Designations not loaded.</div>';
 }
 function openDashboard(ri){
   track("pbs8:dashboard");
@@ -3646,8 +3675,6 @@ function openDashboard(ri){
     +(rows.length>1
       ? '<span class="sub-badge">'+rows.length+' CONTRACTS</span>'
       : '1 contract');
-  renderDashFlags(pid,g("State"));
-
   /* KPIs */
   const totUnits=rows.reduce((a,i)=>a+(g("Total Units",i)!==null?+g("Total Units",i):0),0);
   const ratios=rows.map(i=>g("Rent-to-FMR Ratio",i)).filter(v=>v!==null&&v!==undefined);
@@ -3882,7 +3909,10 @@ function openDashboard(ri){
         ${mapCard}
       </div>
       <div>
-        <div class="card"><div class="card-h">Snapshot</div>${kpis}</div>
+        <div class="snap-row">
+          <div class="card"><div class="card-h">Snapshot</div>${kpis}</div>
+          <div class="card dz-card"><div class="card-h">Designations</div><div class="card-b" id="dashFlags"></div></div>
+        </div>
         <div class="mt16">${rentCard}</div>
         ${cterms}
       </div>
@@ -3892,6 +3922,7 @@ function openDashboard(ri){
       ${contactCard("Management Agent",g("mgmt_agent_org_name"),g("mgmt_agent_main_phone_number"),g("mgmt_contact_email_text"),g("mgmt_agent_city_name"),g("mgmt_agent_state_code"),null,null)}
     </div>
     <div class="row-2">${propCard}<div></div></div>`;
+  renderDashFlags(pid,g("State"));
 
   document.getElementById("dashWrap").classList.add("open");
   document.body.style.overflow="hidden";
