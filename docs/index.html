@@ -992,6 +992,9 @@
     .kpi .k-l {
       font-size: 9px; font-weight: 800; color: var(--text-light);
       letter-spacing: .14em; text-transform: uppercase;
+      /* every label gets room for three lines, so the values all start on
+         the same line no matter how each label wraps */
+      line-height: 1.2; min-height: 3.6em;
     }
     .kpi .k-v {
       font-size: 22px; font-weight: 800; color: var(--navy);
