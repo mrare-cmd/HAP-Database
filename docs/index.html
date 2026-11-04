@@ -3797,7 +3797,8 @@ function openDashboard(ri){
   const incTxt=v=>(v===null||v===undefined||isNaN(v))?"\u2014":(v>=0?"+":"\u2212")+Math.abs(v*100).toFixed(1)+"%";
   const body=lines.map((l,li)=>{
     const gross=(l.rent!==null&&l.ua!==null)?(+l.rent)+(+l.ua):(l.rent!==null?+l.rent:null);
-    const r2f=(l.rent!==null&&l.fmr)?((+l.rent)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
+    /* HUD's Rent-to-FMR ratio is gross rent (contract rent + UA) over FMR */
+    const r2f=(gross!==null&&l.fmr)?((gross)/(+l.fmr)*100).toFixed(1)+"%":"\u2014";
     /* SAFMRs are gross-rent standards, so compare gross rent to SAFMR */
     const r2s=(gross!==null&&l.safmr)?((gross)/(+l.safmr)*100).toFixed(1)+"%":"\u2014";
     const u=l.units?+l.units:0;
@@ -3807,7 +3808,7 @@ function openDashboard(ri){
     if(u&&gross!==null){wt.gross+=u*gross;wt.uGross+=u;}
     if(u&&gross!==null&&l.safmr){wt.safNum+=u*gross;wt.safDen+=u*(+l.safmr);}
     if(u&&l.fmr){wt.fmr+=u*(+l.fmr);wt.uFmr+=u;}
-    if(u&&l.rent!==null&&l.fmr){wt.fmrNum+=u*(+l.rent);wt.fmrDen+=u*(+l.fmr);}
+    if(u&&gross!==null&&l.fmr){wt.fmrNum+=u*gross;wt.fmrDen+=u*(+l.fmr);}
     if(u&&l.safmr){wt.safmr+=u*(+l.safmr);wt.uSafmr+=u;}
     if(u&&l.rent!==null&&l.inc!==null&&l.inc!==undefined){wt.incNum+=u*(+l.rent);wt.incDen+=u*(+l.rent)/(1+l.inc);}
     const isMulti=multiTier[l.cno+"|"+l.bed]>1;
@@ -3844,7 +3845,7 @@ function openDashboard(ri){
   const rentCard=`
     <div class="card">
       <div class="card-h">Rents &amp; Utility Allowances</div>
-      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is calculated from the rent schedule; the total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP. Incr Over Last Rent compares each contract rent to the rent before its last adjustment.</div>
+      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is gross rent (contract rent plus utility allowance) divided by that bedroom size's FMR, the same way HUD calculates its ratio. The total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP. Incr Over Last Rent compares each contract rent to the rent before its last adjustment.</div>
       <table class="dtbl">
         <thead><tr>
           <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
