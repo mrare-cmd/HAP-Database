@@ -2854,7 +2854,9 @@ function setStatusClock(msg,startMs,goalSec){
 document.getElementById("updateBtn").onclick=async function(){
   const btn=this;btn.disabled=true;
   const triggered=Date.now();
-  setStatusClock("Requesting update\u2026 pulling this month's HUD files and rebuilding. You can leave this tab open.",triggered,240);
+  setStatusClock(dataNoticeOn()
+    ?"Requesting update\u2026 Heads up. HUD's renewal and rent files have been incorrect since October 8, 2026, so this update will likely be held. You can leave this tab open."
+    :"Requesting update\u2026 pulling this month's HUD files and rebuilding. You can leave this tab open.",triggered,240);
   try{
     const r=await authFetch("/update",{method:"POST"});
     const j=await r.json().catch(()=>({}));
@@ -2887,7 +2889,14 @@ async function watchRun(triggered,suppressed){
       const fresh=new Date(run.created_at).getTime()>=triggered-90000;
       if(fresh||sawRunning){
         if(run.conclusion!=="success"){
-          setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab in the data repo.");
+          if(dataNoticeOn()&&run.conclusion==="failure"){
+            /* Expected while HUD's Oct 8 files are wrong. The completeness
+               check holds the data, and the extras still refresh. */
+            try{await loadCoords();}catch(e){}
+            setStatus(HUD_HOLD_MSG);
+          }else{
+            setStatus("The update run finished with status: "+run.conclusion+". Check the Actions tab in the data repo.");
+          }
           return;
         }
         break;
@@ -4820,6 +4829,11 @@ document.getElementById("whatsNewBtn").onclick=showWhatsNew;
 const DATA_NOTICE={asof:"2026-10-07",
   text:"HUD published incorrect contract renewal and rent files on October 8, 2026. Until HUD corrects them, this database shows data as of October 7, 2026."};
 function dataNoticeOn(){return !!(DATA_NOTICE&&ASOF===DATA_NOTICE.asof);}
+/* shown when someone presses Update while HUD's files are still wrong */
+const HUD_HOLD_MSG="This update was held on purpose, and nothing is broken. It is a HUD issue. "
+  +"HUD's contract renewal and rent files are still the incorrect ones it posted on October 8, 2026, "
+  +"so the safety check kept the database on its October 7 data. QCT, DDA, OCAF and rent history were still refreshed. "
+  +"Updates will go through on their own once HUD posts corrected files.";
 function showDataNotice(){
   const el=document.getElementById("dataNotice");if(!el)return;
   const on=dataNoticeOn();
