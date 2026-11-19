@@ -1530,6 +1530,17 @@
       font-size: 12px; font-weight: 600; letter-spacing: .01em;
     }
     .data-notice[hidden] { display: none; }
+    /* one-time green notice that HUD's files are fixed (see FIX_NOTICE) */
+    .fix-notice {
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      background: #e7f5ec; color: #1d5c34; border-bottom-color: #9fd4b0;
+    }
+    .fix-notice[hidden] { display: none; }
+    .fix-close {
+      border: 0; background: none; color: inherit; cursor: pointer;
+      font-size: 13px; font-weight: 800; line-height: 1; padding: 2px 4px; opacity: .7;
+    }
+    .fix-close:hover { opacity: 1; }
   </style>
 </head>
 <body>
@@ -1606,6 +1617,7 @@
   </div>
 </header>
 <div id="dataNotice" class="data-notice" hidden></div>
+<div id="fixNotice" class="data-notice fix-notice" hidden><span id="fixNoticeText"></span><button type="button" class="fix-close" title="Dismiss" aria-label="Dismiss">&#x2715;</button></div>
 
 <div class="search-bar">
   <div class="field">
@@ -4835,6 +4847,26 @@ const HUD_HOLD_MSG="This update was held on purpose, and nothing is broken. It i
   +"HUD's contract renewal and rent files are still the incorrect ones it posted on October 8, 2026, "
   +"so the safety check kept the database on its October 7 data. QCT, DDA, OCAF and rent history were still refreshed. "
   +"Updates will go through on their own once HUD posts corrected files.";
+/* Green notice that HUD fixed its files. Each person sees it once: on their
+   first visit with data newer than the Oct 7 snapshot it is shown and
+   remembered in this browser, and it stays up for that visit until dismissed.
+   To retire it, set FIX_NOTICE to null. */
+const FIX_NOTICE={key:"hap_hudfix_seen",after:"2026-10-07",
+  text:"HUD has corrected its files, this database is now current (was previously using October 7th, 2026 data)"};
+function showFixNotice(){
+  const el=document.getElementById("fixNotice");if(!el)return;
+  if(!FIX_NOTICE||!ASOF||ASOF<=FIX_NOTICE.after){el.hidden=true;return;}
+  if(el.dataset.done)return;
+  if(el.dataset.showing!=="1"){
+    let seen=null;try{seen=localStorage.getItem(FIX_NOTICE.key);}catch(e){}
+    if(seen){el.hidden=true;el.dataset.done="1";return;}
+    try{localStorage.setItem(FIX_NOTICE.key,"1");}catch(e){}
+    el.dataset.showing="1";
+  }
+  document.getElementById("fixNoticeText").textContent=FIX_NOTICE.text;
+  el.querySelector(".fix-close").onclick=()=>{el.hidden=true;el.dataset.done="1";};
+  el.hidden=false;
+}
 function showDataNotice(){
   const el=document.getElementById("dataNotice");if(!el)return;
   const on=dataNoticeOn();
@@ -4892,6 +4924,7 @@ function applyData(d){
   if(pix!==undefined)for(const r of R){const pid=r[pix];if(pid!==null&&pid!==undefined)PROP_N[pid]=(PROP_N[pid]||0)+1;}
   document.getElementById("asofVal").textContent=ASOF||"\u2014";
   showDataNotice();
+  showFixNotice();
   page=0;
   recompute();
   /* The filter strip may have been drawn from a URL before the rows existed
