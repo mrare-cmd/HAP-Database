@@ -3836,6 +3836,7 @@ function openDashboard(ri){
       <td class="n r">${dMoney(l.fmr)}</td>
       <td class="n r">${r2f}</td>
       <td class="n r">${dMoney(l.safmr)}</td>
+      <td class="n r">${dMoney(l.safmr?Math.round(1.5*(+l.safmr)):null)}</td>
       <td class="n r">${r2s}</td>
     </tr>`;}).join("");
   const wAvg=(sum,units)=>units?Math.round(sum/units):null;
@@ -3857,14 +3858,14 @@ function openDashboard(ri){
   const rentCard=`
     <div class="card">
       <div class="card-h">Rents &amp; Utility Allowances</div>
-      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is gross rent (contract rent plus utility allowance) divided by that bedroom size's FMR, the same way HUD calculates its ratio. The total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP. Incr Over Last Rent compares each contract rent to the rent before its last adjustment.</div>
+      ${lines.length?`<div class="tbl-note">Rent/FMR per bedroom is gross rent (contract rent plus utility allowance) divided by that bedroom size's FMR, the same way HUD calculates its ratio. The total (*) is HUD's published contract-level ratio, which governs. Gross/SAFMR compares gross rent (contract rent + utility allowance) to HUD's Small Area FMR for the property's ZIP. 150% SAFMR is one and a half times that SAFMR. Incr Over Last Rent compares each contract rent to the rent before its last adjustment.</div>
       <table class="dtbl">
         <thead><tr>
           <th>Bedroom</th>${rows.length>1?"<th>Contract</th>":""}
           <th class="r">Units</th><th class="r">Contract Rent</th>
           <th class="r" title="Change in contract rent at the last rent adjustment">Incr Over Last Rent</th><th class="r">Utility Allow.</th>
           <th class="r">Gross Rent</th><th class="r">FMR</th><th class="r">Rent/FMR</th>
-          <th class="r">SAFMR</th><th class="r">Gross/SAFMR</th>
+          <th class="r">SAFMR</th><th class="r" title="150% of the Small Area FMR for this bedroom size">150% SAFMR</th><th class="r">Gross/SAFMR</th>
         </tr></thead>
         <tbody>${body}
           <tr class="tot">
@@ -3877,6 +3878,7 @@ function openDashboard(ri){
             <td class="n r">${dMoney(wAvg(wt.fmr,wt.uFmr))}</td>
             <td class="n r" title="HUD's published contract-level rent-to-FMR ratio">${avgRatio===null?"\u2014":(avgRatio*100).toFixed(1)+"%*"}</td>
             <td class="n r">${dMoney(wAvg(wt.safmr,wt.uSafmr))}</td>
+            <td class="n r">${dMoney(wt.uSafmr?Math.round(1.5*wt.safmr/wt.uSafmr):null)}</td>
             <td class="n r">${wt.safDen>0?((wt.safNum/wt.safDen)*100).toFixed(1)+"%":"\u2014"}</td>
           </tr>
         </tbody></table>`:'<div class="muted-note">No unit-level rent data published for this property.</div>'}
